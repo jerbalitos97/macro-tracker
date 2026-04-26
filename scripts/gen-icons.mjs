@@ -1,12 +1,15 @@
 /**
- * Generates solid-color PNG icons without external dependencies.
- * Uses raw PNG byte construction via Node's built-in zlib.
+ * Generates PWA icons from a hand-crafted SVG flame using sharp (WASM-free,
+ * pre-built binaries). No native compilation needed on macOS/Linux/Windows.
  *
  * Usage: node scripts/gen-icons.mjs
- * Output: public/icons/icon-192.png  public/icons/icon-512.png
+ * Output:
+ *   public/icons/icon-192.png
+ *   public/icons/icon-512.png
+ *   public/icons/favicon-32.png
  */
 
-import { deflateSync } from 'zlib'
+import sharp from 'sharp'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -14,97 +17,59 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 
-// Brand colours
-const BG  = [0x0a, 0x0a, 0x0a]   // #0a0a0a
-const FG  = [0xd4, 0xb8, 0x5a]   // #d4b85a
+// ─── Design ──────────────────────────────────────────────────────────────────
+// Dark square with rounded corners.
+// A bold geometric flame centred in the lower ⅔ of the canvas.
+// Single gold accent (#d4b85a) on #111 background — no gradients, no shadows.
+//
+// Flame anatomy (in a 512-unit viewBox):
+//   • Outer flame  — warm gold, wide teardrop that tapers to a tip at y=90
+//   • Inner detail — slightly darker cutout creating visual depth at the core
+// ─────────────────────────────────────────────────────────────────────────────
 
-function makePNG(size) {
-  const w = size
-  const h = size
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background with rounded corners matching iOS icon mask -->
+  <rect width="512" height="512" rx="112" fill="#111111"/>
 
-  // Build raw RGBA scanlines – draw a centred "M" glyph in gold on dark bg
-  const raw = []
-  for (let y = 0; y < h; y++) {
-    raw.push(0) // filter byte per row
-    for (let x = 0; x < w; x++) {
-      const fx = x / w
-      const fy = y / h
-      // Simple "M" silhouette using normalised coords
-      const inGlyph = (() => {
-        if (fx < 0.15 || fx > 0.85) return false
-        if (fy < 0.15 || fy > 0.85) return false
-        const lx = fx - 0.15
-        const rx = 0.85 - fx
-        const stem = 0.08 * (w / 192)
-        const nw = 0.12 * (w / 192)
-        if (lx < stem) return true   // left stem
-        if (rx < stem) return true   // right stem
-        // Diagonals from top of stems downward
-        const midX = 0.5
-        const peakY = 0.35
-        const distL = Math.abs((fx - 0.15) / (midX - 0.15) - (fy - 0.15) / (peakY - 0.15))
-        const distR = Math.abs((fx - 0.85) / (midX - 0.85) - (fy - 0.15) / (peakY - 0.15))
-        if (fy <= peakY && distL < nw) return true
-        if (fy <= peakY && distR < nw) return true
-        return false
-      })()
+  <!-- Outer flame -->
+  <path d="
+    M 256 88
+    C 296 128 368 178 372 268
+    C 376 338 340 390 296 420
+    C 318 382 316 342 290 316
+    C 296 366 268 402 256 422
+    C 244 402 216 366 222 316
+    C 196 342 194 382 216 420
+    C 172 390 136 338 140 268
+    C 144 178 216 128 256 88
+    Z
+  " fill="#d4b85a"/>
 
-      const [r, g, b] = inGlyph ? FG : BG
-      raw.push(r, g, b, 0xff)
-    }
-  }
-
-  const rawBuf = Buffer.from(raw)
-  const compressed = deflateSync(rawBuf)
-
-  // PNG chunks
-  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
-
-  function chunk(type, data) {
-    const len = Buffer.alloc(4)
-    len.writeUInt32BE(data.length)
-    const typeB = Buffer.from(type)
-    const crcBuf = Buffer.concat([typeB, data])
-    const crc = crc32(crcBuf)
-    const crcOut = Buffer.alloc(4)
-    crcOut.writeInt32BE(crc)
-    return Buffer.concat([len, typeB, data, crcOut])
-  }
-
-  // IHDR
-  const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(w, 0)
-  ihdr.writeUInt32BE(h, 4)
-  ihdr[8] = 8   // bit depth
-  ihdr[9] = 2   // colour type: RGB (no alpha in IHDR; we use RGBA in IDAT)
-  // Actually use colour type 6 = RGBA
-  ihdr[9] = 6
-  ihdr[10] = 0  // compression
-  ihdr[11] = 0  // filter
-  ihdr[12] = 0  // interlace
-
-  const idat = chunk('IDAT', compressed)
-  const iend = chunk('IEND', Buffer.alloc(0))
-
-  return Buffer.concat([sig, chunk('IHDR', ihdr), idat, iend])
-}
-
-// Minimal CRC-32
-function crc32(buf) {
-  let crc = -1
-  for (const byte of buf) {
-    crc ^= byte
-    for (let j = 0; j < 8; j++) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
-    }
-  }
-  return (crc ^ -1) | 0
-}
+  <!-- Inner core — creates the 'hot centre' illusion -->
+  <path d="
+    M 256 248
+    C 272 268 282 298 278 326
+    C 274 348 266 364 256 374
+    C 246 364 238 348 234 326
+    C 230 298 240 268 256 248
+    Z
+  " fill="#111111" opacity="0.35"/>
+</svg>`
 
 mkdirSync(join(ROOT, 'public/icons'), { recursive: true })
 
-for (const size of [192, 512]) {
-  const outPath = join(ROOT, `public/icons/icon-${size}.png`)
-  writeFileSync(outPath, makePNG(size))
-  console.log(`✓ ${outPath}`)
+const sizes = [
+  { size: 512, name: 'icon-512.png' },
+  { size: 192, name: 'icon-192.png' },
+  { size: 32,  name: 'favicon-32.png' },
+]
+
+for (const { size, name } of sizes) {
+  const outPath = join(ROOT, `public/icons/${name}`)
+  const png = await sharp(Buffer.from(SVG))
+    .resize(size, size)
+    .png()
+    .toBuffer()
+  writeFileSync(outPath, png)
+  console.log(`✓ ${outPath}  (${(png.length / 1024).toFixed(1)} KB)`)
 }

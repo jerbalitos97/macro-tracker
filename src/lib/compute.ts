@@ -1,4 +1,12 @@
-import type { Settings, SpecialEvent, ExtraWorkout, Meal, ComputedDay, ComputedResult } from '../types'
+import type {
+  Settings,
+  SpecialEvent,
+  ExtraWorkout,
+  Meal,
+  TrainingBurn,
+  ComputedDay,
+  ComputedResult,
+} from '../types'
 import { addDays, daysBetween, getWeekdayNum, toISO } from './dates'
 
 export function computeDays(
@@ -6,6 +14,7 @@ export function computeDays(
   events: SpecialEvent[],
   extras: ExtraWorkout[],
   meals: Meal[],
+  burns: TrainingBurn[] = [],
 ): ComputedResult {
   const days: ComputedDay[] = []
   const total = daysBetween(settings.startDate, settings.endDate) + 1
@@ -24,7 +33,7 @@ export function computeDays(
     events.forEach((e) => {
       if (!e.bufferDays || e.bufferDays < 1) return
       const direction = e.bufferDirection ?? 'before'
-      const diff = daysBetween(date, e.date) // pos = e is later, neg = e was earlier
+      const diff = daysBetween(date, e.date)
 
       if (direction === 'before') {
         if (diff > 0 && diff <= e.bufferDays) {
@@ -48,6 +57,9 @@ export function computeDays(
     const extraOnDay = extras.filter((x) => x.date === date)
     const extraKcal = extraOnDay.reduce((sum, x) => sum + Number(x.kcal), 0)
 
+    const dayBurns = burns.filter((b) => b.date === date)
+    const burnKcal = dayBurns.reduce((sum, b) => sum + Number(b.kcal), 0)
+
     const dayType = settings.weeklyPattern[dow] ?? 'rest'
     const baseTdee = settings.tdee[dayType] ?? settings.tdee.rest
 
@@ -69,6 +81,9 @@ export function computeDays(
     const consumed = dayMeals.reduce((s, m) => s + Number(m.kcal), 0)
     const protein = dayMeals.reduce((s, m) => s + Number(m.protein), 0)
 
+    // Net consumed: logged food minus training burns (never negative)
+    const netConsumed = Math.max(0, consumed - burnKcal)
+
     days.push({
       date,
       dow,
@@ -79,6 +94,8 @@ export function computeDays(
       protein,
       preBufferReduction,
       extraKcal,
+      burnKcal,
+      netConsumed,
       event: eventOnDay ?? null,
       note,
       dailyDeficitBase: Math.round(dailyDeficitBase),
@@ -88,11 +105,11 @@ export function computeDays(
   const todayISO = toISO(new Date())
   let cumulativeDeficit = 0
   days.forEach((d) => {
-    if (d.consumed > 0) {
-      const actualDeficit = d.baseTdee + d.extraKcal - d.consumed
-      d.actualDeficit = actualDeficit
+    if (d.consumed > 0 || d.burnKcal > 0) {
+      // actualDeficit uses netConsumed so training burns improve the deficit
+      d.actualDeficit = d.baseTdee + d.extraKcal - d.netConsumed
     }
-    if (d.date < todayISO && d.consumed > 0) {
+    if (d.date < todayISO && (d.consumed > 0 || d.burnKcal > 0)) {
       cumulativeDeficit += d.actualDeficit ?? 0
     }
   })

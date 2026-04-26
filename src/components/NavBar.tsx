@@ -17,20 +17,27 @@ const TABS: { id: View; label: string }[] = [
 
 export function NavBar({ view, setView }: Props) {
   return (
-    <div style={s.navBar}>
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => setView(tab.id)}
-          style={{
-            ...s.navBtn,
-            color: view === tab.id ? '#d4b85a' : '#666',
-            borderBottom: view === tab.id ? '2px solid #d4b85a' : '2px solid transparent',
-          }}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <nav style={s.navBar}>
+      {TABS.map((tab) => {
+        const active = view === tab.id
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setView(tab.id)}
+            style={{
+              ...s.navBtn,
+              color: active ? '#d4b85a' : '#555',
+              backgroundColor: active ? 'rgba(212,184,90,0.07)' : 'transparent',
+              borderBottom: active ? '2px solid #d4b85a' : '2px solid transparent',
+              transition: 'color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease',
+              // override global button active scale so nav doesn't jiggle
+              fontWeight: active ? 600 : 400,
+            }}
+          >
+            {tab.label}
+          </button>
+        )
+      })}
+    </nav>
   )
 }

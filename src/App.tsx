@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, AppData } from './types'
+import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, AppData } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
@@ -43,6 +43,7 @@ export default function App() {
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [weights, setWeights] = useState<WeightEntry[]>([])
+  const [burns, setBurns] = useState<TrainingBurn[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selectedDate, setSelectedDate] = useState(toISO(new Date()))
   const [saveError, setSaveError] = useState<'quota' | 'error' | null>(null)
@@ -56,29 +57,26 @@ export default function App() {
       if (data.extras) setExtras(data.extras)
       if (data.meals) setMeals(data.meals)
       if (data.weights) setWeights(data.weights)
+      if (data.burns) setBurns(data.burns)
     }
     setLoaded(true)
   }, [])
 
-  // Persist on every change — report quota/error visibly
+  // Persist on every change
   useEffect(() => {
     if (!loaded) return
-    const status = saveData({ settings, events, extras, meals, weights })
-    if (status !== 'ok') {
-      setSaveError(status)
-    } else {
-      setSaveError(null)
-    }
-  }, [settings, events, extras, meals, weights, loaded])
+    const status = saveData({ settings, events, extras, meals, weights, burns })
+    setSaveError(status !== 'ok' ? status : null)
+  }, [settings, events, extras, meals, weights, burns, loaded])
 
   const computed = useMemo(
-    () => computeDays(settings, events, extras, meals),
-    [settings, events, extras, meals]
+    () => computeDays(settings, events, extras, meals, burns),
+    [settings, events, extras, meals, burns]
   )
 
   const appData: AppData = useMemo(
-    () => ({ settings, events, extras, meals, weights }),
-    [settings, events, extras, meals, weights]
+    () => ({ settings, events, extras, meals, weights, burns }),
+    [settings, events, extras, meals, weights, burns]
   )
 
   const usedBytes = useMemo(() => storageUsedBytes(appData), [appData])
@@ -87,16 +85,14 @@ export default function App() {
 
   const handleImport = (json: string) => {
     const data = importJSON(json)
-    if (!data) {
-      alert('Tiedosto ei ole kelvollinen varmuuskopio.')
-      return
-    }
+    if (!data) { alert('Tiedosto ei ole kelvollinen varmuuskopio.'); return }
     if (!window.confirm('Tämä korvaa kaiken nykyisen datan. Jatketaanko?')) return
     if (data.settings) setSettings(data.settings)
     setEvents(data.events ?? [])
     setExtras(data.extras ?? [])
     setMeals(data.meals ?? [])
     setWeights(data.weights ?? [])
+    setBurns(data.burns ?? [])
   }
 
   const todayISO = toISO(new Date())
@@ -113,100 +109,94 @@ export default function App() {
     <div style={s.app}>
       {/* Storage error banner */}
       {saveError && (
-        <div
-          style={{
-            backgroundColor: saveError === 'quota' ? '#3a1a0e' : '#2a0e0e',
-            borderBottom: `1px solid ${saveError === 'quota' ? '#e87a6a' : '#e84a4a'}`,
-            padding: '10px 16px',
-            fontSize: 12,
-            color: '#e87a6a',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
+        <div style={{
+          backgroundColor: saveError === 'quota' ? '#3a1a0e' : '#2a0e0e',
+          borderBottom: `1px solid ${saveError === 'quota' ? '#e87a6a' : '#e84a4a'}`,
+          padding: '10px 16px',
+          fontSize: 12,
+          color: '#e87a6a',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}>
           <span>
             {saveError === 'quota'
-              ? '⚠️ Tallennustila täynnä – vie varmuuskopio Asetuksista ja poista vanhoja kirjauksia.'
+              ? '⚠️ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
               : '⚠️ Tallennus epäonnistui – tarkista selainasetusten tallennuslupa.'}
           </span>
-          <button
-            onClick={() => setSaveError(null)}
-            style={{ ...s.iconBtn, fontSize: 16, padding: 0, flexShrink: 0 }}
-          >
-            ×
-          </button>
+          <button onClick={() => setSaveError(null)} style={{ ...s.iconBtn, fontSize: 18, minHeight: 'auto' }}>×</button>
         </div>
       )}
 
       <NavBar view={view} setView={setView} />
 
       {view === 'today' && (
-        <TodayView
-          day={computed.days.find((d) => d.date === todayISO)}
-          meals={meals.filter((m) => m.date === todayISO)}
-          proteinTarget={settings.proteinTarget}
-          computed={computed}
-          onAddMeal={(meal) =>
-            setMeals([...meals, { ...meal, id: Date.now(), date: todayISO }])
-          }
-          onDeleteMeal={(id) => setMeals(meals.filter((m) => m.id !== id))}
-        />
+        <div className="view-enter">
+          <TodayView
+            day={computed.days.find((d) => d.date === todayISO)}
+            meals={meals.filter((m) => m.date === todayISO)}
+            burns={burns.filter((b) => b.date === todayISO)}
+            proteinTarget={settings.proteinTarget}
+            computed={computed}
+            onAddMeal={(meal) => setMeals([...meals, { ...meal, id: Date.now(), date: todayISO }])}
+            onDeleteMeal={(id) => setMeals(meals.filter((m) => m.id !== id))}
+            onAddBurn={(burn) => setBurns([...burns, { ...burn, id: Date.now(), date: todayISO }])}
+            onDeleteBurn={(id) => setBurns(burns.filter((b) => b.id !== id))}
+          />
+        </div>
       )}
 
       {view === 'calendar' && (
-        <CalendarView
-          computed={computed}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          selectedDay={computed.days.find((d) => d.date === selectedDate)}
-          events={events}
-          extras={extras}
-          onAddEvent={(ev) => setEvents([...events, { ...ev, id: Date.now() }])}
-          onDeleteEvent={(id) => setEvents(events.filter((e) => e.id !== id))}
-          onAddExtra={(ex) => setExtras([...extras, { ...ex, id: Date.now() }])}
-          onDeleteExtra={(id) => setExtras(extras.filter((e) => e.id !== id))}
-        />
+        <div className="view-enter">
+          <CalendarView
+            computed={computed}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedDay={computed.days.find((d) => d.date === selectedDate)}
+            events={events}
+            extras={extras}
+            onAddEvent={(ev) => setEvents([...events, { ...ev, id: Date.now() }])}
+            onDeleteEvent={(id) => setEvents(events.filter((e) => e.id !== id))}
+            onAddExtra={(ex) => setExtras([...extras, { ...ex, id: Date.now() }])}
+            onDeleteExtra={(id) => setExtras(extras.filter((e) => e.id !== id))}
+          />
+        </div>
       )}
 
       {view === 'weight' && (
-        <WeightView
-          weights={weights}
-          onAddWeight={(w) => {
-            const filtered = weights.filter((x) => x.date !== w.date)
-            setWeights(
-              [...filtered, { ...w, id: Date.now() }].sort((a, b) =>
-                a.date.localeCompare(b.date)
-              )
-            )
-          }}
-          onDeleteWeight={(id) => setWeights(weights.filter((w) => w.id !== id))}
-          onToggleExclude={(id) =>
-            setWeights(
-              weights.map((w) =>
-                w.id === id ? { ...w, excludeFromTrend: !w.excludeFromTrend } : w
-              )
-            )
-          }
-          settings={settings}
-          meals={meals}
-        />
+        <div className="view-enter">
+          <WeightView
+            weights={weights}
+            onAddWeight={(w) => {
+              const filtered = weights.filter((x) => x.date !== w.date)
+              setWeights([...filtered, { ...w, id: Date.now() }].sort((a, b) => a.date.localeCompare(b.date)))
+            }}
+            onDeleteWeight={(id) => setWeights(weights.filter((w) => w.id !== id))}
+            onToggleExclude={(id) => setWeights(weights.map((w) => w.id === id ? { ...w, excludeFromTrend: !w.excludeFromTrend } : w))}
+            settings={settings}
+            meals={meals}
+          />
+        </div>
       )}
 
       {view === 'history' && (
-        <HistoryView computed={computed} settings={settings} weights={weights} />
+        <div className="view-enter">
+          <HistoryView computed={computed} settings={settings} weights={weights} />
+        </div>
       )}
 
       {view === 'settings' && (
-        <SettingsView
-          settings={settings}
-          setSettings={setSettings}
-          computed={computed}
-          usedBytes={usedBytes}
-          onExport={handleExport}
-          onImport={handleImport}
-        />
+        <div className="view-enter">
+          <SettingsView
+            settings={settings}
+            setSettings={setSettings}
+            computed={computed}
+            usedBytes={usedBytes}
+            onExport={handleExport}
+            onImport={handleImport}
+          />
+        </div>
       )}
     </div>
   )

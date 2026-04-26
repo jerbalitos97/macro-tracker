@@ -19,7 +19,7 @@ export function ExtraModal({ defaultDate, onSave, onClose }: Props) {
 
   return (
     <div style={s.modalBg} onClick={onClose}>
-      <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+      <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
         <div style={s.modalTitle}>Ekstratreeni / kävely</div>
 
         <label style={s.inputLabel}>Päivä</label>

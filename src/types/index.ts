@@ -48,6 +48,18 @@ export interface WeightEntry {
   excludeFromTrend: boolean
 }
 
+/**
+ * Training burn logged on the Today view.
+ * Reduces net consumed for the day, improving the deficit.
+ * Distinct from ExtraWorkout (which raises the day's budget).
+ */
+export interface TrainingBurn {
+  id: number
+  date: string
+  kcal: number
+  note: string
+}
+
 export interface ComputedDay {
   date: string
   dow: number
@@ -58,6 +70,8 @@ export interface ComputedDay {
   protein: number
   preBufferReduction: number
   extraKcal: number
+  burnKcal: number       // training burns on this day
+  netConsumed: number    // consumed - burnKcal (≥ 0), used for deficit calc
   event: SpecialEvent | null
   note: string
   dailyDeficitBase: number
@@ -79,6 +93,7 @@ export interface AppData {
   extras: ExtraWorkout[]
   meals: Meal[]
   weights: WeightEntry[]
+  burns: TrainingBurn[]
 }
 
 export interface WeightTrend {

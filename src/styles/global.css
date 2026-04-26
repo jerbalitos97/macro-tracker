@@ -20,18 +20,37 @@ html, body {
   height: 100%;
 }
 
-/* Prevent tap highlight on mobile */
-button, a {
+/* ── Touch targets ───────────────────────────────────────────────────────── */
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── Tap feedback ────────────────────────────────────────────────────────── */
+button {
+  transition: transform 0.1s ease, opacity 0.12s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+button:active {
+  transform: scale(0.96);
+  opacity: 0.75;
+}
 
-/* Smooth scrolling */
+/* ── Input focus ring ────────────────────────────────────────────────────── */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #d4b85a;
+  outline-offset: 0;
+}
+
+/* ── Smooth scrolling ────────────────────────────────────────────────────── */
 * {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Remove number input spinners */
+/* ── Remove number input spinners ────────────────────────────────────────── */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -41,7 +60,36 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Date input colour on iOS */
-input[type="date"] {
+/* ── Date / select colour on iOS ─────────────────────────────────────────── */
+input[type="date"],
+select {
   color-scheme: dark;
+}
+
+/* ── View enter animation ────────────────────────────────────────────────── */
+@keyframes viewFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.view-enter {
+  animation: viewFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Modal slide-up animation ────────────────────────────────────────────── */
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-enter {
+  animation: modalSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Save flash animation ────────────────────────────────────────────────── */
+@keyframes saveFlash {
+  0%   { opacity: 0; transform: scale(0.85); }
+  40%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.save-flash {
+  animation: saveFlash 0.9s ease forwards;
 }
