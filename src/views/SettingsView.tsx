@@ -243,7 +243,8 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
         </div>
         <div style={{ fontSize: 10, color: '#555', marginTop: 10, lineHeight: 1.5 }}>
           Tuonti korvaa kaiken nykyisen datan. Vie ensin varmuuskopio ennen tuontia.{'\n'}
-          iOS: tallennustila tyhjenee jos poistat sovelluksen kotinäytöltä.
+          Data säilyy vaikka poistaisit pikakuvakkeen kotinäytöltä — se asuu Safarin
+          sivustomuistissa. Poistaminen ei tyhjennä dataa.
         </div>
       </div>
     </div>
