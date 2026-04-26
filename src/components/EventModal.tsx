@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PartyPopper } from 'lucide-react'
 import type { SpecialEvent, BufferDirection } from '../types'
 import { toISO } from '../lib/dates'
 import { s } from '../styles/tokens'
@@ -50,7 +51,7 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
       style={{
         ...s.toggleBtn,
         ...(form.bufferDirection === dir ? s.toggleBtnActive : {}),
-        opacity: disabled ? 0.4 : 1,
+        opacity: disabled ? 0.35 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
@@ -61,7 +62,17 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
   return (
     <div style={s.modalBg} onClick={onClose}>
       <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
-        <div style={s.modalTitle}>Juhlapäivä</div>
+        {/* Handle bar */}
+        <div style={{
+          width: 36, height: 4, borderRadius: 2,
+          backgroundColor: 'rgba(255,255,255,0.15)',
+          margin: '-8px auto 20px',
+        }} />
+
+        <div style={s.modalTitle}>
+          <PartyPopper size={14} />
+          Juhlapäivä
+        </div>
 
         <label style={s.inputLabel}>Päivä</label>
         <input
@@ -78,9 +89,10 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           style={s.input}
           placeholder="esim. synttärit"
+          autoFocus
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
             <label style={s.inputLabel}>Arvio ylimäärä (kcal)</label>
             <input
@@ -108,29 +120,29 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
         </div>
 
         {form.bufferDays > 0 && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 4 }}>
             <label style={s.inputLabel}>Buffer-suunta</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               {dirBtn('before', 'Ennen', isPastOrToday)}
               {dirBtn('after', 'Jälkeen')}
               {dirBtn('both', 'Molemmat', isPastOrToday)}
             </div>
-            <div style={{ fontSize: 10, color: '#666', marginTop: 6, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 10, color: '#555', marginTop: 7, lineHeight: 1.5 }}>
               {bufferLabel()}
             </div>
             {isPastOrToday && (
-              <div style={{ fontSize: 10, color: '#e87a6a', marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: '#e87a6a', marginTop: 4, lineHeight: 1.4 }}>
                 Juhla on tänään tai menneisyydessä → vain "Jälkeen" mahdollinen
               </div>
             )}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
           <button
             onClick={() => form.name && onSave(form)}
             disabled={!form.name}
-            style={{ ...s.primaryBtn, opacity: form.name ? 1 : 0.4 }}
+            style={{ ...s.primaryBtn, opacity: form.name ? 1 : 0.35 }}
           >
             Tallenna
           </button>

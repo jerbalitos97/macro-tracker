@@ -65,29 +65,45 @@ export function WeightView({
       </div>
 
       {/* Trend card */}
-      <div style={s.card}>
-        <div style={s.cardLabel}>Liukuva keskiarvo</div>
+      <div style={{ ...s.card, background: 'linear-gradient(145deg, #141414 0%, #111 100%)' }}>
+        <div style={s.cardLabel}>Liukuva keskiarvo (7 pv)</div>
         {trend.currentTrend ? (
           <>
-            <div style={s.bigNumber}>
-              <span style={{ color: '#e5e5e5' }}>{trend.currentTrend.toFixed(2)}</span>
-              <span style={s.unit}>kg</span>
-            </div>
-            {trend.weeklyChange !== null && (
-              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
                 <span style={{
-                  fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
-                  color: trend.weeklyChange < 0 ? '#d4b85a' : '#e87a6a',
+                  fontSize: 42,
+                  fontWeight: 800,
+                  letterSpacing: '-0.04em',
+                  fontVariantNumeric: 'tabular-nums',
+                  color: '#ebebeb',
                 }}>
-                  {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)} kg/vko
+                  {trend.currentTrend.toFixed(2)}
                 </span>
-                <div style={{ fontSize: 11, color: '#666' }}>Tavoite: −{targetWeeklyRate} kg/vko</div>
+                <span style={{ ...s.unit, marginLeft: 4 }}>kg</span>
               </div>
-            )}
+              {trend.weeklyChange !== null && (
+                <div style={{ textAlign: 'right', paddingBottom: 4 }}>
+                  <div style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '-0.025em',
+                    color: trend.weeklyChange < 0 ? '#d4b85a' : '#e87a6a',
+                  }}>
+                    {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
+                    <span style={{ fontSize: 11, color: '#555', fontWeight: 400 }}> kg/vko</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>
+                    tavoite −{targetWeeklyRate} kg/vko
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         ) : (
-          <div style={{ fontSize: 13, color: '#666' }}>
-            Kirjaa vähintään 2 päivän paino aloittaaksesi trendin
+          <div style={{ fontSize: 13, color: '#444', lineHeight: 1.5, marginTop: 4 }}>
+            Kirjaa vähintään 2 päivän paino<br />aloittaaksesi trendin.
           </div>
         )}
       </div>
@@ -202,36 +218,82 @@ export function WeightView({
 
       {/* Weight log */}
       {weights.length > 0 && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 18 }}>
           <div style={s.sectionLabel}>Kirjaukset ({weights.length})</div>
-          {displayedWeights.map((w) => (
-            <div key={w.id} style={{ ...s.mealRow, opacity: w.excludeFromTrend ? 0.5 : 1 }}>
-              <div>
-                <div style={{ fontSize: 13 }}>
-                  <span style={{ color: '#e5e5e5', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                    {w.kg.toFixed(1)} kg
-                  </span>
-                  {w.excludeFromTrend && (
-                    <span style={{ fontSize: 10, color: '#e87a6a', marginLeft: 8 }}>poissuljettu</span>
-                  )}
+          <div className="list-stagger">
+            {displayedWeights.map((w) => (
+              <div
+                key={w.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '11px 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  opacity: w.excludeFromTrend ? 0.45 : 1,
+                  transition: 'opacity 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 3, height: 28, borderRadius: 2,
+                    backgroundColor: w.excludeFromTrend
+                      ? 'rgba(232,122,106,0.35)'
+                      : 'rgba(212,184,90,0.35)',
+                    flexShrink: 0,
+                  }} />
+                  <div>
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 650,
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '-0.01em',
+                      color: '#ebebeb',
+                    }}>
+                      {w.kg.toFixed(1)}
+                      <span style={{ fontSize: 11, color: '#555', fontWeight: 400, marginLeft: 4 }}>kg</span>
+                      {w.excludeFromTrend && (
+                        <span style={{ fontSize: 9, color: '#e87a6a', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          ohitettu
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#444', marginTop: 1 }}>{formatDateShort(w.date)}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, color: '#555' }}>{formatDateShort(w.date)}</div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <button
+                    onClick={() => onToggleExclude(w.id)}
+                    style={{
+                      ...s.ghostBtn,
+                      padding: '6px 10px',
+                      fontSize: 10,
+                      borderRadius: 7,
+                      color: w.excludeFromTrend ? '#d4b85a' : '#444',
+                      borderColor: w.excludeFromTrend ? 'rgba(212,184,90,0.3)' : 'rgba(255,255,255,0.06)',
+                      minHeight: 'auto',
+                      minWidth: 'auto',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {w.excludeFromTrend ? '+ trendi' : '− trendi'}
+                  </button>
+                  <button
+                    className="icon-btn"
+                    onClick={() => onDeleteWeight(w.id)}
+                    style={{ ...s.iconBtn, color: '#333' }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => onToggleExclude(w.id)}
-                  style={{ ...s.iconBtn, fontSize: 10, padding: '4px 8px', color: w.excludeFromTrend ? '#d4b85a' : '#555' }}
-                >
-                  {w.excludeFromTrend ? '+ trendi' : '− trendi'}
-                </button>
-                <button onClick={() => onDeleteWeight(w.id)} style={s.iconBtn}>
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {sortedWeights.length > 10 && (
-            <button onClick={() => setShowAll(!showAll)} style={{ ...s.ghostBtn, width: '100%', marginTop: 8, fontSize: 11 }}>
+            <button
+              onClick={() => setShowAll(!showAll)}
+              style={{ ...s.ghostBtn, width: '100%', marginTop: 10, fontSize: 11 }}
+            >
               {showAll ? 'Näytä vähemmän' : `Näytä kaikki (${sortedWeights.length})`}
             </button>
           )}

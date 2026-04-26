@@ -100,7 +100,23 @@ export default function App() {
   if (!loaded) {
     return (
       <div style={s.loading}>
-        <div style={{ color: '#666', fontFamily: 'ui-monospace, monospace' }}>Ladataan...</div>
+        <div style={{ display: 'flex', gap: 7 }}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="pulse-dot"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: '#d4b85a',
+              }}
+            />
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          Ladataan
+        </div>
       </div>
     )
   }
@@ -109,23 +125,31 @@ export default function App() {
     <div style={s.app}>
       {/* Storage error banner */}
       {saveError && (
-        <div style={{
-          backgroundColor: saveError === 'quota' ? '#3a1a0e' : '#2a0e0e',
-          borderBottom: `1px solid ${saveError === 'quota' ? '#e87a6a' : '#e84a4a'}`,
-          padding: '10px 16px',
-          fontSize: 12,
-          color: '#e87a6a',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-        }}>
+        <div
+          className="banner-enter"
+          style={{
+            backgroundColor: 'rgba(232,122,106,0.10)',
+            borderBottom: '1px solid rgba(232,122,106,0.25)',
+            padding: '10px 16px',
+            fontSize: 12,
+            color: '#e87a6a',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
           <span>
             {saveError === 'quota'
-              ? '⚠️ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
-              : '⚠️ Tallennus epäonnistui – tarkista selainasetusten tallennuslupa.'}
+              ? '⚠ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
+              : '⚠ Tallennus epäonnistui – tarkista selainasetusten tallennuslupa.'}
           </span>
-          <button onClick={() => setSaveError(null)} style={{ ...s.iconBtn, fontSize: 18, minHeight: 'auto' }}>×</button>
+          <button
+            onClick={() => setSaveError(null)}
+            style={{ ...s.iconBtn, fontSize: 16, color: '#e87a6a', lineHeight: 1 }}
+          >
+            ×
+          </button>
         </div>
       )}
 
