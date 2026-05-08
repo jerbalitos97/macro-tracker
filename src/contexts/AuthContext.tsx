@@ -6,8 +6,8 @@ interface AuthState {
   user: User | null
   loading: boolean
   enabled: boolean // false when Supabase env vars are not set
-  sendOtp: (email: string) => Promise<string | null>
-  verifyOtp: (email: string, token: string) => Promise<string | null>
+  signIn: (email: string, password: string) => Promise<string | null>
+  signUp: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -15,8 +15,8 @@ const AuthContext = createContext<AuthState>({
   user: null,
   loading: false,
   enabled: false,
-  sendOtp: async () => null,
-  verifyOtp: async () => null,
+  signIn: async () => null,
+  signUp: async () => null,
   signOut: async () => {},
 })
 
@@ -41,19 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const sendOtp = async (email: string): Promise<string | null> => {
+  const signIn = async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return null
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true },
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error?.message ?? null
   }
 
-  const verifyOtp = async (email: string, token: string): Promise<string | null> => {
+  const signUp = async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return null
-    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
-    return error?.message ?? null
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) return error.message
+    // If email confirmation is disabled in Supabase, signUp returns a session and we're logged in.
+    // If it's enabled, there will be no session — surface a clear message.
+    if (!data.session) {
+      return 'Tili luotu, mutta vahvistus on käytössä Supabasessa. Poista "Confirm email" käytöstä.'
+    }
+    return null
   }
 
   const signOut = async () => {
@@ -62,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, enabled: !!supabase, sendOtp, verifyOtp, signOut }}
+      value={{ user, loading, enabled: !!supabase, signIn, signUp, signOut }}
     >
       {children}
     </AuthContext.Provider>

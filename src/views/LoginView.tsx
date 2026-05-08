@@ -2,32 +2,19 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
 export function LoginView() {
-  const { sendOtp, verifyOtp } = useAuth()
+  const { signIn, signUp } = useAuth()
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSend = async () => {
+  const handleSubmit = async () => {
     const trimmed = email.trim().toLowerCase()
-    if (!trimmed) return
+    if (!trimmed || password.length < 6) return
     setLoading(true)
     setError(null)
-    const err = await sendOtp(trimmed)
-    setLoading(false)
-    if (err) {
-      setError(err)
-    } else {
-      setStep('code')
-    }
-  }
-
-  const handleVerify = async () => {
-    if (code.length < 6) return
-    setLoading(true)
-    setError(null)
-    const err = await verifyOtp(email.trim().toLowerCase(), code.trim())
+    const err = mode === 'signin' ? await signIn(trimmed, password) : await signUp(trimmed, password)
     setLoading(false)
     if (err) setError(err)
     // On success AuthContext updates user → App shows the main UI
@@ -46,7 +33,6 @@ export function LoginView() {
         boxSizing: 'border-box',
       }}
     >
-      {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 12 }}>🔥</div>
         <h1
@@ -68,89 +54,56 @@ export function LoginView() {
             lineHeight: 1.5,
           }}
         >
-          {step === 'email' ? 'Kirjaudu sisään synkronoidaksesi tiedot pilvipalveluun.' : 'Tarkista sähköpostisi ja syötä koodi.'}
+          {mode === 'signin' ? 'Kirjaudu sisään synkronoidaksesi tiedot.' : 'Luo tili synkronoidaksesi tiedot.'}
         </p>
       </div>
 
-      {step === 'email' ? (
-        <>
-          <input
-            type="email"
-            placeholder="Sähköpostiosoite"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            autoComplete="email"
-            inputMode="email"
-            style={inputCss}
-          />
-          <button
-            onClick={handleSend}
-            disabled={loading || !email.trim()}
-            style={btnCss(loading || !email.trim())}
-          >
-            {loading ? 'Lähetetään…' : 'Lähetä koodi'}
-          </button>
-        </>
-      ) : (
-        <>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.45)',
-              textAlign: 'center',
-              margin: 0,
-              lineHeight: 1.5,
-            }}
-          >
-            Koodi lähetetty osoitteeseen{' '}
-            <span style={{ color: '#d4b85a', fontWeight: 600 }}>{email}</span>
-          </p>
-          <input
-            type="text"
-            placeholder="123456"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoComplete="one-time-code"
-            style={{
-              ...inputCss,
-              textAlign: 'center',
-              letterSpacing: '0.35em',
-              fontSize: 26,
-              fontWeight: 700,
-              fontFamily: "ui-monospace, 'SF Mono', monospace",
-            }}
-          />
-          <button
-            onClick={handleVerify}
-            disabled={loading || code.length < 6}
-            style={btnCss(loading || code.length < 6)}
-          >
-            {loading ? 'Tarkistetaan…' : 'Kirjaudu sisään'}
-          </button>
-          <button
-            onClick={() => {
-              setStep('email')
-              setCode('')
-              setError(null)
-            }}
-            style={{
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.28)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '8px 0',
-              marginTop: -8,
-            }}
-          >
-            ← Vaihda sähköpostiosoite
-          </button>
-        </>
-      )}
+      <input
+        type="email"
+        placeholder="Sähköpostiosoite"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        autoComplete="email"
+        inputMode="email"
+        style={inputCss}
+      />
+      <input
+        type="password"
+        placeholder="Salasana (väh. 6 merkkiä)"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+        style={inputCss}
+      />
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !email.trim() || password.length < 6}
+        style={btnCss(loading || !email.trim() || password.length < 6)}
+      >
+        {loading
+          ? mode === 'signin' ? 'Kirjaudutaan…' : 'Luodaan tiliä…'
+          : mode === 'signin' ? 'Kirjaudu sisään' : 'Luo tili'}
+      </button>
+
+      <button
+        onClick={() => {
+          setMode(mode === 'signin' ? 'signup' : 'signin')
+          setError(null)
+        }}
+        style={{
+          fontSize: 12,
+          color: 'rgba(255,255,255,0.4)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '8px 0',
+          marginTop: -8,
+        }}
+      >
+        {mode === 'signin' ? 'Ei tiliä? Luo tili' : 'Onko jo tili? Kirjaudu sisään'}
+      </button>
 
       {error && (
         <p
