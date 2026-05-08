@@ -68,6 +68,14 @@ export default function App() {
   const [showMigration, setShowMigration] = useState(false)
   const [migrating, setMigrating] = useState(false)
 
+  // Auto-clear the "synced" badge so it doesn't permanently sit over the
+  // navbar tabs. 'syncing' / 'error' / 'offline' stay visible until they change.
+  useEffect(() => {
+    if (syncStatus !== 'synced') return
+    const t = setTimeout(() => setSyncStatus('idle'), 2200)
+    return () => clearTimeout(t)
+  }, [syncStatus])
+
   // ── Load from localStorage on mount ──────────────────────────
   useEffect(() => {
     const data = loadData()

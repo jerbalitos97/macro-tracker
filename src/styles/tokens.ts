@@ -11,7 +11,7 @@ export const s: Styles = {
     fontFamily: "ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace",
     maxWidth: 480,
     margin: '0 auto',
-    paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
+    paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
   },
 
   loading: {

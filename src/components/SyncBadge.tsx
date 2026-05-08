@@ -6,9 +6,9 @@ interface Props {
 
 const LABEL: Record<SyncStatus, string> = {
   idle:    '',
-  syncing: 'Synkronoidaan…',
-  synced:  'Synkronoitu',
-  error:   'Synkronointi epäonnistui',
+  syncing: 'Synkr.…',
+  synced:  '✓',
+  error:   'Virhe',
   offline: 'Offline',
 }
 
