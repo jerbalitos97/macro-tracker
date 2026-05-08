@@ -119,6 +119,36 @@ export function GoalView({ settings, weights, computed }: Props) {
     else if (gapPerDay <= THRESHOLD_MODERATE) recommendation = 'tighten-slightly'
     else recommendation = 'tighten-significantly'
 
+    // Recovery suggestion: how much extra deficit/day for how many days closes
+    // the cumulative shortfall. Caps at MAX_EXTRA so the suggestion stays
+    // realistic; falls back to "all remaining days at max" if even that isn't
+    // enough.
+    const RECOVERY_TARGET_DAYS = 14
+    const MAX_EXTRA = 200
+    const STEP = 25
+    let recovery:
+      | { kind: 'tighten' | 'loosen'; extraPerDay: number; daysNeeded: number; achievable: boolean }
+      | null = null
+
+    if (recommendation !== 'on-track' && daysLeft > 0) {
+      const magnitude = Math.abs(gap)
+      const ideal = magnitude / RECOVERY_TARGET_DAYS
+      // Round up to nearest STEP, clamp to [50, MAX_EXTRA]
+      let extraPerDay = Math.min(MAX_EXTRA, Math.max(50, Math.ceil(ideal / STEP) * STEP))
+      let daysNeeded = Math.ceil(magnitude / extraPerDay)
+      let achievable = daysNeeded <= daysLeft
+      if (!achievable && recommendation !== 'loosen') {
+        extraPerDay = MAX_EXTRA
+        daysNeeded = daysLeft
+      }
+      recovery = {
+        kind: recommendation === 'loosen' ? 'loosen' : 'tighten',
+        extraPerDay,
+        daysNeeded,
+        achievable,
+      }
+    }
+
     return {
       cumulativePoints,
       hasData: true as const,
@@ -130,6 +160,7 @@ export function GoalView({ settings, weights, computed }: Props) {
       remainingTotal,
       daysLeft,
       recommendation,
+      recovery,
     }
   }, [computed, elapsedDays, totalDays, todayISO])
 
@@ -324,6 +355,13 @@ export function GoalView({ settings, weights, computed }: Props) {
               accent={false}
             />
           </div>
+
+          {deficit.recovery && (
+            <SuggestionCard
+              recovery={deficit.recovery}
+              dailyDeficitBase={Math.round(computed.dailyDeficitBase)}
+            />
+          )}
         </>
       )}
 
@@ -548,4 +586,78 @@ function formatDateFi(iso: string): string {
     day: 'numeric',
     month: 'long',
   })
+}
+
+function SuggestionCard({
+  recovery,
+  dailyDeficitBase,
+}: {
+  recovery: { kind: 'tighten' | 'loosen'; extraPerDay: number; daysNeeded: number; achievable: boolean }
+  dailyDeficitBase: number
+}) {
+  const isTighten = recovery.kind === 'tighten'
+  const newDailyTarget = isTighten
+    ? dailyDeficitBase + recovery.extraPerDay
+    : Math.max(0, dailyDeficitBase - recovery.extraPerDay)
+
+  const accent = recovery.achievable ? '#d4b85a' : '#e87a6a'
+  const bg = recovery.achievable ? 'rgba(212,184,90,0.06)' : 'rgba(232,122,106,0.06)'
+  const border = recovery.achievable ? 'rgba(212,184,90,0.2)' : 'rgba(232,122,106,0.25)'
+
+  return (
+    <div
+      style={{
+        backgroundColor: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+      }}
+    >
+      <p
+        style={{
+          margin: '0 0 8px',
+          fontSize: 11,
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          color: accent,
+          fontFamily: "ui-monospace, 'SF Mono', monospace",
+          fontWeight: 700,
+        }}
+      >
+        Suositus
+      </p>
+
+      {recovery.achievable ? (
+        <>
+          <p style={{ margin: '0 0 8px', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+            {isTighten ? 'Lisää ' : 'Vähennä '}
+            <strong style={{ color: '#fff' }}>
+              {recovery.extraPerDay} kcal/pv
+            </strong>
+            {' '}vajetta{' '}
+            <strong style={{ color: '#fff' }}>{recovery.daysNeeded} päivän</strong>{' '}
+            ajaksi → palaat tavoitelinjalle.
+          </p>
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+            Päiväbudjetti tällä jaksolla noin{' '}
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontVariantNumeric: 'tabular-nums' }}>
+              {newDailyTarget.toLocaleString('fi-FI')} kcal/pv
+            </span>{' '}
+            vaje (oletus {dailyDeficitBase.toLocaleString('fi-FI')}).
+          </p>
+        </>
+      ) : (
+        <>
+          <p style={{ margin: '0 0 8px', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+            Vaje on liian suuri saavuttaaksesi tavoitteen jäljellä olevassa ajassa.
+            Maksimi 200 kcal/pv lisävaje koko jäljellä olevalle{' '}
+            <strong style={{ color: '#fff' }}>{recovery.daysNeeded} päivälle</strong> ei riitä.
+          </p>
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+            Harkitse tavoitepäivän siirtoa eteenpäin tai tavoitepainon nostamista hieman.
+          </p>
+        </>
+      )}
+    </div>
+  )
 }
