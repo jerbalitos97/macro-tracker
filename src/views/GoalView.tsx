@@ -1,0 +1,425 @@
+import { useMemo } from 'react'
+import type { Settings, WeightEntry } from '../types'
+import { computeWeightTrend } from '../lib/weight'
+import { daysBetween, toISO, addDays, fromISO } from '../lib/dates'
+import { GoalChart } from '../components/GoalChart'
+
+// ── Recommendation thresholds ────────────────────────────────
+// gap = requiredDailyDeficit − actualDailyDeficit  (kcal/day)
+//   positive gap  → behind pace (need more deficit)
+//   negative gap  → ahead of pace (could loosen)
+const THRESHOLD_CLOSE = 100     // ±100 kcal/day → on track
+const THRESHOLD_MODERATE = 300  // 100–300 → slightly off
+//                               > 300 → significantly off
+
+type Recommendation = 'on-track' | 'tighten-slightly' | 'tighten-significantly' | 'loosen'
+
+interface Props {
+  settings: Settings
+  weights: WeightEntry[]
+}
+
+export function GoalView({ settings, weights }: Props) {
+  const trend = useMemo(() => computeWeightTrend(weights), [weights])
+
+  const todayISO = toISO(new Date())
+
+  const analysis = useMemo(() => {
+    const { currentTrend, weeklyChange, trendData } = trend
+
+    if (currentTrend === null || weeklyChange === null || trendData.length < 4) return null
+
+    const remainingKg = Math.max(0, currentTrend - settings.targetWeight)
+    const remainingDays = daysBetween(todayISO, settings.endDate)
+
+    if (remainingDays <= 0) return null
+
+    // Required pace from today to target date
+    const requiredTotalDeficit = remainingKg * 7700           // kcal
+    const requiredDailyDeficit = requiredTotalDeficit / remainingDays  // kcal/day
+    const requiredWeeklyKg = (requiredDailyDeficit * 7) / 7700         // kg/week
+
+    // Actual pace from weight trend
+    const actualDailyDeficit = (-weeklyChange * 7700) / 7     // kcal/day (positive = losing)
+    const actualWeeklyKg = weeklyChange                        // kg/week (negative = losing)
+
+    // Gap: positive means we're behind (need more deficit)
+    const gap = requiredDailyDeficit - actualDailyDeficit
+
+    // Projected goal date at current pace
+    let projectedDate: string | null = null
+    if (weeklyChange < -0.01) {
+      const weeksNeeded = remainingKg / Math.abs(weeklyChange)
+      projectedDate = addDays(todayISO, Math.round(weeksNeeded * 7))
+    } else if (weeklyChange >= -0.01 && weeklyChange <= 0.01) {
+      projectedDate = null // no meaningful pace
+    }
+
+    // Recommendation
+    let recommendation: Recommendation
+    if (Math.abs(gap) <= THRESHOLD_CLOSE) {
+      recommendation = 'on-track'
+    } else if (gap < -THRESHOLD_CLOSE) {
+      recommendation = 'loosen'
+    } else if (gap <= THRESHOLD_MODERATE) {
+      recommendation = 'tighten-slightly'
+    } else {
+      recommendation = 'tighten-significantly'
+    }
+
+    return {
+      remainingKg,
+      remainingDays,
+      requiredDailyDeficit,
+      requiredWeeklyKg,
+      actualDailyDeficit,
+      actualWeeklyKg,
+      gap,
+      projectedDate,
+      recommendation,
+      currentTrend,
+    }
+  }, [trend, settings, todayISO])
+
+  // Progress along the cut (days elapsed / total days)
+  const totalDays = daysBetween(settings.startDate, settings.endDate)
+  const elapsedDays = Math.max(0, Math.min(totalDays, daysBetween(settings.startDate, todayISO)))
+  const progressPct = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0
+
+  const notEnoughData = trend.trendData.length < 4 || trend.weeklyChange === null
+
+  return (
+    <div style={{ padding: '16px 16px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Title */}
+      <div>
+        <h2 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700, color: '#fff' }}>Tavoiteanalyysi</h2>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
+          {settings.startDate.slice(5).replace('-', '/')} – {settings.endDate.slice(5).replace('-', '/')} · {settings.startWeight} → {settings.targetWeight} kg
+        </p>
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+          <span>Päivä {elapsedDays} / {totalDays}</span>
+          <span>{progressPct.toFixed(0)} %</span>
+        </div>
+        <div style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${progressPct}%`,
+              borderRadius: 2,
+              background: 'linear-gradient(90deg, #d4b85a, #e8d07a)',
+              transition: 'width 0.6s ease',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div style={{ marginTop: -4 }}>
+        <GoalChart
+          startDate={settings.startDate}
+          endDate={settings.endDate}
+          startWeight={settings.startWeight}
+          targetWeight={settings.targetWeight}
+          trendData={trend.trendData}
+        />
+      </div>
+
+      {/* Not enough data state */}
+      {notEnoughData && (
+        <div
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.04)',
+            borderRadius: 12,
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ margin: '0 0 6px', fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+            Ei tarpeeksi dataa analyysiin
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.28)', lineHeight: 1.5 }}>
+            Kirjaa paino vähintään 4 päivänä ennen kuin tavoiteanalyysi aktivoituu.
+            ({trend.trendData.length}/4 kirjausta)
+          </p>
+        </div>
+      )}
+
+      {/* Analysis cards */}
+      {analysis && (
+        <>
+          {/* Recommendation banner */}
+          <RecommendationBanner rec={analysis.recommendation} gap={analysis.gap} />
+
+          {/* Key numbers grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <StatCard
+              label="Vaadittu tahti"
+              value={`${Math.round(analysis.requiredDailyDeficit)} kcal/pv`}
+              sub={`${analysis.requiredWeeklyKg.toFixed(2)} kg/vk`}
+              accent={false}
+            />
+            <StatCard
+              label="Nykyinen tahti"
+              value={
+                analysis.actualDailyDeficit > 0
+                  ? `${Math.round(analysis.actualDailyDeficit)} kcal/pv`
+                  : '—'
+              }
+              sub={
+                analysis.actualWeeklyKg !== null
+                  ? `${analysis.actualWeeklyKg.toFixed(2)} kg/vk`
+                  : ''
+              }
+              accent={false}
+            />
+            <StatCard
+              label="Ero"
+              value={
+                Math.abs(analysis.gap) < 10
+                  ? '≈ 0 kcal/pv'
+                  : `${analysis.gap > 0 ? '+' : ''}${Math.round(analysis.gap)} kcal/pv`
+              }
+              sub={analysis.gap > 0 ? 'jälässä' : analysis.gap < 0 ? 'edellä' : 'täsmälleen'}
+              accent={Math.abs(analysis.gap) > THRESHOLD_CLOSE}
+            />
+            <StatCard
+              label="Jäljellä"
+              value={`${analysis.remainingKg.toFixed(2)} kg`}
+              sub={`${analysis.remainingDays} pv jäljellä`}
+              accent={false}
+            />
+          </div>
+
+          {/* Projected date */}
+          <ProjectedDateCard
+            projectedDate={analysis.projectedDate}
+            targetDate={settings.endDate}
+            targetWeight={settings.targetWeight}
+            currentTrend={analysis.currentTrend}
+          />
+        </>
+      )}
+
+      {/* How it works */}
+      <details style={{ marginTop: 4 }}>
+        <summary
+          style={{
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.25)',
+            cursor: 'pointer',
+            userSelect: 'none',
+            listStyle: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          ▸ Miten lasketaan?
+        </summary>
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.38)',
+            lineHeight: 1.7,
+            padding: '0 2px',
+          }}
+        >
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Tavoitelinja:</strong> lineaarinen viiva cut-jakson alusta loppuun (aloituspaino → tavoitepaino).
+          </p>
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Trendilinja:</strong> 7 pv liukuva keskiarvo kirjatuista painoista — tasoittaa vesipainon vaihtelut.
+          </p>
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Vaadittu tahti:</strong> (jäljellä oleva kg × 7 700 kcal) ÷ jäljellä olevat päivät.
+          </p>
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Nykyinen tahti:</strong> trendin viikkomuutos × 7 700 ÷ 7 → päiväkohtainen energiavaje-arvio.
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Toleranssit:</strong> ±100 kcal/pv = oikealla radalla · 100–300 = hienoinen ero · &gt;300 = merkittävä ero.
+          </p>
+        </div>
+      </details>
+    </div>
+  )
+}
+
+// ── Sub-components ─────────────────────────────────────────────
+
+function RecommendationBanner({ rec, gap }: { rec: Recommendation; gap: number }) {
+  const config: Record<Recommendation, { emoji: string; title: string; body: string; bg: string; border: string }> = {
+    'on-track': {
+      emoji: '✅',
+      title: 'Oikealla radalla',
+      body: 'Nykyinen tahti vastaa tavoitetta. Jatka samaan malliin.',
+      bg: 'rgba(100,200,120,0.06)',
+      border: 'rgba(100,200,120,0.2)',
+    },
+    'tighten-slightly': {
+      emoji: '⚠️',
+      title: 'Hieman jäljessä',
+      body: `Vajetta tarvitaan noin ${Math.round(Math.abs(gap))} kcal/pv enemmän. Pienennä annoksia tai lisää liikettä.`,
+      bg: 'rgba(232,184,90,0.06)',
+      border: 'rgba(232,184,90,0.2)',
+    },
+    'tighten-significantly': {
+      emoji: '🔴',
+      title: 'Selkeästi jäljessä',
+      body: `Nykyisellä tahdilla tavoitepäivä ei tule toteutumaan. Tarvitaan noin ${Math.round(Math.abs(gap))} kcal/pv lisää vajetta.`,
+      bg: 'rgba(232,122,106,0.06)',
+      border: 'rgba(232,122,106,0.2)',
+    },
+    'loosen': {
+      emoji: '💚',
+      title: 'Edellä tavoitetta',
+      body: `Menetät painoa nopeammin kuin tarvitaan (${Math.round(Math.abs(gap))} kcal/pv edellä). Voit hieman löystää.`,
+      bg: 'rgba(100,200,120,0.06)',
+      border: 'rgba(100,200,120,0.2)',
+    },
+  }
+
+  const c = config[rec]
+
+  return (
+    <div
+      style={{
+        backgroundColor: c.bg,
+        border: `1px solid ${c.border}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start',
+      }}
+    >
+      <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{c.emoji}</span>
+      <div>
+        <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#fff' }}>{c.title}</p>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{c.body}</p>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string
+  value: string
+  sub: string
+  accent: boolean
+}) {
+  return (
+    <div
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 12,
+        padding: '14px 14px',
+        border: accent ? '1px solid rgba(212,184,90,0.2)' : '1px solid transparent',
+      }}
+    >
+      <p
+        style={{
+          margin: '0 0 6px',
+          fontSize: 10,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color: 'rgba(255,255,255,0.35)',
+          fontFamily: "ui-monospace, 'SF Mono', monospace",
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          margin: '0 0 3px',
+          fontSize: 17,
+          fontWeight: 700,
+          color: accent ? '#d4b85a' : '#fff',
+          fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {value}
+      </p>
+      {sub && (
+        <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{sub}</p>
+      )}
+    </div>
+  )
+}
+
+function ProjectedDateCard({
+  projectedDate,
+  targetDate,
+  targetWeight,
+  currentTrend,
+}: {
+  projectedDate: string | null
+  targetDate: string
+  targetWeight: number
+  currentTrend: number
+}) {
+  if (currentTrend <= targetWeight) {
+    return (
+      <div style={{ backgroundColor: 'rgba(100,200,120,0.06)', borderRadius: 12, padding: '14px 16px', border: '1px solid rgba(100,200,120,0.15)' }}>
+        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+          🎯 Tavoitepaino saavutettu!
+        </p>
+      </div>
+    )
+  }
+
+  if (!projectedDate) {
+    return (
+      <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '14px 16px' }}>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+          Projisoidun päättymispäivän laskemiseen tarvitaan selvä laskeva trendi.
+        </p>
+      </div>
+    )
+  }
+
+  const onTime = projectedDate <= targetDate
+  const daysDiff = Math.abs(daysBetween(projectedDate, targetDate))
+
+  return (
+    <div
+      style={{
+        backgroundColor: onTime ? 'rgba(100,200,120,0.05)' : 'rgba(232,122,106,0.05)',
+        borderRadius: 12,
+        padding: '14px 16px',
+        border: `1px solid ${onTime ? 'rgba(100,200,120,0.15)' : 'rgba(232,122,106,0.15)'}`,
+      }}
+    >
+      <p style={{ margin: '0 0 4px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)', fontFamily: "ui-monospace, 'SF Mono', monospace" }}>
+        Arvioitu tavoitepäivä nykyisellä tahdilla
+      </p>
+      <p style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: '#fff' }}>
+        {formatDateFi(projectedDate)}
+      </p>
+      <p style={{ margin: 0, fontSize: 12, color: onTime ? 'rgba(100,200,120,0.8)' : 'rgba(232,122,106,0.8)' }}>
+        {onTime
+          ? `${daysDiff} pv ennen tavoitetta`
+          : `${daysDiff} pv tavoitepäivän jälkeen`}
+      </p>
+    </div>
+  )
+}
+
+function formatDateFi(iso: string): string {
+  return fromISO(iso).toLocaleDateString('fi-FI', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+  })
+}

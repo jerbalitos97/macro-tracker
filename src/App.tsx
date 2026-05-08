@@ -1,17 +1,30 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, AppData } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
+import {
+  syncSettings, syncMeal, deleteMeal as syncDeleteMeal,
+  syncWeight, deleteWeight as syncDeleteWeight,
+  syncBurn, deleteBurn as syncDeleteBurn,
+  syncEvent, deleteEvent as syncDeleteEvent,
+  syncExtra, deleteExtra as syncDeleteExtra,
+  pushAllData, pullAllData,
+} from './lib/sync'
+import { useAuth } from './contexts/AuthContext'
 import { NavBar } from './components/NavBar'
+import type { View } from './components/NavBar'
+import { SyncBadge } from './components/SyncBadge'
+import type { SyncStatus } from './components/SyncBadge'
+import { MigrationPrompt } from './components/MigrationPrompt'
+import { LoginView } from './views/LoginView'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
 import { HistoryView } from './views/HistoryView'
+import { GoalView } from './views/GoalView'
 import { SettingsView } from './views/SettingsView'
 import { s } from './styles/tokens'
-
-type View = 'today' | 'calendar' | 'weight' | 'history' | 'settings'
 
 const DEFAULT_SETTINGS: Settings = {
   startDate: toISO(new Date()),
@@ -37,8 +50,10 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 export default function App() {
+  const { user, loading: authLoading, enabled: authEnabled } = useAuth()
+
   const [view, setView] = useState<View>('today')
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
@@ -48,11 +63,16 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(toISO(new Date()))
   const [saveError, setSaveError] = useState<'quota' | 'error' | null>(null)
 
-  // Load on mount
+  // Cloud sync state
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const [showMigration, setShowMigration] = useState(false)
+  const [migrating, setMigrating] = useState(false)
+
+  // ── Load from localStorage on mount ──────────────────────────
   useEffect(() => {
     const data = loadData()
     if (data) {
-      if (data.settings) setSettings(data.settings)
+      if (data.settings) setSettingsState(data.settings)
       if (data.events) setEvents(data.events)
       if (data.extras) setExtras(data.extras)
       if (data.meals) setMeals(data.meals)
@@ -62,27 +82,101 @@ export default function App() {
     setLoaded(true)
   }, [])
 
-  // Persist on every change
+  // ── Persist to localStorage on every change ───────────────────
   useEffect(() => {
     if (!loaded) return
     const status = saveData({ settings, events, extras, meals, weights, burns })
     setSaveError(status !== 'ok' ? status : null)
   }, [settings, events, extras, meals, weights, burns, loaded])
 
+  // ── Pull from Supabase on login ───────────────────────────────
+  useEffect(() => {
+    if (!user || !loaded) return
+
+    const pull = async () => {
+      setSyncStatus('syncing')
+      const cloudData = await pullAllData(user.id)
+
+      if (cloudData) {
+        // Cloud has data → use it as source of truth
+        setSettingsState(cloudData.settings)
+        setEvents(cloudData.events)
+        setExtras(cloudData.extras)
+        setMeals(cloudData.meals)
+        setWeights(cloudData.weights)
+        setBurns(cloudData.burns)
+        setSyncStatus('synced')
+        setShowMigration(false)
+      } else {
+        // Cloud is empty — check if there's local data to migrate
+        const localData = loadData()
+        const hasLocal =
+          localData &&
+          (localData.meals.length > 0 ||
+            localData.weights.length > 0 ||
+            localData.burns.length > 0)
+        if (hasLocal) {
+          setShowMigration(true)
+        } else {
+          // No local data either — push current settings as initial cloud record
+          await pushAllData(user.id, {
+            settings,
+            events,
+            extras,
+            meals,
+            weights,
+            burns,
+          })
+        }
+        setSyncStatus('synced')
+      }
+    }
+
+    pull()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loaded])
+
+  // ── Migration: push local data to cloud ───────────────────────
+  const handleMigrate = useCallback(async () => {
+    if (!user) return
+    setMigrating(true)
+    setSyncStatus('syncing')
+    const localData = loadData()
+    if (localData) {
+      const result = await pushAllData(user.id, localData)
+      if (result === 'ok') {
+        setSyncStatus('synced')
+      } else {
+        setSyncStatus('error')
+      }
+    }
+    setMigrating(false)
+    setShowMigration(false)
+  }, [user])
+
+  // ── Settings mutation ─────────────────────────────────────────
+  const setSettings = useCallback(
+    (s: Settings) => {
+      setSettingsState(s)
+      if (user) syncSettings(user.id, s)
+    },
+    [user],
+  )
+
+  // ── Computed values ───────────────────────────────────────────
   const computed = useMemo(
     () => computeDays(settings, events, extras, meals, burns),
-    [settings, events, extras, meals, burns]
+    [settings, events, extras, meals, burns],
   )
 
   const appData: AppData = useMemo(
     () => ({ settings, events, extras, meals, weights, burns }),
-    [settings, events, extras, meals, weights, burns]
+    [settings, events, extras, meals, weights, burns],
   )
 
   const usedBytes = useMemo(() => storageUsedBytes(appData), [appData])
 
   const handleExport = () => exportJSON(appData)
-
   const handleImport = (json: string) => {
     const data = importJSON(json)
     if (!data) { alert('Tiedosto ei ole kelvollinen varmuuskopio.'); return }
@@ -97,21 +191,13 @@ export default function App() {
 
   const todayISO = toISO(new Date())
 
-  if (!loaded) {
+  // ── Loading screens ───────────────────────────────────────────
+  if (authLoading || !loaded) {
     return (
       <div style={s.loading}>
         <div style={{ display: 'flex', gap: 7 }}>
           {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="pulse-dot"
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: '#d4b85a',
-              }}
-            />
+            <div key={i} className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#d4b85a' }} />
           ))}
         </div>
         <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
@@ -121,6 +207,12 @@ export default function App() {
     )
   }
 
+  // ── Login screen (only when Supabase is configured and user is not signed in) ─
+  if (authEnabled && !user) {
+    return <LoginView />
+  }
+
+  // ── Main app ──────────────────────────────────────────────────
   return (
     <div style={s.app}>
       {/* Storage error banner */}
@@ -144,16 +236,28 @@ export default function App() {
               ? '⚠ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
               : '⚠ Tallennus epäonnistui – tarkista selainasetusten tallennuslupa.'}
           </span>
-          <button
-            onClick={() => setSaveError(null)}
-            style={{ ...s.iconBtn, fontSize: 16, color: '#e87a6a', lineHeight: 1 }}
-          >
-            ×
-          </button>
+          <button onClick={() => setSaveError(null)} style={{ ...s.iconBtn, fontSize: 16, color: '#e87a6a', lineHeight: 1 }}>×</button>
         </div>
       )}
 
-      <NavBar view={view} setView={setView} />
+      {/* Migration prompt */}
+      {showMigration && (
+        <MigrationPrompt
+          onMigrate={handleMigrate}
+          onSkip={() => setShowMigration(false)}
+          migrating={migrating}
+        />
+      )}
+
+      {/* Nav with sync badge */}
+      <div style={{ position: 'relative' }}>
+        <NavBar view={view} setView={setView} />
+        {user && syncStatus !== 'idle' && (
+          <div style={{ position: 'absolute', top: 6, right: 10, zIndex: 20 }}>
+            <SyncBadge status={syncStatus} />
+          </div>
+        )}
+      </div>
 
       {view === 'today' && (
         <div className="view-enter">
@@ -163,10 +267,24 @@ export default function App() {
             burns={burns.filter((b) => b.date === todayISO)}
             proteinTarget={settings.proteinTarget}
             computed={computed}
-            onAddMeal={(meal) => setMeals([...meals, { ...meal, id: Date.now(), date: todayISO }])}
-            onDeleteMeal={(id) => setMeals(meals.filter((m) => m.id !== id))}
-            onAddBurn={(burn) => setBurns([...burns, { ...burn, id: Date.now(), date: todayISO }])}
-            onDeleteBurn={(id) => setBurns(burns.filter((b) => b.id !== id))}
+            onAddMeal={(meal) => {
+              const m = { ...meal, id: Date.now(), date: todayISO }
+              setMeals((prev) => [...prev, m])
+              if (user) syncMeal(user.id, m)
+            }}
+            onDeleteMeal={(id) => {
+              setMeals((prev) => prev.filter((m) => m.id !== id))
+              if (user) syncDeleteMeal(user.id, id)
+            }}
+            onAddBurn={(burn) => {
+              const b = { ...burn, id: Date.now(), date: todayISO }
+              setBurns((prev) => [...prev, b])
+              if (user) syncBurn(user.id, b)
+            }}
+            onDeleteBurn={(id) => {
+              setBurns((prev) => prev.filter((b) => b.id !== id))
+              if (user) syncDeleteBurn(user.id, id)
+            }}
           />
         </div>
       )}
@@ -180,10 +298,24 @@ export default function App() {
             selectedDay={computed.days.find((d) => d.date === selectedDate)}
             events={events}
             extras={extras}
-            onAddEvent={(ev) => setEvents([...events, { ...ev, id: Date.now() }])}
-            onDeleteEvent={(id) => setEvents(events.filter((e) => e.id !== id))}
-            onAddExtra={(ex) => setExtras([...extras, { ...ex, id: Date.now() }])}
-            onDeleteExtra={(id) => setExtras(extras.filter((e) => e.id !== id))}
+            onAddEvent={(ev) => {
+              const e = { ...ev, id: Date.now() }
+              setEvents((prev) => [...prev, e])
+              if (user) syncEvent(user.id, e)
+            }}
+            onDeleteEvent={(id) => {
+              setEvents((prev) => prev.filter((e) => e.id !== id))
+              if (user) syncDeleteEvent(user.id, id)
+            }}
+            onAddExtra={(ex) => {
+              const x = { ...ex, id: Date.now() }
+              setExtras((prev) => [...prev, x])
+              if (user) syncExtra(user.id, x)
+            }}
+            onDeleteExtra={(id) => {
+              setExtras((prev) => prev.filter((e) => e.id !== id))
+              if (user) syncDeleteExtra(user.id, id)
+            }}
           />
         </div>
       )}
@@ -193,11 +325,28 @@ export default function App() {
           <WeightView
             weights={weights}
             onAddWeight={(w) => {
-              const filtered = weights.filter((x) => x.date !== w.date)
-              setWeights([...filtered, { ...w, id: Date.now() }].sort((a, b) => a.date.localeCompare(b.date)))
+              const entry = { ...w, id: Date.now() }
+              setWeights((prev) =>
+                [...prev.filter((x) => x.date !== w.date), entry].sort((a, b) =>
+                  a.date.localeCompare(b.date),
+                ),
+              )
+              if (user) syncWeight(user.id, entry)
             }}
-            onDeleteWeight={(id) => setWeights(weights.filter((w) => w.id !== id))}
-            onToggleExclude={(id) => setWeights(weights.map((w) => w.id === id ? { ...w, excludeFromTrend: !w.excludeFromTrend } : w))}
+            onDeleteWeight={(id) => {
+              setWeights((prev) => prev.filter((w) => w.id !== id))
+              if (user) syncDeleteWeight(user.id, id)
+            }}
+            onToggleExclude={(id) => {
+              setWeights((prev) =>
+                prev.map((w) => {
+                  if (w.id !== id) return w
+                  const updated = { ...w, excludeFromTrend: !w.excludeFromTrend }
+                  if (user) syncWeight(user.id, updated)
+                  return updated
+                }),
+              )
+            }}
             settings={settings}
             meals={meals}
           />
@@ -210,6 +359,12 @@ export default function App() {
         </div>
       )}
 
+      {view === 'goal' && (
+        <div className="view-enter">
+          <GoalView settings={settings} weights={weights} />
+        </div>
+      )}
+
       {view === 'settings' && (
         <div className="view-enter">
           <SettingsView
@@ -219,6 +374,7 @@ export default function App() {
             usedBytes={usedBytes}
             onExport={handleExport}
             onImport={handleImport}
+            user={user}
           />
         </div>
       )}

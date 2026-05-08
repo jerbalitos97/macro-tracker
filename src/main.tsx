@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/global.css'
 import App from './App'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
@@ -10,6 +11,11 @@ if ('serviceWorker' in navigator) {
       .register('/sw.js')
       .then((reg) => console.log('[SW] registered:', reg.scope))
       .catch((err) => console.warn('[SW] registration failed:', err))
+
+    // When a new SW takes over, reload to get the fresh assets
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload()
+    })
   })
 }
 
@@ -18,6 +24,8 @@ if (!root) throw new Error('Root element not found')
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </StrictMode>
 )

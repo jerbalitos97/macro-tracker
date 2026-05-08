@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import type { User } from '@supabase/supabase-js'
 import type { Settings, ComputedResult, DayType } from '../types'
 import { daysBetween } from '../lib/dates'
 import { parsePositiveDecimal, parsePositiveInt, isValidDecimalInput } from '../lib/format'
+import { useAuth } from '../contexts/AuthContext'
 import { s } from '../styles/tokens'
 
 interface Props {
@@ -11,6 +13,7 @@ interface Props {
   usedBytes: number
   onExport: () => void
   onImport: (json: string) => void
+  user?: User | null
 }
 
 const TDEE_LABELS: Record<string, string> = {
@@ -27,7 +30,8 @@ const DOW_NAMES: Record<number, string> = {
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024
 
-export function SettingsView({ settings, setSettings, computed, usedBytes, onExport, onImport }: Props) {
+export function SettingsView({ settings, setSettings, computed, usedBytes, onExport, onImport, user }: Props) {
+  const { signOut, enabled: authEnabled } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Local string state only for decimal weight fields so the user can type
@@ -247,6 +251,28 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
           sivustomuistissa. Poistaminen ei tyhjennä dataa.
         </div>
       </div>
+
+      {/* Cloud account */}
+      {authEnabled && (
+        <div style={{ ...s.card, marginTop: 10 }}>
+          <div style={s.cardLabel}>Pilvitili</div>
+          {user ? (
+            <div>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+                Kirjautunut: <span style={{ color: '#d4b85a' }}>{user.email}</span>
+              </div>
+              <button
+                onClick={() => signOut()}
+                style={{ ...s.ghostBtn, width: '100%', textAlign: 'center', color: '#e87a6a' }}
+              >
+                Kirjaudu ulos
+              </button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: '#555' }}>Ei kirjautunut.</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { Home, CalendarDays, TrendingDown, BarChart2, SlidersHorizontal } from 'lucide-react'
+import { Home, CalendarDays, TrendingDown, BarChart2, SlidersHorizontal, Target } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-type View = 'today' | 'calendar' | 'weight' | 'history' | 'settings'
+type View = 'today' | 'calendar' | 'weight' | 'history' | 'goal' | 'settings'
 
 interface Tab {
   id: View
@@ -14,8 +14,11 @@ const TABS: Tab[] = [
   { id: 'calendar', label: 'Kalenteri', Icon: CalendarDays },
   { id: 'weight',   label: 'Paino',     Icon: TrendingDown },
   { id: 'history',  label: 'Trendit',   Icon: BarChart2 },
+  { id: 'goal',     label: 'Tavoite',   Icon: Target },
   { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
+
+export type { View }
 
 interface Props {
   view: View
