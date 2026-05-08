@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
-import type { Settings, WeightEntry } from '../types'
+import type { ComputedResult, Settings, WeightEntry } from '../types'
 import { computeWeightTrend } from '../lib/weight'
 import { daysBetween, toISO, addDays, fromISO } from '../lib/dates'
 import { GoalChart } from '../components/GoalChart'
+import { DeficitChart } from '../components/DeficitChart'
 
 // ── Recommendation thresholds ────────────────────────────────
 // gap = requiredDailyDeficit − actualDailyDeficit  (kcal/day)
@@ -17,9 +18,10 @@ type Recommendation = 'on-track' | 'tighten-slightly' | 'tighten-significantly' 
 interface Props {
   settings: Settings
   weights: WeightEntry[]
+  computed: ComputedResult
 }
 
-export function GoalView({ settings, weights }: Props) {
+export function GoalView({ settings, weights, computed }: Props) {
   const trend = useMemo(() => computeWeightTrend(weights), [weights])
 
   const todayISO = toISO(new Date())
@@ -87,6 +89,49 @@ export function GoalView({ settings, weights }: Props) {
   const progressPct = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0
 
   const notEnoughData = trend.trendData.length < 4 || trend.weeklyChange === null
+
+  // ── Cumulative deficit analysis ──────────────────────────────
+  const deficit = useMemo(() => {
+    const cumulativePoints: Array<{ date: string; cum: number }> = []
+    let cum = 0
+    for (const d of computed.days) {
+      if (d.actualDeficit !== undefined && d.date <= todayISO) {
+        cum += d.actualDeficit
+        cumulativePoints.push({ date: d.date, cum })
+      }
+    }
+
+    if (cumulativePoints.length === 0) {
+      return { cumulativePoints, hasData: false as const }
+    }
+
+    const actualCum = cum
+    const expectedCum = computed.dailyDeficitBase * elapsedDays
+    const gap = expectedCum - actualCum  // + = behind, − = ahead
+    const gapPerDay = elapsedDays > 0 ? gap / elapsedDays : 0
+    const avgPerDayActual = elapsedDays > 0 ? actualCum / elapsedDays : 0
+    const remainingTotal = computed.totalDeficitTarget - actualCum
+    const daysLeft = Math.max(0, totalDays - elapsedDays)
+
+    let recommendation: Recommendation
+    if (Math.abs(gapPerDay) <= THRESHOLD_CLOSE) recommendation = 'on-track'
+    else if (gapPerDay < -THRESHOLD_CLOSE) recommendation = 'loosen'
+    else if (gapPerDay <= THRESHOLD_MODERATE) recommendation = 'tighten-slightly'
+    else recommendation = 'tighten-significantly'
+
+    return {
+      cumulativePoints,
+      hasData: true as const,
+      actualCum,
+      expectedCum,
+      gap,
+      gapPerDay,
+      avgPerDayActual,
+      remainingTotal,
+      daysLeft,
+      recommendation,
+    }
+  }, [computed, elapsedDays, totalDays, todayISO])
 
   return (
     <div style={{ padding: '16px 16px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -204,6 +249,84 @@ export function GoalView({ settings, weights }: Props) {
         </>
       )}
 
+      {/* ── Cumulative deficit section ──────────────────────────── */}
+      <div style={{ marginTop: 12, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <h2 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700, color: '#fff' }}>Kalorivajeanalyysi</h2>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
+          Kumulatiivinen vaje · tavoite {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal
+        </p>
+      </div>
+
+      <div style={{ marginTop: -8 }}>
+        <DeficitChart
+          startDate={settings.startDate}
+          endDate={settings.endDate}
+          totalDeficitTarget={computed.totalDeficitTarget}
+          cumulativePoints={deficit.cumulativePoints}
+        />
+      </div>
+
+      {!deficit.hasData && (
+        <div
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.04)',
+            borderRadius: 12,
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ margin: '0 0 6px', fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+            Ei kirjattua kulutusta vielä
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.28)', lineHeight: 1.5 }}>
+            Lisää aterioita Tänään-välilehdeltä — vaje kerääntyy päivien edetessä.
+          </p>
+        </div>
+      )}
+
+      {deficit.hasData && (
+        <>
+          <RecommendationBanner rec={deficit.recommendation} gap={deficit.gapPerDay} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <StatCard
+              label="Vaadittu vaje"
+              value={`${Math.round(deficit.expectedCum).toLocaleString('fi-FI')} kcal`}
+              sub={`${Math.round(computed.dailyDeficitBase)} kcal/pv`}
+              accent={false}
+            />
+            <StatCard
+              label="Toteutunut vaje"
+              value={`${Math.round(deficit.actualCum).toLocaleString('fi-FI')} kcal`}
+              sub={`${Math.round(deficit.avgPerDayActual)} kcal/pv keskim.`}
+              accent={false}
+            />
+            <StatCard
+              label="Ero"
+              value={
+                Math.abs(deficit.gap) < 50
+                  ? '≈ 0 kcal'
+                  : `${deficit.gap > 0 ? '+' : ''}${Math.round(deficit.gap).toLocaleString('fi-FI')} kcal`
+              }
+              sub={
+                deficit.gap > 0
+                  ? `${Math.round(deficit.gapPerDay)} kcal/pv jäljessä`
+                  : deficit.gap < 0
+                    ? `${Math.round(Math.abs(deficit.gapPerDay))} kcal/pv edellä`
+                    : 'täsmälleen'
+              }
+              accent={Math.abs(deficit.gapPerDay) > THRESHOLD_CLOSE}
+            />
+            <StatCard
+              label="Jäljellä"
+              value={`${Math.max(0, Math.round(deficit.remainingTotal)).toLocaleString('fi-FI')} kcal`}
+              sub={`${deficit.daysLeft} pv jäljellä`}
+              accent={false}
+            />
+          </div>
+        </>
+      )}
+
       {/* How it works */}
       <details style={{ marginTop: 4 }}>
         <summary
@@ -240,6 +363,9 @@ export function GoalView({ settings, weights }: Props) {
           </p>
           <p style={{ margin: '0 0 6px' }}>
             <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Nykyinen tahti:</strong> trendin viikkomuutos × 7 700 ÷ 7 → päiväkohtainen energiavaje-arvio.
+          </p>
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Kumulatiivinen vaje:</strong> päivittäisten toteutuneiden vajeiden summa. Päivän vaje = TDEE + treenibonus − (kulutus − treeniaikana poltetut kcal). Vain päivät joilta on kirjauksia lasketaan mukaan.
           </p>
           <p style={{ margin: 0 }}>
             <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Toleranssit:</strong> ±100 kcal/pv = oikealla radalla · 100–300 = hienoinen ero · &gt;300 = merkittävä ero.

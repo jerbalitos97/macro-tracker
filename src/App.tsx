@@ -374,7 +374,7 @@ export default function App() {
 
       {view === 'goal' && (
         <div className="view-enter">
-          <GoalView settings={settings} weights={weights} />
+          <GoalView settings={settings} weights={weights} computed={computed} />
         </div>
       )}
 
