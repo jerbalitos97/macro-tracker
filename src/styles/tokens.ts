@@ -5,17 +5,17 @@ type Styles = Record<string, CSSProperties>
 export const s: Styles = {
   /* ── Layout ─────────────────────────────────────────────────────────────── */
   app: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     backgroundColor: '#0a0a0a',
     color: '#ebebeb',
     fontFamily: "ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace",
     maxWidth: 480,
     margin: '0 auto',
-    paddingBottom: 48,
+    paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
   },
 
   loading: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     backgroundColor: '#0a0a0a',
     display: 'flex',
     flexDirection: 'column',
@@ -409,7 +409,10 @@ export const s: Styles = {
     backgroundColor: '#181818',
     border: '1px solid rgba(255,255,255,0.10)',
     borderRadius: '20px 20px 0 0',
-    padding: '24px 20px 40px',
+    paddingTop: 24,
+    paddingLeft: 20,
+    paddingRight: 20,
+    paddingBottom: 'max(40px, calc(env(safe-area-inset-bottom) + 24px))',
     width: '100%',
     maxWidth: 480,
     boxShadow: '0 -16px 60px rgba(0,0,0,0.70)',

@@ -36,6 +36,7 @@ export function NavBar({ view, setView }: Props) {
         position: 'sticky',
         top: 0,
         zIndex: 10,
+        paddingTop: 'env(safe-area-inset-top)',
         backgroundColor: 'rgba(10,10,10,0.88)',
         backdropFilter: 'blur(24px) saturate(1.5)',
         WebkitBackdropFilter: 'blur(24px) saturate(1.5)',

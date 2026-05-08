@@ -266,7 +266,7 @@ export default function App() {
       <div style={{ position: 'relative' }}>
         <NavBar view={view} setView={setView} />
         {user && syncStatus !== 'idle' && (
-          <div style={{ position: 'absolute', top: 6, right: 10, zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 6px)', right: 10, zIndex: 20 }}>
             <SyncBadge status={syncStatus} />
           </div>
         )}
