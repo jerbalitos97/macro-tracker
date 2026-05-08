@@ -177,16 +177,29 @@ export default function App() {
   const usedBytes = useMemo(() => storageUsedBytes(appData), [appData])
 
   const handleExport = () => exportJSON(appData)
-  const handleImport = (json: string) => {
+  const handleImport = async (json: string) => {
     const data = importJSON(json)
     if (!data) { alert('Tiedosto ei ole kelvollinen varmuuskopio.'); return }
     if (!window.confirm('Tämä korvaa kaiken nykyisen datan. Jatketaanko?')) return
+    const next: AppData = {
+      settings: data.settings ?? settings,
+      events: data.events ?? [],
+      extras: data.extras ?? [],
+      meals: data.meals ?? [],
+      weights: data.weights ?? [],
+      burns: data.burns ?? [],
+    }
     if (data.settings) setSettings(data.settings)
-    setEvents(data.events ?? [])
-    setExtras(data.extras ?? [])
-    setMeals(data.meals ?? [])
-    setWeights(data.weights ?? [])
-    setBurns(data.burns ?? [])
+    setEvents(next.events)
+    setExtras(next.extras)
+    setMeals(next.meals)
+    setWeights(next.weights)
+    setBurns(next.burns)
+    if (user) {
+      setSyncStatus('syncing')
+      const result = await pushAllData(user.id, next)
+      setSyncStatus(result === 'ok' ? 'synced' : 'error')
+    }
   }
 
   const todayISO = toISO(new Date())
