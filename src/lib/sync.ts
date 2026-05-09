@@ -6,6 +6,7 @@ import type {
   TrainingBurn,
   SpecialEvent,
   ExtraWorkout,
+  DailyAdjustment,
   Settings,
 } from '../types'
 
@@ -101,6 +102,22 @@ export function deleteExtra(userId: string, id: number) {
     .then(({ error }) => { if (error) console.warn('[sync] deleteExtra:', error.message) })
 }
 
+export function syncAdjustment(userId: string, a: DailyAdjustment) {
+  supabase
+    ?.from('daily_adjustments')
+    .upsert({ id: a.id, user_id: userId, date: a.date, kcal: a.kcal, note: a.note })
+    .then(({ error }) => { if (error) console.warn('[sync] adjustment:', error.message) })
+}
+
+export function deleteAdjustment(userId: string, id: number) {
+  supabase
+    ?.from('daily_adjustments')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .then(({ error }) => { if (error) console.warn('[sync] deleteAdjustment:', error.message) })
+}
+
 // ── Bulk push (migration: local → cloud) ──────────────────────
 
 export async function pushAllData(userId: string, data: AppData): Promise<'ok' | 'error'> {
@@ -131,6 +148,8 @@ export async function pushAllData(userId: string, data: AppData): Promise<'ok' |
       ))
     if (data.extras.length)
       ops.push(supabase.from('extra_workouts').upsert(data.extras.map((x) => ({ ...x, user_id: userId }))))
+    if (data.adjustments?.length)
+      ops.push(supabase.from('daily_adjustments').upsert(data.adjustments.map((a) => ({ ...a, user_id: userId }))))
 
     await Promise.all(ops)
     return 'ok'
@@ -145,13 +164,14 @@ export async function pushAllData(userId: string, data: AppData): Promise<'ok' |
 export async function pullAllData(userId: string): Promise<AppData | null> {
   if (!supabase) return null
   try {
-    const [settingsRes, mealsRes, weightsRes, burnsRes, eventsRes, extrasRes] = await Promise.all([
+    const [settingsRes, mealsRes, weightsRes, burnsRes, eventsRes, extrasRes, adjustmentsRes] = await Promise.all([
       supabase.from('settings').select('data').eq('user_id', userId).maybeSingle(),
       supabase.from('meals').select('*').eq('user_id', userId),
       supabase.from('weight_entries').select('*').eq('user_id', userId),
       supabase.from('training_burns').select('*').eq('user_id', userId),
       supabase.from('special_events').select('*').eq('user_id', userId),
       supabase.from('extra_workouts').select('*').eq('user_id', userId),
+      supabase.from('daily_adjustments').select('*').eq('user_id', userId),
     ])
 
     // If settings row doesn't exist yet, signal "empty cloud"
@@ -180,6 +200,7 @@ export async function pullAllData(userId: string): Promise<AppData | null> {
       burns: (burnsRes.data ?? []).map((r) => ({ id: r.id, date: r.date, kcal: Number(r.kcal), note: r.note })),
       events,
       extras: (extrasRes.data ?? []).map((r) => ({ id: r.id, date: r.date, kcal: Number(r.kcal), note: r.note })),
+      adjustments: (adjustmentsRes.data ?? []).map((r) => ({ id: r.id, date: r.date, kcal: Number(r.kcal), note: r.note })),
     }
   } catch (err) {
     console.error('[sync] pullAllData failed:', err)

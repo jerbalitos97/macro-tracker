@@ -4,6 +4,7 @@ import type {
   ExtraWorkout,
   Meal,
   TrainingBurn,
+  DailyAdjustment,
   ComputedDay,
   ComputedResult,
 } from '../types'
@@ -15,6 +16,7 @@ export function computeDays(
   extras: ExtraWorkout[],
   meals: Meal[],
   burns: TrainingBurn[] = [],
+  adjustments: DailyAdjustment[] = [],
 ): ComputedResult {
   const days: ComputedDay[] = []
   const total = daysBetween(settings.startDate, settings.endDate) + 1
@@ -60,6 +62,9 @@ export function computeDays(
     const dayBurns = burns.filter((b) => b.date === date)
     const burnKcal = dayBurns.reduce((sum, b) => sum + Number(b.kcal), 0)
 
+    const adjustmentOnDay = adjustments.find((a) => a.date === date) ?? null
+    const adjKcal = adjustmentOnDay ? Number(adjustmentOnDay.kcal) : 0
+
     const dayType = settings.weeklyPattern[dow] ?? 'rest'
     const baseTdee = settings.tdee[dayType] ?? settings.tdee.rest
 
@@ -67,14 +72,19 @@ export function computeDays(
     let note = ''
 
     if (eventOnDay) {
-      budget = baseTdee - dailyDeficitBase + Number(eventOnDay.excessKcal)
+      budget = baseTdee - dailyDeficitBase + Number(eventOnDay.excessKcal) + adjKcal
       note = `🎉 ${eventOnDay.name} (+${eventOnDay.excessKcal})`
     } else {
-      budget = baseTdee - dailyDeficitBase - preBufferReduction + extraKcal
+      budget = baseTdee - dailyDeficitBase - preBufferReduction + extraKcal + adjKcal
       if (preBufferReduction > 0) note = `pre-buffer −${preBufferReduction}`
       if (extraKcal > 0) {
         note = note ? `${note} · treeni +${extraKcal}` : `treeni +${extraKcal}`
       }
+    }
+    if (adjKcal !== 0) {
+      const sign = adjKcal > 0 ? '+' : '−'
+      const tag = `säätö ${sign}${Math.abs(adjKcal)}`
+      note = note ? `${note} · ${tag}` : tag
     }
 
     const dayMeals = meals.filter((m) => m.date === date)
@@ -97,6 +107,7 @@ export function computeDays(
       burnKcal,
       netConsumed,
       event: eventOnDay ?? null,
+      adjustment: adjustmentOnDay,
       note,
       dailyDeficitBase: Math.round(dailyDeficitBase),
     })

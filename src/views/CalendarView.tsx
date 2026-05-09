@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2 } from 'lucide-react'
 import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { CalendarGrid } from '../components/CalendarGrid'
@@ -7,6 +7,7 @@ import { DayBreakdown } from '../components/DayBreakdown'
 import { UpcomingList } from '../components/UpcomingList'
 import { EventModal } from '../components/EventModal'
 import { ExtraModal } from '../components/ExtraModal'
+import { AdjustmentModal } from '../components/AdjustmentModal'
 import { s } from '../styles/tokens'
 
 const DAY_TYPE_LABEL: Record<string, string> = {
@@ -27,6 +28,8 @@ interface Props {
   onDeleteEvent: (id: number) => void
   onAddExtra: (ex: Omit<ExtraWorkout, 'id'>) => void
   onDeleteExtra: (id: number) => void
+  onSetAdjustment: (date: string, kcal: number, note: string) => void
+  onDeleteAdjustment: (id: number) => void
 }
 
 export function CalendarView({
@@ -40,8 +43,10 @@ export function CalendarView({
   onDeleteEvent,
   onAddExtra,
   onDeleteExtra,
+  onSetAdjustment,
+  onDeleteAdjustment,
 }: Props) {
-  const [modalType, setModalType] = useState<'event' | 'extra' | null>(null)
+  const [modalType, setModalType] = useState<'event' | 'extra' | 'adjustment' | null>(null)
   const todayISO = toISO(new Date())
 
   const selectedIdx = computed.days.findIndex((d) => d.date === selectedDate)
@@ -104,14 +109,18 @@ export function CalendarView({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 12 }}>
         <button onClick={() => setModalType('event')} style={s.actionBtn}>
           <PartyPopper size={14} />
-          Juhlapäivä
+          Juhla
         </button>
         <button onClick={() => setModalType('extra')} style={s.actionBtn}>
           <Dumbbell size={14} />
-          Ekstratreeni
+          Treeni
+        </button>
+        <button onClick={() => setModalType('adjustment')} style={s.actionBtn}>
+          <Sliders size={14} />
+          Säätö
         </button>
       </div>
 
@@ -134,6 +143,29 @@ export function CalendarView({
         <ExtraModal
           defaultDate={selectedDate}
           onSave={(ex) => { onAddExtra(ex); setModalType(null) }}
+          onClose={() => setModalType(null)}
+        />
+      )}
+      {modalType === 'adjustment' && (
+        <AdjustmentModal
+          date={selectedDate}
+          current={
+            selectedDay?.adjustment
+              ? { kcal: selectedDay.adjustment.kcal, note: selectedDay.adjustment.note }
+              : null
+          }
+          onSave={(kcal, note) => {
+            onSetAdjustment(selectedDate, kcal, note)
+            setModalType(null)
+          }}
+          onDelete={
+            selectedDay?.adjustment
+              ? () => {
+                  onDeleteAdjustment(selectedDay.adjustment!.id)
+                  setModalType(null)
+                }
+              : undefined
+          }
           onClose={() => setModalType(null)}
         />
       )}

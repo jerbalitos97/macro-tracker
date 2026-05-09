@@ -60,6 +60,20 @@ export interface TrainingBurn {
   note: string
 }
 
+/**
+ * Manual one-day budget adjustment. kcal is signed:
+ *   positive → loosen the day (more food allowed)
+ *   negative → tighten the day (less food allowed, more deficit)
+ * Useful for applying a recovery plan from the goal view to specific days
+ * without changing the global cut deficit.
+ */
+export interface DailyAdjustment {
+  id: number
+  date: string
+  kcal: number
+  note: string
+}
+
 export interface ComputedDay {
   date: string
   dow: number
@@ -73,6 +87,7 @@ export interface ComputedDay {
   burnKcal: number       // training burns on this day
   netConsumed: number    // consumed - burnKcal (≥ 0), used for deficit calc
   event: SpecialEvent | null
+  adjustment: DailyAdjustment | null
   note: string
   dailyDeficitBase: number
   actualDeficit?: number
@@ -94,6 +109,7 @@ export interface AppData {
   meals: Meal[]
   weights: WeightEntry[]
   burns: TrainingBurn[]
+  adjustments: DailyAdjustment[]
 }
 
 export interface WeightTrend {

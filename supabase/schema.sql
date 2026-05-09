@@ -103,3 +103,21 @@ create policy "extra_workouts: own rows only"
   on extra_workouts for all
   using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ── Daily adjustments (signed per-day budget tweaks) ────────────
+create table if not exists daily_adjustments (
+  id      bigint primary key,
+  user_id uuid not null references auth.users on delete cascade,
+  date    text not null,
+  kcal    numeric not null,
+  note    text not null default ''
+);
+
+alter table daily_adjustments enable row level security;
+
+create policy "daily_adjustments: own rows only"
+  on daily_adjustments for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists daily_adjustments_user_date on daily_adjustments (user_id, date);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, AppData } from './types'
+import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
@@ -9,6 +9,7 @@ import {
   syncBurn, deleteBurn as syncDeleteBurn,
   syncEvent, deleteEvent as syncDeleteEvent,
   syncExtra, deleteExtra as syncDeleteExtra,
+  syncAdjustment, deleteAdjustment as syncDeleteAdjustment,
   pushAllData, pullAllData,
 } from './lib/sync'
 import { useAuth } from './contexts/AuthContext'
@@ -59,6 +60,7 @@ export default function App() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [weights, setWeights] = useState<WeightEntry[]>([])
   const [burns, setBurns] = useState<TrainingBurn[]>([])
+  const [adjustments, setAdjustments] = useState<DailyAdjustment[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selectedDate, setSelectedDate] = useState(toISO(new Date()))
   const [saveError, setSaveError] = useState<'quota' | 'error' | null>(null)
@@ -86,6 +88,7 @@ export default function App() {
       if (data.meals) setMeals(data.meals)
       if (data.weights) setWeights(data.weights)
       if (data.burns) setBurns(data.burns)
+      if (data.adjustments) setAdjustments(data.adjustments)
     }
     setLoaded(true)
   }, [])
@@ -93,9 +96,9 @@ export default function App() {
   // ── Persist to localStorage on every change ───────────────────
   useEffect(() => {
     if (!loaded) return
-    const status = saveData({ settings, events, extras, meals, weights, burns })
+    const status = saveData({ settings, events, extras, meals, weights, burns, adjustments })
     setSaveError(status !== 'ok' ? status : null)
-  }, [settings, events, extras, meals, weights, burns, loaded])
+  }, [settings, events, extras, meals, weights, burns, adjustments, loaded])
 
   // ── Pull from Supabase on login ───────────────────────────────
   useEffect(() => {
@@ -113,6 +116,7 @@ export default function App() {
         setMeals(cloudData.meals)
         setWeights(cloudData.weights)
         setBurns(cloudData.burns)
+        setAdjustments(cloudData.adjustments ?? [])
         setSyncStatus('synced')
         setShowMigration(false)
       } else {
@@ -134,6 +138,7 @@ export default function App() {
             meals,
             weights,
             burns,
+            adjustments,
           })
         }
         setSyncStatus('synced')
@@ -173,13 +178,13 @@ export default function App() {
 
   // ── Computed values ───────────────────────────────────────────
   const computed = useMemo(
-    () => computeDays(settings, events, extras, meals, burns),
-    [settings, events, extras, meals, burns],
+    () => computeDays(settings, events, extras, meals, burns, adjustments),
+    [settings, events, extras, meals, burns, adjustments],
   )
 
   const appData: AppData = useMemo(
-    () => ({ settings, events, extras, meals, weights, burns }),
-    [settings, events, extras, meals, weights, burns],
+    () => ({ settings, events, extras, meals, weights, burns, adjustments }),
+    [settings, events, extras, meals, weights, burns, adjustments],
   )
 
   const usedBytes = useMemo(() => storageUsedBytes(appData), [appData])
@@ -196,6 +201,7 @@ export default function App() {
       meals: data.meals ?? [],
       weights: data.weights ?? [],
       burns: data.burns ?? [],
+      adjustments: data.adjustments ?? [],
     }
     if (data.settings) setSettings(data.settings)
     setEvents(next.events)
@@ -203,6 +209,7 @@ export default function App() {
     setMeals(next.meals)
     setWeights(next.weights)
     setBurns(next.burns)
+    setAdjustments(next.adjustments)
     if (user) {
       setSyncStatus('syncing')
       const result = await pushAllData(user.id, next)
@@ -336,6 +343,21 @@ export default function App() {
             onDeleteExtra={(id) => {
               setExtras((prev) => prev.filter((e) => e.id !== id))
               if (user) syncDeleteExtra(user.id, id)
+            }}
+            onSetAdjustment={(date, kcal, note) => {
+              const existing = adjustments.find((a) => a.date === date)
+              const a: DailyAdjustment = existing
+                ? { ...existing, kcal, note }
+                : { id: Date.now(), date, kcal, note }
+              setAdjustments((prev) => {
+                const without = prev.filter((p) => p.date !== date)
+                return [...without, a]
+              })
+              if (user) syncAdjustment(user.id, a)
+            }}
+            onDeleteAdjustment={(id) => {
+              setAdjustments((prev) => prev.filter((a) => a.id !== id))
+              if (user) syncDeleteAdjustment(user.id, id)
             }}
           />
         </div>

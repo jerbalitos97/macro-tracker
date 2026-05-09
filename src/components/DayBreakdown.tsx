@@ -34,6 +34,19 @@ export function DayBreakdown({ day }: Props) {
           <span style={{ ...s.breakdownVal, color: '#d4b85a' }}>+{day.event.excessKcal}</span>
         </div>
       )}
+      {day.adjustment && day.adjustment.kcal !== 0 && (
+        <div style={s.breakdownRow}>
+          <span style={s.breakdownLabel}>Säätö{day.adjustment.note ? ` · ${day.adjustment.note}` : ''}</span>
+          <span
+            style={{
+              ...s.breakdownVal,
+              color: day.adjustment.kcal > 0 ? '#6a9ad4' : '#e87a6a',
+            }}
+          >
+            {day.adjustment.kcal > 0 ? '+' : '−'}{Math.abs(day.adjustment.kcal)}
+          </span>
+        </div>
+      )}
       <div
         style={{
           ...s.breakdownRow,

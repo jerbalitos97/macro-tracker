@@ -53,8 +53,9 @@ export function importJSON(json: string): AppData | null {
   try {
     const data = JSON.parse(json)
     if (!isValidAppData(data)) return null
-    // Backfill burns array if importing from old version without it
+    // Backfill arrays if importing from older versions
     if (!Array.isArray(data.burns)) data.burns = []
+    if (!Array.isArray(data.adjustments)) data.adjustments = []
     return data
   } catch {
     return null
