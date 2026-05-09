@@ -403,6 +403,10 @@ export const s: Styles = {
     alignItems: 'flex-end',
     justifyContent: 'center',
     zIndex: 100,
+    // Prevent the page underneath from rubber-banding when the user
+    // drags inside the modal — without this iOS scrolls the body and
+    // the sticky NavBar visually drops into the modal area.
+    overscrollBehavior: 'contain',
     animation: 'backdropIn 0.22s ease both',
   },
   modal: {
@@ -420,6 +424,9 @@ export const s: Styles = {
     maxHeight: 'calc(100dvh - env(safe-area-inset-top) - 64px)',
     overflowY: 'auto',
     WebkitOverflowScrolling: 'touch',
+    // Keep scroll locked to this element — when content reaches its top
+    // or bottom, don't let iOS chain to a body/page scroll.
+    overscrollBehavior: 'contain',
     boxShadow: '0 -16px 60px rgba(0,0,0,0.70)',
   },
   modalTitle: {

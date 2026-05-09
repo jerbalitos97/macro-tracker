@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronLeft, MoreHorizontal, Plus, Minus, Check, Pencil, Archive } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO } from '../lib/dates'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { HabitProgressRing } from './HabitProgressRing'
 import { s } from '../styles/tokens'
 
@@ -28,6 +29,7 @@ export function HabitDetailModal({
   onArchive,
   onClose,
 }: Props) {
+  useBodyScrollLock()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const goal = habit.goalValue

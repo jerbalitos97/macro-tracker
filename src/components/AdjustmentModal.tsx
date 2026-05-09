@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Sliders } from 'lucide-react'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { s } from '../styles/tokens'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 const PRESETS = [-200, -150, -100, -50, 50, 100, 150, 200] as const
 
 export function AdjustmentModal({ date, current, onSave, onDelete, onClose }: Props) {
+  useBodyScrollLock()
   const [kcalText, setKcalText] = useState<string>(current ? String(current.kcal) : '-150')
   const [note, setNote] = useState<string>(current?.note ?? '')
 

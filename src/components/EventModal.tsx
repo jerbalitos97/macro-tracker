@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PartyPopper } from 'lucide-react'
 import type { SpecialEvent, BufferDirection } from '../types'
 import { toISO } from '../lib/dates'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { s } from '../styles/tokens'
 
 type FormState = Omit<SpecialEvent, 'id'>
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function EventModal({ defaultDate, onSave, onClose }: Props) {
+  useBodyScrollLock()
   const [form, setForm] = useState<FormState>({
     date: defaultDate,
     name: '',

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ListChecks } from 'lucide-react'
 import type { Habit, HabitGoalPeriod, HabitGoalUnit } from '../types'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { s } from '../styles/tokens'
 
 const COLOR_SWATCHES = [
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function HabitFormModal({ initial, onSave, onClose }: Props) {
+  useBodyScrollLock()
   const [form, setForm] = useState<FormState>({
     name: initial?.name ?? '',
     description: initial?.description ?? '',

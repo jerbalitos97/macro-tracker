@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Dumbbell } from 'lucide-react'
 import type { ExtraWorkout } from '../types'
+import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { s } from '../styles/tokens'
 
 type FormState = Omit<ExtraWorkout, 'id'>
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ExtraModal({ defaultDate, onSave, onClose }: Props) {
+  useBodyScrollLock()
   const [form, setForm] = useState<FormState>({
     date: defaultDate,
     kcal: 300,
