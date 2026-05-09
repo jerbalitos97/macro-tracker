@@ -415,6 +415,11 @@ export const s: Styles = {
     paddingBottom: 'max(40px, calc(env(safe-area-inset-bottom) + 24px))',
     width: '100%',
     maxWidth: 480,
+    // Cap height so tall forms don't slide under the sticky NavBar.
+    // 64px reserves room for the navbar above the modal sheet.
+    maxHeight: 'calc(100dvh - env(safe-area-inset-top) - 64px)',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     boxShadow: '0 -16px 60px rgba(0,0,0,0.70)',
   },
   modalTitle: {
