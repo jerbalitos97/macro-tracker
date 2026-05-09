@@ -112,6 +112,33 @@ export interface AppData {
   adjustments: DailyAdjustment[]
 }
 
+// ── Habits ──────────────────────────────────────────────────────
+export type HabitGoalPeriod = 'day' | 'week'
+export type HabitGoalUnit = 'count' | 'binary'
+export type HabitType = 'build'
+
+export interface Habit {
+  id: number
+  name: string
+  description: string
+  color: string
+  habitType: HabitType
+  goalPeriod: HabitGoalPeriod
+  goalValue: number
+  goalUnit: HabitGoalUnit
+  taskDays: number[]    // 0=Sunday … 6=Saturday
+  isArchived: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HabitEntry {
+  id: number
+  habitId: number
+  date: string          // YYYY-MM-DD
+  value: number
+}
+
 export interface WeightTrend {
   trendData: Array<{ date: string; kg: number; trend: number; windowSize: number }>
   currentTrend: number | null

@@ -121,3 +121,49 @@ create policy "daily_adjustments: own rows only"
   with check (auth.uid() = user_id);
 
 create index if not exists daily_adjustments_user_date on daily_adjustments (user_id, date);
+
+-- ── Habits ──────────────────────────────────────────────────────
+create table if not exists habits (
+  id           bigint primary key,
+  user_id      uuid not null references auth.users on delete cascade,
+  name         text not null,
+  description  text not null default '',
+  color        text not null default '#d4b85a',
+  habit_type   text not null default 'build',
+  goal_period  text not null,                       -- 'day' | 'week'
+  goal_value   int  not null default 1,
+  goal_unit    text not null,                       -- 'count' | 'binary'
+  task_days    jsonb not null default '[0,1,2,3,4,5,6]'::jsonb,
+  is_archived  boolean not null default false,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+alter table habits enable row level security;
+
+create policy "habits: own rows only"
+  on habits for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists habits_user on habits (user_id, is_archived);
+
+-- ── Habit entries (daily counters / done flags) ─────────────────
+create table if not exists habit_entries (
+  id          bigint primary key,
+  habit_id    bigint not null references habits on delete cascade,
+  user_id     uuid   not null references auth.users on delete cascade,
+  entry_date  text   not null,                      -- YYYY-MM-DD
+  value       int    not null default 0,
+  created_at  timestamptz not null default now()
+);
+
+alter table habit_entries enable row level security;
+
+create policy "habit_entries: own rows only"
+  on habit_entries for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists habit_entries_habit_date on habit_entries (habit_id, entry_date);
+create unique index if not exists habit_entries_uniq on habit_entries (habit_id, entry_date);
