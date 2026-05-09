@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData } from './types'
+import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
@@ -12,6 +12,10 @@ import {
   syncAdjustment, deleteAdjustment as syncDeleteAdjustment,
   pushAllData, pullAllData,
 } from './lib/sync'
+import {
+  listHabits, syncHabit, archiveHabit as archiveHabitRemote,
+  listEntries as listHabitEntries, syncEntry as syncHabitEntry,
+} from './lib/habits'
 import { useAuth } from './contexts/AuthContext'
 import { NavBar } from './components/NavBar'
 import type { View } from './components/NavBar'
@@ -24,6 +28,7 @@ import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
 import { HistoryView } from './views/HistoryView'
 import { GoalView } from './views/GoalView'
+import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
 import { s } from './styles/tokens'
 
@@ -61,6 +66,8 @@ export default function App() {
   const [weights, setWeights] = useState<WeightEntry[]>([])
   const [burns, setBurns] = useState<TrainingBurn[]>([])
   const [adjustments, setAdjustments] = useState<DailyAdjustment[]>([])
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitEntries, setHabitEntries] = useState<HabitEntry[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selectedDate, setSelectedDate] = useState(toISO(new Date()))
   const [saveError, setSaveError] = useState<'quota' | 'error' | null>(null)
@@ -148,6 +155,22 @@ export default function App() {
     pull()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loaded])
+
+  // ── Habits: pull from cloud on login ──────────────────────────
+  useEffect(() => {
+    if (!user) {
+      setHabits([])
+      setHabitEntries([])
+      return
+    }
+    let cancelled = false
+    Promise.all([listHabits(user.id), listHabitEntries(user.id)]).then(([hs, es]) => {
+      if (cancelled) return
+      setHabits(hs)
+      setHabitEntries(es)
+    })
+    return () => { cancelled = true }
+  }, [user])
 
   // ── Migration: push local data to cloud ───────────────────────
   const handleMigrate = useCallback(async () => {
@@ -286,6 +309,79 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {view === 'habits' && (
+        <div className="view-enter">
+          <HabitsView
+            habits={habits}
+            entries={habitEntries}
+            onCreate={(input) => {
+              if (!user) return
+              const now = new Date().toISOString()
+              const h: Habit = {
+                id: Date.now(),
+                name: input.name,
+                description: input.description,
+                color: input.color,
+                habitType: 'build',
+                goalPeriod: input.goalPeriod,
+                goalValue: input.goalValue,
+                goalUnit: input.goalUnit,
+                taskDays: [0, 1, 2, 3, 4, 5, 6],
+                isArchived: false,
+                createdAt: now,
+                updatedAt: now,
+              }
+              setHabits((prev) => [...prev, h])
+              syncHabit(user.id, h)
+            }}
+            onUpdate={(id, patch) => {
+              if (!user) return
+              setHabits((prev) =>
+                prev.map((h) => {
+                  if (h.id !== id) return h
+                  const updated = { ...h, ...patch, updatedAt: new Date().toISOString() }
+                  syncHabit(user.id, updated)
+                  return updated
+                }),
+              )
+            }}
+            onArchive={(id) => {
+              if (!user) return
+              setHabits((prev) => prev.filter((h) => h.id !== id))
+              archiveHabitRemote(user.id, id)
+            }}
+            onIncrement={(habit, delta) => {
+              if (!user) return
+              const today = todayISO
+              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === today)
+              const nextValue = Math.max(0, (existing?.value ?? 0) + delta)
+              const entry: HabitEntry = existing
+                ? { ...existing, value: nextValue }
+                : { id: Date.now(), habitId: habit.id, date: today, value: nextValue }
+              setHabitEntries((prev) => {
+                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === today))
+                return [...without, entry]
+              })
+              syncHabitEntry(user.id, entry)
+            }}
+            onSetBinary={(habit, done) => {
+              if (!user) return
+              const today = todayISO
+              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === today)
+              const value = done ? 1 : 0
+              const entry: HabitEntry = existing
+                ? { ...existing, value }
+                : { id: Date.now(), habitId: habit.id, date: today, value }
+              setHabitEntries((prev) => {
+                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === today))
+                return [...without, entry]
+              })
+              syncHabitEntry(user.id, entry)
+            }}
+          />
+        </div>
+      )}
 
       {view === 'today' && (
         <div className="view-enter">
