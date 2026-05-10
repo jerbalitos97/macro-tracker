@@ -28,6 +28,12 @@ html, body {
   padding-right:  env(safe-area-inset-right);
 }
 
+/* When the body-scroll-lock pins the body via position:fixed, also
+   suppress overscroll on html so iOS doesn't rubber-band the document. */
+html.scroll-locked, body.scroll-locked {
+  overscroll-behavior: none;
+}
+
 #root { height: 100%; }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────────── */

@@ -42,6 +42,8 @@ export function useBodyScrollLock(active: boolean = true): void {
       body.style.right = '0'
       body.style.width = '100%'
       body.style.overflow = 'hidden'
+      document.documentElement.classList.add('scroll-locked')
+      body.classList.add('scroll-locked')
     }
     lockCount += 1
 
@@ -56,6 +58,8 @@ export function useBodyScrollLock(active: boolean = true): void {
         body.style.width = savedStyle.width
         body.style.overflow = savedStyle.overflow
         savedStyle = null
+        document.documentElement.classList.remove('scroll-locked')
+        body.classList.remove('scroll-locked')
         window.scrollTo(0, savedScrollY)
       }
     }
