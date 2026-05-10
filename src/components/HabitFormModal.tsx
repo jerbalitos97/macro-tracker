@@ -53,45 +53,63 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
     })
   }
 
+  // Compact field styles so the whole form fits in the bottom sheet
+  // without internal scrolling on iPhone-sized screens.
+  const compactInput: React.CSSProperties = { ...s.input, padding: '10px 12px', fontSize: 14, marginTop: 4, marginBottom: 6 }
+  const compactLabel: React.CSSProperties = { ...s.inputLabel, marginTop: 2 }
+  const compactToggle: React.CSSProperties = { ...s.toggleBtn, padding: '7px 4px' }
+
   return (
     <div style={s.modalBg} onClick={onClose}>
-      <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
+      <div
+        style={{ ...s.modal, paddingTop: 14 }}
+        className="modal-enter"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div
           style={{
             width: 36,
             height: 4,
             borderRadius: 2,
             backgroundColor: 'rgba(255,255,255,0.15)',
-            margin: '-8px auto 20px',
+            margin: '-4px auto 12px',
           }}
         />
 
-        <div style={s.modalTitle}>
+        <div style={{ ...s.modalTitle, marginBottom: 12 }}>
           <ListChecks size={14} />
           {initial ? 'Muokkaa tapaa' : 'Uusi tapa'}
         </div>
 
-        <label style={s.inputLabel}>Nimi</label>
+        <label style={compactLabel}>Nimi</label>
         <input
           type="text"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          style={s.input}
+          style={compactInput}
           placeholder="esim. Juo 2 l vettä"
           autoFocus
         />
 
-        <label style={s.inputLabel}>Kuvaus (valinnainen)</label>
+        <label style={compactLabel}>Kuvaus (valinnainen)</label>
         <input
           type="text"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-          style={s.input}
-          placeholder="esim. terveellisempi nesteytys"
+          style={compactInput}
+          placeholder="esim. nesteytys"
         />
 
-        <label style={s.inputLabel}>Väri</label>
-        <div style={{ display: 'flex', gap: 10, marginTop: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        <label style={compactLabel}>Väri</label>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(8, 1fr)',
+            gap: 8,
+            marginTop: 4,
+            marginBottom: 10,
+          }}
+        >
           {COLOR_SWATCHES.map((c) => {
             const active = form.color === c
             return (
@@ -99,9 +117,9 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
                 key={c}
                 onClick={() => setForm({ ...form, color: c })}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: '100%',
+                  aspectRatio: '1',
+                  borderRadius: '50%',
                   backgroundColor: c,
                   border: active ? '2px solid #fff' : '2px solid transparent',
                   cursor: 'pointer',
@@ -115,65 +133,70 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
           })}
         </div>
 
-        <label style={s.inputLabel}>Tavoite­jakso</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6, marginBottom: 12 }}>
-          {([
-            ['day', 'Päivä'],
-            ['week', 'Viikko'],
-          ] as const).map(([id, label]) => {
-            const active = form.goalPeriod === id
-            return (
-              <button
-                key={id}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    goalPeriod: id,
-                    goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
-                  })
-                }
-                style={{ ...s.toggleBtn, ...(active ? s.toggleBtnActive : {}) }}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-
-        <label style={s.inputLabel}>Tavoitetyyppi</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6, marginBottom: 12 }}>
-          {([
-            ['count', 'Lukumäärä'],
-            ['binary', 'Tehty / ei'],
-          ] as const).map(([id, label]) => {
-            const active = form.goalUnit === id
-            return (
-              <button
-                key={id}
-                onClick={() => setForm({ ...form, goalUnit: id })}
-                style={{ ...s.toggleBtn, ...(active ? s.toggleBtnActive : {}) }}
-              >
-                {label}
-              </button>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <label style={compactLabel}>Jakso</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 4 }}>
+              {([
+                ['day', 'Päivä'],
+                ['week', 'Viikko'],
+              ] as const).map(([id, label]) => {
+                const active = form.goalPeriod === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        goalPeriod: id,
+                        goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
+                      })
+                    }
+                    style={{ ...compactToggle, ...(active ? s.toggleBtnActive : {}) }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div>
+            <label style={compactLabel}>Tyyppi</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 4 }}>
+              {([
+                ['count', 'Määrä'],
+                ['binary', 'Tehty'],
+              ] as const).map(([id, label]) => {
+                const active = form.goalUnit === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setForm({ ...form, goalUnit: id })}
+                    style={{ ...compactToggle, ...(active ? s.toggleBtnActive : {}) }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {form.goalUnit === 'count' && (
-          <>
-            <label style={s.inputLabel}>Tavoitearvo ({form.goalPeriod === 'week' ? 'kpl/viikko' : 'kpl/päivä'})</label>
+          <div style={{ marginTop: 10 }}>
+            <label style={compactLabel}>Tavoite ({form.goalPeriod === 'week' ? 'kpl/vk' : 'kpl/pv'})</label>
             <input
               type="number"
               min={1}
               value={form.goalValue}
               onChange={(e) => setForm({ ...form, goalValue: Math.max(1, Number(e.target.value)) })}
-              style={s.input}
+              style={compactInput}
               inputMode="numeric"
             />
-          </>
+          </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button
             onClick={handleSave}
             disabled={!valid}
