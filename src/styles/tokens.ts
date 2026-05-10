@@ -399,17 +399,22 @@ export const s: Styles = {
     backgroundColor: 'rgba(0,0,0,0.72)',
     backdropFilter: 'blur(6px)',
     WebkitBackdropFilter: 'blur(6px)',
-    display: 'flex',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
     zIndex: 100,
-    // Prevent the page underneath from rubber-banding when the user
-    // drags inside the modal — without this iOS scrolls the body and
-    // the sticky NavBar visually drops into the modal area.
     overscrollBehavior: 'contain',
     animation: 'backdropIn 0.22s ease both',
   },
   modal: {
+    // Absolute-positioned bottom sheet. iOS Safari ignores max-height
+    // on flex items inside fixed-position flex parents, so the modal
+    // is positioned directly with explicit bottom/left/right/top
+    // constraints and a hard maxHeight that the browser actually
+    // honors — letting overflow-y: auto enable internal scrolling.
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    marginLeft: 'auto',
+    marginRight: 'auto',
     backgroundColor: '#181818',
     border: '1px solid rgba(255,255,255,0.10)',
     borderRadius: '20px 20px 0 0',
@@ -419,13 +424,9 @@ export const s: Styles = {
     paddingBottom: 'max(40px, calc(env(safe-area-inset-bottom) + 24px))',
     width: '100%',
     maxWidth: 480,
-    // Cap height so tall forms don't slide under the sticky NavBar.
-    // 64px reserves room for the navbar above the modal sheet.
     maxHeight: 'calc(100dvh - env(safe-area-inset-top) - 64px)',
     overflowY: 'auto',
     WebkitOverflowScrolling: 'touch',
-    // Keep scroll locked to this element — when content reaches its top
-    // or bottom, don't let iOS chain to a body/page scroll.
     overscrollBehavior: 'contain',
     boxShadow: '0 -16px 60px rgba(0,0,0,0.70)',
   },
