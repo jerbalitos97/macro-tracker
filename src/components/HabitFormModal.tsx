@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { ListChecks } from 'lucide-react'
+import { ChevronLeft, ListChecks } from 'lucide-react'
 import type { Habit, HabitGoalPeriod, HabitGoalUnit } from '../types'
-import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { s } from '../styles/tokens'
 
 const COLOR_SWATCHES = [
@@ -31,7 +30,6 @@ interface Props {
 }
 
 export function HabitFormModal({ initial, onSave, onClose }: Props) {
-  useBodyScrollLock()
   const [form, setForm] = useState<FormState>({
     name: initial?.name ?? '',
     description: initial?.description ?? '',
@@ -60,26 +58,27 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
   const compactToggle: React.CSSProperties = { ...s.toggleBtn, padding: '7px 4px' }
 
   return (
-    <div style={s.modalBg} onClick={onClose}>
-      <div
-        style={{ ...s.modal, paddingTop: 14 }}
-        className="modal-enter"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div style={s.content}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <button onClick={onClose} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Takaisin">
+          <ChevronLeft size={22} />
+        </button>
         <div
           style={{
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            margin: '-4px auto 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#d4b85a',
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
           }}
-        />
-
-        <div style={{ ...s.modalTitle, marginBottom: 12 }}>
+        >
           <ListChecks size={14} />
           {initial ? 'Muokkaa tapaa' : 'Uusi tapa'}
         </div>
+      </div>
 
         <label style={compactLabel}>Nimi</label>
         <input
@@ -208,7 +207,6 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
             Peru
           </button>
         </div>
-      </div>
     </div>
   )
 }

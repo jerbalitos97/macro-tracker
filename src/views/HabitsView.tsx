@@ -67,6 +67,32 @@ export function HabitsView({
     month: 'long',
   })
 
+  // Inline form view replaces the list when creating or editing.
+  // Avoids fighting iOS Safari over bottom-sheet modal scrolling.
+  if (showCreate) {
+    return (
+      <HabitFormModal
+        onSave={(input) => {
+          onCreate(input)
+          setShowCreate(false)
+        }}
+        onClose={() => setShowCreate(false)}
+      />
+    )
+  }
+  if (editing) {
+    return (
+      <HabitFormModal
+        initial={editing}
+        onSave={(input) => {
+          onUpdate(editing.id, input)
+          setEditing(null)
+        }}
+        onClose={() => setEditing(null)}
+      />
+    )
+  }
+
   return (
     <div style={s.content}>
       {/* Header */}
@@ -289,29 +315,6 @@ export function HabitsView({
             )
           })}
         </div>
-      )}
-
-      {/* Create modal */}
-      {showCreate && (
-        <HabitFormModal
-          onSave={(input) => {
-            onCreate(input)
-            setShowCreate(false)
-          }}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
-
-      {/* Edit modal */}
-      {editing && (
-        <HabitFormModal
-          initial={editing}
-          onSave={(input) => {
-            onUpdate(editing.id, input)
-            setEditing(null)
-          }}
-          onClose={() => setEditing(null)}
-        />
       )}
 
       {/* Detail */}
