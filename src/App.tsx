@@ -409,6 +409,17 @@ export default function App() {
               setBurns((prev) => prev.filter((b) => b.id !== id))
               if (user) syncDeleteBurn(user.id, id)
             }}
+            onSetAdjustment={(date, kcal, note) => {
+              const existing = adjustments.find((a) => a.date === date)
+              const a: DailyAdjustment = existing
+                ? { ...existing, kcal, note }
+                : { id: Date.now(), date, kcal, note }
+              setAdjustments((prev) => {
+                const without = prev.filter((p) => p.date !== date)
+                return [...without, a]
+              })
+              if (user) syncAdjustment(user.id, a)
+            }}
           />
         </div>
       )}

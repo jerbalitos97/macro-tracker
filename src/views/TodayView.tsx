@@ -24,6 +24,7 @@ interface Props {
   onDeleteMeal: (id: number) => void
   onAddBurn: (burn: { kcal: number; note: string }) => void
   onDeleteBurn: (id: number) => void
+  onSetAdjustment: (date: string, kcal: number, note: string) => void
 }
 
 export function TodayView({
@@ -36,6 +37,7 @@ export function TodayView({
   onDeleteMeal,
   onAddBurn,
   onDeleteBurn,
+  onSetAdjustment,
 }: Props) {
   const [showMealForm, setShowMealForm] = useState(false)
   const [showBurnForm, setShowBurnForm] = useState(false)
@@ -200,6 +202,68 @@ export function TodayView({
 
         {day.note && <div style={s.noteBadge}>{day.note}</div>}
       </div>
+
+      {/* ── Spread-the-excess suggestion ────────────────────────────── */}
+      {isOver && Math.abs(remaining) >= 50 && (() => {
+        const excess = Math.abs(remaining)
+        const todayIdx = computed.days.findIndex((d) => d.date === day.date)
+        // Only count future days within the cut window
+        const futureDays = todayIdx >= 0 ? computed.days.slice(todayIdx + 1) : []
+        if (futureDays.length === 0) return null
+        const options = [3, 5, 7].filter((n) => n <= futureDays.length)
+        if (options.length === 0) options.push(futureDays.length)
+
+        const apply = (n: number) => {
+          const perDay = Math.ceil(excess / n)
+          if (!window.confirm(`Lisää ${perDay} kcal vajetta seuraaville ${n} päivälle?`)) return
+          const noteTag = `tasoitus ${day.date.slice(5)}`
+          for (let i = 0; i < n; i++) {
+            const target = futureDays[i]
+            const existingKcal = target.adjustment?.kcal ?? 0
+            const newKcal = existingKcal - perDay
+            const noteParts = [target.adjustment?.note, noteTag].filter(Boolean)
+            onSetAdjustment(target.date, newKcal, noteParts.join(' · '))
+          }
+          flashSaved()
+        }
+
+        return (
+          <div
+            style={{
+              ...s.card,
+              marginTop: 10,
+              background: 'rgba(232,122,106,0.05)',
+              border: '1px solid rgba(232,122,106,0.22)',
+            }}
+          >
+            <div style={{ ...s.cardLabel, color: '#e87a6a' }}>Tasoitus</div>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+              Ylitit budjetin <strong style={{ color: '#fff' }}>{excess.toLocaleString('fi-FI')} kcal</strong>.
+              Jaa se tulevien päivien lisävajeeksi pysyäksesi linjalla.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 6 }}>
+              {options.map((n) => {
+                const perDay = Math.ceil(excess / n)
+                return (
+                  <button
+                    key={n}
+                    onClick={() => apply(n)}
+                    style={{ ...s.toggleBtn, padding: '10px 6px', textAlign: 'center' }}
+                  >
+                    <div style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      −{perDay}
+                      <span style={{ color: '#777', fontWeight: 400 }}> kcal/pv</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>
+                      {n} päivälle
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Protein card ────────────────────────────────────────────── */}
       <div style={{ ...s.card, marginTop: 10 }}>
