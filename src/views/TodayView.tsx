@@ -55,10 +55,13 @@ export function TodayView({
     )
   }
 
-  const remaining = day.budget - day.netConsumed
-  const proteinRemaining = Math.max(0, proteinTarget - day.protein)
-  const pctConsumed = day.budget > 0 ? day.netConsumed / day.budget : 0
   const totalBurnKcal = burns.reduce((s, b) => s + b.kcal, 0)
+  // Burns add to the day's budget (more food earned by training) instead of
+  // subtracting from food eaten — same math, more intuitive presentation.
+  const effectiveBudget = day.budget + totalBurnKcal
+  const remaining = effectiveBudget - day.consumed
+  const proteinRemaining = Math.max(0, proteinTarget - day.protein)
+  const pctConsumed = effectiveBudget > 0 ? day.consumed / effectiveBudget : 0
 
   const flashSaved = () => {
     setSavedFlash(true)
@@ -156,12 +159,8 @@ export function TodayView({
 
         <div style={s.statsRow}>
           <div>
-            <span style={s.statNum}>
-              {totalBurnKcal > 0
-                ? day.netConsumed.toLocaleString('fi-FI')
-                : day.consumed.toLocaleString('fi-FI')}
-            </span>
-            <span style={s.statLabel}> / {day.budget.toLocaleString('fi-FI')} kcal</span>
+            <span style={s.statNum}>{day.consumed.toLocaleString('fi-FI')}</span>
+            <span style={s.statLabel}> / {effectiveBudget.toLocaleString('fi-FI')} kcal</span>
           </div>
           <div style={{ fontSize: 10, color: '#444', letterSpacing: '0.04em' }}>
             TDEE {day.baseTdee.toLocaleString('fi-FI')}
@@ -176,9 +175,9 @@ export function TodayView({
             borderTop: '1px solid rgba(255,255,255,0.06)',
           }}>
             {[
-              { label: 'Syöty',          val: `${day.consumed.toLocaleString('fi-FI')} kcal`,    color: '#777' },
-              { label: 'Treenikulutus',  val: `−${totalBurnKcal.toLocaleString('fi-FI')} kcal`, color: '#6a9ad4' },
-              { label: 'Netto',          val: `${day.netConsumed.toLocaleString('fi-FI')} kcal`, color: '#ebebeb' },
+              { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,                color: '#777' },
+              { label: 'Treenikulutus', val: `+${totalBurnKcal.toLocaleString('fi-FI')} kcal`,            color: '#6a9ad4' },
+              { label: 'Budjetti',      val: `${effectiveBudget.toLocaleString('fi-FI')} kcal`,           color: '#ebebeb' },
             ].map(({ label, val, color }) => (
               <div
                 key={label}
@@ -189,7 +188,7 @@ export function TodayView({
                   color,
                   marginTop: 4,
                   fontVariantNumeric: 'tabular-nums',
-                  fontWeight: label === 'Netto' ? 600 : 400,
+                  fontWeight: label === 'Budjetti' ? 600 : 400,
                 }}
               >
                 <span>{label}</span>

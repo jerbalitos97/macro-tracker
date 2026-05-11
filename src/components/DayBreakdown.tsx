@@ -47,6 +47,12 @@ export function DayBreakdown({ day }: Props) {
           </span>
         </div>
       )}
+      {day.burnKcal > 0 && (
+        <div style={s.breakdownRow}>
+          <span style={s.breakdownLabel}>Treenikulutus</span>
+          <span style={{ ...s.breakdownVal, color: '#6a9ad4' }}>+{day.burnKcal}</span>
+        </div>
+      )}
       <div
         style={{
           ...s.breakdownRow,
@@ -64,7 +70,7 @@ export function DayBreakdown({ day }: Props) {
             fontSize: 15,
           }}
         >
-          {day.budget.toLocaleString('fi-FI')} kcal
+          {(day.budget + day.burnKcal).toLocaleString('fi-FI')} kcal
         </span>
       </div>
     </div>
