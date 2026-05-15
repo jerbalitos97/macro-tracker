@@ -38,32 +38,58 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
   const selectedHabit = selectedId === null ? null : habits.find((h) => h.id === selectedId) ?? null
 
   // ── Completion helpers ─────────────────────────────────────────
-  const valueForHabitOnDate = (habit: Habit, date: string): number => {
-    if (habit.goalPeriod === 'week') {
-      const ws = weekStart(date)
-      return entries
-        .filter((e) => e.habitId === habit.id && e.date >= ws && e.date <= addDays(ws, 6))
-        .reduce((sum, e) => sum + e.value, 0)
-    }
-    return entries.find((e) => e.habitId === habit.id && e.date === date)?.value ?? 0
+  // "Did this habit have activity (any entry > 0) on this date?"
+  const dayHasActivity = (habit: Habit, date: string): boolean => {
+    const v = entries.find((e) => e.habitId === habit.id && e.date === date)?.value ?? 0
+    return v > 0
   }
 
-  const completionForDate = (date: string): { hit: number; total: number; ratio: number; anyLogged: boolean } => {
+  // "Is the habit's period goal met for this date?"
+  //   day habit:  this day's value >= goal
+  //   week habit: this week's cumulative >= goal (week of date)
+  const periodGoalMet = (habit: Habit, date: string): boolean => {
+    if (habit.goalValue <= 0) return false
+    if (habit.goalPeriod === 'day') {
+      const v = entries.find((e) => e.habitId === habit.id && e.date === date)?.value ?? 0
+      return v >= habit.goalValue
+    }
+    const ws = weekStart(date)
+    const sum = entries
+      .filter((e) => e.habitId === habit.id && e.date >= ws && e.date <= addDays(ws, 6))
+      .reduce((s, e) => s + e.value, 0)
+    return sum >= habit.goalValue
+  }
+
+  // What we show in the cell for a single habit:
+  //   activity: did the user do something today? (drives the fill)
+  //   crown:    does this day deserve a crown? (drives the crown badge)
+  //
+  // For day habits crown == activity meeting the daily goal.
+  // For week habits we crown every active day in a fully-met week — so the
+  // user sees clearly which days contributed to a successful week.
+  const cellFor = (habit: Habit, date: string): { activity: boolean; crown: boolean } => {
+    const active = dayHasActivity(habit, date)
+    if (habit.goalPeriod === 'day') {
+      return { activity: active, crown: periodGoalMet(habit, date) }
+    }
+    return { activity: active, crown: active && periodGoalMet(habit, date) }
+  }
+
+  const completionForDate = (date: string): { activity: number; crowns: number; total: number; ratio: number } => {
     const dow = dowMondayFirst(date)
-    // taskDays uses Sun=0..Sat=6; convert from our Mon-first dow
     const sunFirstDow = (dow + 1) % 7
     const scheduled = selectedHabit
       ? [selectedHabit]
       : habits.filter((h) => h.taskDays.includes(sunFirstDow))
-    if (scheduled.length === 0) return { hit: 0, total: 0, ratio: 0, anyLogged: false }
-    let hit = 0
-    let anyLogged = false
+    if (scheduled.length === 0) return { activity: 0, crowns: 0, total: 0, ratio: 0 }
+    let activity = 0
+    let crowns = 0
     for (const h of scheduled) {
-      const v = valueForHabitOnDate(h, date)
-      if (v > 0) anyLogged = true
-      if (h.goalValue > 0 && v >= h.goalValue) hit++
+      const c = cellFor(h, date)
+      if (c.activity) activity++
+      if (c.crown) crowns++
     }
-    return { hit, total: scheduled.length, ratio: hit / scheduled.length, anyLogged }
+    return { activity, crowns, total: scheduled.length, ratio: activity / scheduled.length }
   }
 
   // ── Calendar cell layout ───────────────────────────────────────
@@ -81,25 +107,27 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
   }, [year, month])
 
   // ── Stats for the visible month ────────────────────────────────
+  // Rate is goal-completion-based (crowns / scheduled), so a 3/week habit
+  // contributes credit on every active day of a fully-met week. Perfect days
+  // require every scheduled habit to be crown-worthy.
   const stats = useMemo(() => {
     const inMonth = monthCells.filter((c) => c.inMonth && c.date <= today)
     let perfect = 0
     let totalSlots = 0
-    let totalHits = 0
+    let totalCrowns = 0
     for (const c of inMonth) {
       const r = completionForDate(c.date)
       if (r.total === 0) continue
       totalSlots += r.total
-      totalHits += r.hit
-      if (r.hit === r.total) perfect++
+      totalCrowns += r.crowns
+      if (r.crowns === r.total) perfect++
     }
-    const rate = totalSlots > 0 ? (totalHits / totalSlots) * 100 : 0
-    // Best streak of perfect days in the visible month
+    const rate = totalSlots > 0 ? (totalCrowns / totalSlots) * 100 : 0
     let bestStreak = 0
     let curStreak = 0
     for (const c of inMonth) {
       const r = completionForDate(c.date)
-      if (r.total > 0 && r.hit === r.total) {
+      if (r.total > 0 && r.crowns === r.total) {
         curStreak++
         if (curStreak > bestStreak) bestStreak = curStreak
       } else if (r.total > 0) {
@@ -214,11 +242,13 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
           const isToday = c.date === today
           const isPast = c.date <= today
           const dayNum = fromISO(c.date).getDate()
-          const perfect = r.total > 0 && r.hit === r.total
+          const perfect = r.total > 0 && r.crowns === r.total
 
-          // Fill opacity scales with completion ratio
-          const fillOpacity = r.total === 0 ? 0 : Math.max(0.12, r.ratio)
-          const fillColor = `${accent}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`
+          // Fill driven by activity ratio (which days had progress logged).
+          // Crown is driven separately by period-goal completion.
+          const fillOpacity = r.total === 0 ? 0 : r.ratio === 0 ? 0 : Math.max(0.18, r.ratio * 0.85)
+          const fillColor =
+            r.activity > 0 ? `${accent}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}` : 'transparent'
 
           return (
             <div
@@ -231,7 +261,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
                   : c.inMonth
                     ? '1px solid rgba(255,255,255,0.05)'
                     : '1px solid transparent',
-                backgroundColor: c.inMonth && r.total > 0 ? fillColor : 'transparent',
+                backgroundColor: c.inMonth ? fillColor : 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
