@@ -29,7 +29,8 @@ export function computeDays(
     const date = addDays(settings.startDate, i)
     const dow = getWeekdayNum(date)
 
-    const eventOnDay = events.find((e) => e.date === date)
+    const eventsOnDay = events.filter((e) => e.date === date)
+    const eventExcessKcal = eventsOnDay.reduce((s, e) => s + Number(e.excessKcal), 0)
 
     let preBufferReduction = 0
     events.forEach((e) => {
@@ -71,9 +72,27 @@ export function computeDays(
     let budget: number
     let note = ''
 
-    if (eventOnDay) {
-      budget = baseTdee - dailyDeficitBase + Number(eventOnDay.excessKcal) + adjKcal
-      note = `🎉 ${eventOnDay.name} (+${eventOnDay.excessKcal})`
+    if (eventsOnDay.length > 0) {
+      // Multiple events on the same day stack — all their excess kcal add to
+      // the budget. preBufferReduction here only contains contributions from
+      // events on *other* dates (an event landing on this date has diff=0,
+      // which fails the diff > 0 / diff < 0 guards above).
+      budget =
+        baseTdee -
+        dailyDeficitBase +
+        eventExcessKcal -
+        preBufferReduction +
+        extraKcal +
+        adjKcal
+      note = eventsOnDay
+        .map((e) => `🎉 ${e.name} (+${e.excessKcal})`)
+        .join(' · ')
+      if (preBufferReduction > 0) {
+        note = `${note} · pre-buffer −${preBufferReduction}`
+      }
+      if (extraKcal > 0) {
+        note = `${note} · treeni +${extraKcal}`
+      }
     } else {
       budget = baseTdee - dailyDeficitBase - preBufferReduction + extraKcal + adjKcal
       if (preBufferReduction > 0) note = `pre-buffer −${preBufferReduction}`
@@ -106,7 +125,7 @@ export function computeDays(
       extraKcal,
       burnKcal,
       netConsumed,
-      event: eventOnDay ?? null,
+      events: eventsOnDay,
       adjustment: adjustmentOnDay,
       note,
       dailyDeficitBase: Math.round(dailyDeficitBase),

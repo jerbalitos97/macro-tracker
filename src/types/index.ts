@@ -86,7 +86,7 @@ export interface ComputedDay {
   extraKcal: number
   burnKcal: number       // training burns on this day
   netConsumed: number    // consumed - burnKcal (≥ 0), used for deficit calc
-  event: SpecialEvent | null
+  events: SpecialEvent[]
   adjustment: DailyAdjustment | null
   note: string
   dailyDeficitBase: number

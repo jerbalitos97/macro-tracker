@@ -46,7 +46,7 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
             if (!day) return <div key={di} style={s.dayCell} />
             const isSelected = day.date === selectedDate
             const isToday = day.date === todayISO
-            const hasEvent = !!day.event
+            const hasEvent = day.events.length > 0
             const hasExtra = day.extraKcal > 0
             const hasBuffer = day.preBufferReduction > 0
             return (

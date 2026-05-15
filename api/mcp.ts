@@ -120,7 +120,7 @@ interface DayBudget {
   preBufferReduction: number; extraKcal: number; burnKcal: number
   consumed: number; protein: number
   remaining: number; isOver: boolean
-  event: SpecialEvent | null
+  events: SpecialEvent[]
   adjustment: DailyAdjustment | null
   dailyDeficitBase: number
   actualDeficit: number | null  // null when no logged consumption
@@ -139,7 +139,8 @@ function computeDay(date: string, data: AllData): DayBudget | null {
   const dayType: DayType = settings.weeklyPattern[dow] ?? 'rest'
   const baseTdee = settings.tdee[dayType] ?? settings.tdee.rest
 
-  const eventOnDay = data.events.find((e) => e.date === date) ?? null
+  const eventsOnDay = data.events.filter((e) => e.date === date)
+  const eventExcessKcal = eventsOnDay.reduce((s, e) => s + e.excessKcal, 0)
 
   let preBufferReduction = 0
   data.events.forEach((e) => {
@@ -170,9 +171,11 @@ function computeDay(date: string, data: AllData): DayBudget | null {
   const adjustment = data.adjustments.find((a) => a.date === date) ?? null
   const adjKcal = adjustment?.kcal ?? 0
 
-  const budget = eventOnDay
-    ? baseTdee - dailyDeficitBase + eventOnDay.excessKcal + adjKcal
-    : baseTdee - dailyDeficitBase - preBufferReduction + extraKcal + adjKcal
+  // Multiple events on the same day all stack into the budget.
+  const budget =
+    eventsOnDay.length > 0
+      ? baseTdee - dailyDeficitBase + eventExcessKcal - preBufferReduction + extraKcal + adjKcal
+      : baseTdee - dailyDeficitBase - preBufferReduction + extraKcal + adjKcal
 
   const dayMeals = data.meals.filter((m) => m.date === date)
   const consumed = dayMeals.reduce((s, m) => s + m.kcal, 0)
@@ -190,7 +193,7 @@ function computeDay(date: string, data: AllData): DayBudget | null {
     preBufferReduction, extraKcal, burnKcal,
     consumed, protein,
     remaining, isOver: remaining < 0,
-    event: eventOnDay, adjustment,
+    events: eventsOnDay, adjustment,
     dailyDeficitBase: Math.round(dailyDeficitBase),
     actualDeficit,
   }
@@ -447,7 +450,7 @@ async function listOverBudgetDays(args: { days?: number }) {
         effectiveBudget: day.effectiveBudget,
         excess: -day.remaining,
         dayType: day.dayType,
-        eventName: day.event?.name ?? null,
+        eventNames: day.events.map((e) => e.name),
       })
     }
   }

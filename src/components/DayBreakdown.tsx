@@ -28,12 +28,12 @@ export function DayBreakdown({ day }: Props) {
           <span style={{ ...s.breakdownVal, color: '#6a9ad4' }}>+{day.extraKcal}</span>
         </div>
       )}
-      {day.event && (
-        <div style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Juhla</span>
-          <span style={{ ...s.breakdownVal, color: '#d4b85a' }}>+{day.event.excessKcal}</span>
+      {day.events.map((e) => (
+        <div key={e.id} style={s.breakdownRow}>
+          <span style={s.breakdownLabel}>Juhla · {e.name}</span>
+          <span style={{ ...s.breakdownVal, color: '#d4b85a' }}>+{e.excessKcal}</span>
         </div>
-      )}
+      ))}
       {day.adjustment && day.adjustment.kcal !== 0 && (
         <div style={s.breakdownRow}>
           <span style={s.breakdownLabel}>Säätö{day.adjustment.note ? ` · ${day.adjustment.note}` : ''}</span>

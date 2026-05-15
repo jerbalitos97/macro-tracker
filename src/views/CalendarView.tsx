@@ -95,15 +95,19 @@ export function CalendarView({
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #1f1f1f' }}>
             <DayBreakdown day={selectedDay} />
           </div>
-          {selectedDay.event && (
-            <div style={{ ...s.noteBadge, marginTop: 10 }}>
-              🎉 {selectedDay.event.name}
-              <button
-                onClick={() => onDeleteEvent(selectedDay.event!.id)}
-                style={{ ...s.iconBtn, marginLeft: 8, display: 'inline-flex' }}
-              >
-                <Trash2 size={11} />
-              </button>
+          {selectedDay.events.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {selectedDay.events.map((e) => (
+                <div key={e.id} style={s.noteBadge}>
+                  🎉 {e.name}
+                  <button
+                    onClick={() => onDeleteEvent(e.id)}
+                    style={{ ...s.iconBtn, marginLeft: 8, display: 'inline-flex' }}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
