@@ -19,15 +19,18 @@ export function computeWeightTrend(weights: WeightEntry[]): WeightTrend {
 
   const currentTrend = trendData[trendData.length - 1].trend
 
+  // Time-based 14-day slope. Robust to irregular weigh-ins: it doesn't care
+  // how many *entries* are in the window, only the slope between the trend
+  // value ~14 days ago and the current trend value. Falls back to the
+  // earliest available data point when fewer than 14 days of history exist.
   let weeklyChange: number | null = null
-  if (trendData.length >= 8) {
-    const weekAgo = trendData[trendData.length - 8].trend
-    weeklyChange = currentTrend - weekAgo
-  } else if (trendData.length >= 4) {
-    const first = trendData[0].trend
-    const days = daysBetween(trendData[0].date, trendData[trendData.length - 1].date)
-    if (days > 0) {
-      weeklyChange = ((currentTrend - first) / days) * 7
+  if (trendData.length >= 3) {
+    const last = trendData[trendData.length - 1]
+    const targetDate = addDays(last.date, -14)
+    const baseline = trendData.find((t) => t.date >= targetDate) ?? trendData[0]
+    const days = daysBetween(baseline.date, last.date)
+    if (days >= 3) {
+      weeklyChange = ((last.trend - baseline.trend) / days) * 7
     }
   }
 

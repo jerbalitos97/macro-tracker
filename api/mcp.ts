@@ -212,14 +212,16 @@ function computeTrend(weights: WeightEntry[]) {
   })
 
   const last = trendData[trendData.length - 1]
-  // Weekly change: slope over last ~14 days of trend points
+  // Weekly change: slope between the trend value ~14 calendar days ago and
+  // the current trend value. Same algorithm as src/lib/weight.ts so the UI
+  // and the MCP report identical numbers.
   let weeklyChange: number | null = null
-  if (trendData.length >= 7) {
-    const recent = trendData.slice(-14)
-    const days = daysBetween(recent[0].date, recent[recent.length - 1].date)
-    if (days > 0) {
-      const slope = (recent[recent.length - 1].trend - recent[0].trend) / days
-      weeklyChange = slope * 7
+  if (trendData.length >= 3) {
+    const targetDate = addDays(last.date, -14)
+    const baseline = trendData.find((t) => t.date >= targetDate) ?? trendData[0]
+    const days = daysBetween(baseline.date, last.date)
+    if (days >= 3) {
+      weeklyChange = ((last.trend - baseline.trend) / days) * 7
     }
   }
   return { entries: trendData, currentTrend: last.trend, weeklyChange }
@@ -375,32 +377,37 @@ async function getGoalAnalysis() {
   const today = toISO(new Date())
   const totalDays = daysBetween(settings.startDate, settings.endDate)
   const elapsed = Math.max(0, Math.min(totalDays, daysBetween(settings.startDate, today)))
-  const remainingDays = daysBetween(today, settings.endDate)
+  const remainingDays = Math.max(0, totalDays - elapsed)
   if (remainingDays <= 0) return { error: 'Cut period is in the past.' }
 
   const trend = computeTrend(data.weights)
-  if (trend.currentTrend === null || trend.weeklyChange === null) {
-    return { error: 'Not enough weight log data for analysis (need ≥ 7 logged days).' }
+  if (trend.currentTrend === null) {
+    return { error: 'Not enough weight log data for analysis.' }
   }
 
+  // Position-based primary metric: current trend kg vs the linear target line at today.
+  const totalKgChange = settings.startWeight - settings.targetWeight
+  const expectedWeightToday =
+    totalDays > 0 ? settings.startWeight - totalKgChange * (elapsed / totalDays) : settings.startWeight
+  const positionGap = trend.currentTrend - expectedWeightToday   // + = above line (behind)
+
   const remainingKg = Math.max(0, trend.currentTrend - settings.targetWeight)
-  const requiredTotalDeficit = remainingKg * 7700
-  const requiredDailyDeficit = requiredTotalDeficit / remainingDays
+  const requiredDailyDeficit = (remainingKg * 7700) / remainingDays
   const requiredWeeklyKg = (requiredDailyDeficit * 7) / 7700
-  const actualDailyDeficit = (-trend.weeklyChange * 7700) / 7
+  const actualDailyDeficit = trend.weeklyChange !== null ? (-trend.weeklyChange * 7700) / 7 : null
   const actualWeeklyKg = trend.weeklyChange
-  const gap = requiredDailyDeficit - actualDailyDeficit
 
   let projectedDate: string | null = null
-  if (trend.weeklyChange < -0.01) {
+  if (trend.weeklyChange !== null && trend.weeklyChange < -0.01) {
     const weeksNeeded = remainingKg / Math.abs(trend.weeklyChange)
     projectedDate = addDays(today, Math.round(weeksNeeded * 7))
   }
 
+  // Match the UI's position-based thresholds (kg).
   let recommendation: 'on-track' | 'tighten-slightly' | 'tighten-significantly' | 'loosen'
-  if (Math.abs(gap) <= 100) recommendation = 'on-track'
-  else if (gap < -100) recommendation = 'loosen'
-  else if (gap <= 300) recommendation = 'tighten-slightly'
+  if (Math.abs(positionGap) <= 0.3) recommendation = 'on-track'
+  else if (positionGap < -0.3) recommendation = 'loosen'
+  else if (positionGap <= 1.0) recommendation = 'tighten-slightly'
   else recommendation = 'tighten-significantly'
 
   return {
@@ -408,13 +415,14 @@ async function getGoalAnalysis() {
     remainingDays,
     totalDays,
     currentTrendKg: Number(trend.currentTrend.toFixed(2)),
+    expectedWeightTodayKg: Number(expectedWeightToday.toFixed(2)),
+    positionGapKg: Number(positionGap.toFixed(2)),
     targetWeightKg: settings.targetWeight,
     remainingKg: Number(remainingKg.toFixed(2)),
     requiredDailyDeficit: Math.round(requiredDailyDeficit),
     requiredWeeklyKg: Number(requiredWeeklyKg.toFixed(2)),
-    actualDailyDeficit: Math.round(actualDailyDeficit),
-    actualWeeklyKg: Number(actualWeeklyKg.toFixed(2)),
-    gapKcalPerDay: Math.round(gap),
+    actualDailyDeficit: actualDailyDeficit !== null ? Math.round(actualDailyDeficit) : null,
+    actualWeeklyKg: actualWeeklyKg !== null ? Number(actualWeeklyKg.toFixed(2)) : null,
     projectedGoalDate: projectedDate,
     targetGoalDate: settings.endDate,
     recommendation,

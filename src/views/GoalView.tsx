@@ -6,12 +6,16 @@ import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
 
 // ── Recommendation thresholds ────────────────────────────────
-// gap = requiredDailyDeficit − actualDailyDeficit  (kcal/day)
-//   positive gap  → behind pace (need more deficit)
-//   negative gap  → ahead of pace (could loosen)
-const THRESHOLD_CLOSE = 100     // ±100 kcal/day → on track
-const THRESHOLD_MODERATE = 300  // 100–300 → slightly off
-//                               > 300 → significantly off
+// Weight analysis is position-based:
+//   positionGap = currentTrend − expectedWeightOnTargetLine (kg)
+//   positive gap → above the line (behind), negative → below (ahead)
+const POS_THRESHOLD_OK = 0.3       // ±0.3 kg → on track
+const POS_THRESHOLD_MOD = 1.0      // 0.3 – 1.0 kg → slightly off
+//                                   > 1.0 → significantly off
+
+// Cumulative deficit analysis still uses kcal/day gap thresholds.
+const THRESHOLD_CLOSE = 100
+const THRESHOLD_MODERATE = 300
 
 type Recommendation = 'on-track' | 'tighten-slightly' | 'tighten-significantly' | 'loosen'
 
@@ -28,58 +32,55 @@ export function GoalView({ settings, weights, computed }: Props) {
 
   const analysis = useMemo(() => {
     const { currentTrend, weeklyChange, trendData } = trend
+    if (currentTrend === null || trendData.length < 4) return null
 
-    if (currentTrend === null || weeklyChange === null || trendData.length < 4) return null
-
-    const remainingKg = Math.max(0, currentTrend - settings.targetWeight)
-    const remainingDays = daysBetween(todayISO, settings.endDate)
-
+    const totalCutDays = daysBetween(settings.startDate, settings.endDate)
+    const elapsedCutDays = Math.max(0, Math.min(totalCutDays, daysBetween(settings.startDate, todayISO)))
+    const remainingDays = Math.max(0, totalCutDays - elapsedCutDays)
     if (remainingDays <= 0) return null
 
-    // Required pace from today to target date
-    const requiredTotalDeficit = remainingKg * 7700           // kcal
-    const requiredDailyDeficit = requiredTotalDeficit / remainingDays  // kcal/day
-    const requiredWeeklyKg = (requiredDailyDeficit * 7) / 7700         // kg/week
+    // Position-based: linear ramp from startWeight to targetWeight across the cut.
+    // Where SHOULD you be today, and where ARE you (current trend value)?
+    const totalKgChange = settings.startWeight - settings.targetWeight  // positive = need to lose
+    const expectedWeightToday =
+      totalCutDays > 0
+        ? settings.startWeight - totalKgChange * (elapsedCutDays / totalCutDays)
+        : settings.startWeight
+    const positionGap = currentTrend - expectedWeightToday   // + = above line (behind), − = below (ahead)
+    const remainingKg = Math.max(0, currentTrend - settings.targetWeight)
 
-    // Actual pace from weight trend
-    const actualDailyDeficit = (-weeklyChange * 7700) / 7     // kcal/day (positive = losing)
-    const actualWeeklyKg = weeklyChange                        // kg/week (negative = losing)
+    // Recommendation from position gap. Loosen only when meaningfully below the line.
+    let recommendation: Recommendation
+    if (Math.abs(positionGap) <= POS_THRESHOLD_OK) recommendation = 'on-track'
+    else if (positionGap < -POS_THRESHOLD_OK) recommendation = 'loosen'
+    else if (positionGap <= POS_THRESHOLD_MOD) recommendation = 'tighten-slightly'
+    else recommendation = 'tighten-significantly'
 
-    // Gap: positive means we're behind (need more deficit)
-    const gap = requiredDailyDeficit - actualDailyDeficit
+    // Rate context (still computed for the recommendation body + ProjectedDateCard)
+    const requiredDailyDeficit = (remainingKg * 7700) / remainingDays
+    const requiredWeeklyKg = (requiredDailyDeficit * 7) / 7700
+    const actualDailyDeficit = weeklyChange !== null ? (-weeklyChange * 7700) / 7 : null
+    const actualWeeklyKg = weeklyChange
 
     // Projected goal date at current pace
     let projectedDate: string | null = null
-    if (weeklyChange < -0.01) {
+    if (weeklyChange !== null && weeklyChange < -0.01) {
       const weeksNeeded = remainingKg / Math.abs(weeklyChange)
       projectedDate = addDays(todayISO, Math.round(weeksNeeded * 7))
-    } else if (weeklyChange >= -0.01 && weeklyChange <= 0.01) {
-      projectedDate = null // no meaningful pace
-    }
-
-    // Recommendation
-    let recommendation: Recommendation
-    if (Math.abs(gap) <= THRESHOLD_CLOSE) {
-      recommendation = 'on-track'
-    } else if (gap < -THRESHOLD_CLOSE) {
-      recommendation = 'loosen'
-    } else if (gap <= THRESHOLD_MODERATE) {
-      recommendation = 'tighten-slightly'
-    } else {
-      recommendation = 'tighten-significantly'
     }
 
     return {
+      currentTrend,
+      expectedWeightToday,
+      positionGap,
       remainingKg,
       remainingDays,
       requiredDailyDeficit,
       requiredWeeklyKg,
       actualDailyDeficit,
       actualWeeklyKg,
-      gap,
       projectedDate,
       recommendation,
-      currentTrend,
     }
   }, [trend, settings, todayISO])
 
@@ -227,40 +228,46 @@ export function GoalView({ settings, weights, computed }: Props) {
       {/* Analysis cards */}
       {analysis && (
         <>
-          {/* Recommendation banner */}
-          <RecommendationBanner rec={analysis.recommendation} gap={analysis.gap} />
+          {/* Recommendation banner — driven by position gap (kg above/below the target line) */}
+          <WeightRecommendationBanner
+            rec={analysis.recommendation}
+            positionGapKg={analysis.positionGap}
+            requiredDailyDeficit={analysis.requiredDailyDeficit}
+          />
 
-          {/* Key numbers grid */}
+          {/* Position-based key numbers */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <StatCard
-              label="Vaadittu tahti"
-              value={`${Math.round(analysis.requiredDailyDeficit)} kcal/pv`}
-              sub={`${analysis.requiredWeeklyKg.toFixed(2)} kg/vk`}
+              label="Tavoitepaino tänään"
+              value={`${analysis.expectedWeightToday.toFixed(1)} kg`}
+              sub="lineaarinen tavoitelinja"
               accent={false}
             />
             <StatCard
-              label="Nykyinen tahti"
-              value={
-                analysis.actualDailyDeficit > 0
-                  ? `${Math.round(analysis.actualDailyDeficit)} kcal/pv`
-                  : '—'
-              }
+              label="Nykyinen trendi"
+              value={`${analysis.currentTrend.toFixed(1)} kg`}
               sub={
                 analysis.actualWeeklyKg !== null
-                  ? `${analysis.actualWeeklyKg.toFixed(2)} kg/vk`
-                  : ''
+                  ? `${analysis.actualWeeklyKg > 0 ? '+' : ''}${analysis.actualWeeklyKg.toFixed(2)} kg/vk`
+                  : '—'
               }
               accent={false}
             />
             <StatCard
-              label="Ero"
+              label="Ero tavoitelinjasta"
               value={
-                Math.abs(analysis.gap) < 10
-                  ? '≈ 0 kcal/pv'
-                  : `${analysis.gap > 0 ? '+' : ''}${Math.round(analysis.gap)} kcal/pv`
+                Math.abs(analysis.positionGap) < 0.05
+                  ? '≈ 0 kg'
+                  : `${analysis.positionGap > 0 ? '+' : ''}${analysis.positionGap.toFixed(2)} kg`
               }
-              sub={analysis.gap > 0 ? 'jälässä' : analysis.gap < 0 ? 'edellä' : 'täsmälleen'}
-              accent={Math.abs(analysis.gap) > THRESHOLD_CLOSE}
+              sub={
+                analysis.positionGap > 0.05
+                  ? 'yli linjan'
+                  : analysis.positionGap < -0.05
+                    ? 'alle linjan'
+                    : 'linjalla'
+              }
+              accent={Math.abs(analysis.positionGap) > POS_THRESHOLD_OK}
             />
             <StatCard
               label="Jäljellä"
@@ -397,16 +404,19 @@ export function GoalView({ settings, weights, computed }: Props) {
             <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Trendilinja:</strong> 7 pv liukuva keskiarvo kirjatuista painoista — tasoittaa vesipainon vaihtelut.
           </p>
           <p style={{ margin: '0 0 6px' }}>
-            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Vaadittu tahti:</strong> (jäljellä oleva kg × 7 700 kcal) ÷ jäljellä olevat päivät.
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Tavoitepaino tänään:</strong> aloituspaino − (kokonais­pudotus × kulunut osuus jaksosta).
           </p>
           <p style={{ margin: '0 0 6px' }}>
-            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Nykyinen tahti:</strong> trendin viikkomuutos × 7 700 ÷ 7 → päiväkohtainen energiavaje-arvio.
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Ero tavoitelinjasta:</strong> nykyinen trendipaino − tavoitepaino tänään. Positiivinen = yli linjan (jäljessä), negatiivinen = alle linjan (edellä).
+          </p>
+          <p style={{ margin: '0 0 6px' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Viikkotahti:</strong> trendi­käyrän kulmakerroin 14 päivän aikaikkunassa kerrottuna 7:llä — kg/viikossa.
           </p>
           <p style={{ margin: '0 0 6px' }}>
             <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Kumulatiivinen vaje:</strong> päivittäisten toteutuneiden vajeiden summa. Päivän vaje = TDEE + treenibonus − (kulutus − treeniaikana poltetut kcal). Vain päivät joilta on kirjauksia lasketaan mukaan.
           </p>
           <p style={{ margin: 0 }}>
-            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Toleranssit:</strong> ±100 kcal/pv = oikealla radalla · 100–300 = hienoinen ero · &gt;300 = merkittävä ero.
+            <strong style={{ color: 'rgba(255,255,255,0.5)' }}>Toleranssit:</strong> paino ±0,3 kg linjasta = oikealla radalla · 0,3–1,0 kg = hienoinen ero · &gt;1,0 kg = merkittävä ero · kalorivaje ±100 kcal/pv = oikealla radalla.
           </p>
         </div>
       </details>
@@ -416,40 +426,36 @@ export function GoalView({ settings, weights, computed }: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────
 
-function RecommendationBanner({ rec, gap }: { rec: Recommendation; gap: number }) {
-  const config: Record<Recommendation, { emoji: string; title: string; body: string; bg: string; border: string }> = {
-    'on-track': {
-      emoji: '✅',
-      title: 'Oikealla radalla',
-      body: 'Nykyinen tahti vastaa tavoitetta. Jatka samaan malliin.',
-      bg: 'rgba(100,200,120,0.06)',
-      border: 'rgba(100,200,120,0.2)',
-    },
-    'tighten-slightly': {
-      emoji: '⚠️',
-      title: 'Hieman jäljessä',
-      body: `Vajetta tarvitaan noin ${Math.round(Math.abs(gap))} kcal/pv enemmän. Pienennä annoksia tai lisää liikettä.`,
-      bg: 'rgba(232,184,90,0.06)',
-      border: 'rgba(232,184,90,0.2)',
-    },
-    'tighten-significantly': {
-      emoji: '🔴',
-      title: 'Selkeästi jäljessä',
-      body: `Nykyisellä tahdilla tavoitepäivä ei tule toteutumaan. Tarvitaan noin ${Math.round(Math.abs(gap))} kcal/pv lisää vajetta.`,
-      bg: 'rgba(232,122,106,0.06)',
-      border: 'rgba(232,122,106,0.2)',
-    },
-    'loosen': {
-      emoji: '💚',
-      title: 'Edellä tavoitetta',
-      body: `Menetät painoa nopeammin kuin tarvitaan (${Math.round(Math.abs(gap))} kcal/pv edellä). Voit hieman löystää.`,
-      bg: 'rgba(100,200,120,0.06)',
-      border: 'rgba(100,200,120,0.2)',
-    },
-  }
+interface BannerStyle { emoji: string; title: string; bg: string; border: string }
+const BANNER_STYLE: Record<Recommendation, BannerStyle> = {
+  'on-track': {
+    emoji: '✅',
+    title: 'Oikealla radalla',
+    bg: 'rgba(100,200,120,0.06)',
+    border: 'rgba(100,200,120,0.2)',
+  },
+  'tighten-slightly': {
+    emoji: '⚠️',
+    title: 'Hieman jäljessä',
+    bg: 'rgba(232,184,90,0.06)',
+    border: 'rgba(232,184,90,0.2)',
+  },
+  'tighten-significantly': {
+    emoji: '🔴',
+    title: 'Selkeästi jäljessä',
+    bg: 'rgba(232,122,106,0.06)',
+    border: 'rgba(232,122,106,0.2)',
+  },
+  'loosen': {
+    emoji: '💚',
+    title: 'Edellä tavoitetta',
+    bg: 'rgba(100,200,120,0.06)',
+    border: 'rgba(100,200,120,0.2)',
+  },
+}
 
-  const c = config[rec]
-
+function BannerShell({ rec, body }: { rec: Recommendation; body: string }) {
+  const c = BANNER_STYLE[rec]
   return (
     <div
       style={{
@@ -465,10 +471,47 @@ function RecommendationBanner({ rec, gap }: { rec: Recommendation; gap: number }
       <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{c.emoji}</span>
       <div>
         <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#fff' }}>{c.title}</p>
-        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{c.body}</p>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{body}</p>
       </div>
     </div>
   )
+}
+
+// Weight banner: copy describes position vs target line.
+function WeightRecommendationBanner({
+  rec,
+  positionGapKg,
+  requiredDailyDeficit,
+}: {
+  rec: Recommendation
+  positionGapKg: number
+  requiredDailyDeficit: number
+}) {
+  const abs = Math.abs(positionGapKg).toFixed(1)
+  const rateHint = `Vajetta tarvitaan noin ${Math.round(requiredDailyDeficit)} kcal/pv loppuajan.`
+  const body =
+    rec === 'on-track'
+      ? `Trendipainosi seuraa tavoitelinjaa. ${rateHint}`
+      : rec === 'tighten-slightly'
+        ? `Painosi on ${abs} kg yli tavoitelinjan. ${rateHint}`
+        : rec === 'tighten-significantly'
+          ? `Painosi on ${abs} kg yli tavoitelinjan. Nykyisellä tahdilla tavoite ei toteudu — ${rateHint.toLowerCase()}`
+          : `Painosi on ${abs} kg alle tavoitelinjan. Voit hieman löystää.`
+  return <BannerShell rec={rec} body={body} />
+}
+
+// Deficit banner: copy describes kcal/day gap.
+function RecommendationBanner({ rec, gap }: { rec: Recommendation; gap: number }) {
+  const abs = Math.round(Math.abs(gap))
+  const body =
+    rec === 'on-track'
+      ? 'Nykyinen tahti vastaa tavoitetta. Jatka samaan malliin.'
+      : rec === 'tighten-slightly'
+        ? `Vajetta tarvitaan noin ${abs} kcal/pv enemmän. Pienennä annoksia tai lisää liikettä.`
+        : rec === 'tighten-significantly'
+          ? `Nykyisellä tahdilla tavoitepäivä ei tule toteutumaan. Tarvitaan noin ${abs} kcal/pv lisää vajetta.`
+          : `Menetät painoa nopeammin kuin tarvitaan (${abs} kcal/pv edellä). Voit hieman löystää.`
+  return <BannerShell rec={rec} body={body} />
 }
 
 function StatCard({
