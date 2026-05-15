@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Plus, Check, Minus, Plus as PlusIcon } from 'lucide-react'
+import { Plus, Check, Minus, Plus as PlusIcon, BarChart2 } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO, getWeekdayNum, toISO } from '../lib/dates'
 import { HabitFormModal } from '../components/HabitFormModal'
 import { HabitDetailModal } from '../components/HabitDetailModal'
+import { HabitsHistoryView } from './HabitsHistoryView'
 import { s } from '../styles/tokens'
 
 interface Props {
@@ -40,6 +41,7 @@ export function HabitsView({
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Habit | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   const detail = detailId !== null ? habits.find((h) => h.id === detailId) ?? null : null
 
@@ -89,6 +91,15 @@ export function HabitsView({
           setEditing(null)
         }}
         onClose={() => setEditing(null)}
+      />
+    )
+  }
+  if (showHistory) {
+    return (
+      <HabitsHistoryView
+        habits={habits}
+        entries={entries}
+        onClose={() => setShowHistory(false)}
       />
     )
   }
@@ -315,6 +326,23 @@ export function HabitsView({
             )
           })}
         </div>
+      )}
+
+      {/* History button — only when there's at least one habit */}
+      {habits.length > 0 && (
+        <button
+          onClick={() => setShowHistory(true)}
+          style={{
+            ...s.actionBtn,
+            width: '100%',
+            marginTop: 16,
+            padding: '12px 14px',
+            color: '#d4b85a',
+          }}
+        >
+          <BarChart2 size={14} />
+          Tilastot
+        </button>
       )}
 
       {/* Detail */}
