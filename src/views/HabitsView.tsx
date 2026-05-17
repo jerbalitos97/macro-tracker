@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Check, Minus, Plus as PlusIcon, BarChart2 } from 'lucide-react'
+import { Plus, Check, Minus, Plus as PlusIcon, BarChart2, ChevronLeft, ChevronRight, Crown } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO, getWeekdayNum, toISO } from '../lib/dates'
 import { HabitFormModal } from '../components/HabitFormModal'
@@ -13,9 +13,11 @@ interface Props {
   onCreate: (input: Omit<Habit, 'id' | 'createdAt' | 'updatedAt' | 'isArchived' | 'habitType' | 'taskDays'>) => void
   onUpdate: (id: number, patch: Partial<Habit>) => void
   onArchive: (id: number) => void
-  onIncrement: (habit: Habit, delta: number) => void
-  onSetBinary: (habit: Habit, done: boolean) => void
+  onIncrement: (habit: Habit, delta: number, date: string) => void
+  onSetBinary: (habit: Habit, done: boolean, date: string) => void
 }
+
+const DAY_LETTERS = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU']
 
 // Returns the ISO date of Monday at the start of the week containing `iso`.
 function weekStart(iso: string): string {
@@ -35,39 +37,71 @@ export function HabitsView({
   onSetBinary,
 }: Props) {
   const todayISO = toISO(new Date())
-  const today = fromISO(todayISO)
-  const todayDow = getWeekdayNum(todayISO)
 
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Habit | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(todayISO)
 
   const detail = detailId !== null ? habits.find((h) => h.id === detailId) ?? null : null
 
-  // Habits scheduled for today (per task_days)
-  const todayHabits = useMemo(
-    () => habits.filter((h) => h.taskDays.includes(todayDow)),
-    [habits, todayDow],
+  // Habits scheduled for the selected date (per task_days)
+  const selectedDow = getWeekdayNum(selectedDate)
+  const scheduledHabits = useMemo(
+    () => habits.filter((h) => h.taskDays.includes(selectedDow)),
+    [habits, selectedDow],
   )
 
-  // Compute current value for a habit (today's count, or this week's sum for week habits)
-  const valueFor = (habit: Habit): number => {
+  // Habit's value as of a given date — for week habits, cumulative through that
+  // date within the week containing it.
+  const valueFor = (habit: Habit, date: string): number => {
     if (habit.goalPeriod === 'week') {
-      const wStart = weekStart(todayISO)
+      const wStart = weekStart(date)
       return entries
-        .filter((e) => e.habitId === habit.id && e.date >= wStart && e.date <= todayISO)
+        .filter((e) => e.habitId === habit.id && e.date >= wStart && e.date <= date)
         .reduce((sum, e) => sum + e.value, 0)
     }
-    const e = entries.find((x) => x.habitId === habit.id && x.date === todayISO)
+    const e = entries.find((x) => x.habitId === habit.id && x.date === date)
     return e?.value ?? 0
   }
 
-  const dateLabel = today.toLocaleDateString('fi-FI', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
+  // Per-day completion summary used to colour the week-strip cells.
+  const completionFor = (date: string) => {
+    const dow = getWeekdayNum(date)
+    const scheduled = habits.filter((h) => h.taskDays.includes(dow))
+    if (scheduled.length === 0) return { hits: 0, total: 0, ratio: 0, perfect: false }
+    let hits = 0
+    for (const h of scheduled) {
+      const v = valueFor(h, date)
+      if (h.goalValue > 0 && v >= h.goalValue) hits++
+    }
+    return { hits, total: scheduled.length, ratio: hits / scheduled.length, perfect: hits === scheduled.length }
+  }
+
+  // Week strip: Mon → Sun of the week containing selectedDate.
+  const stripWeekStart = weekStart(selectedDate)
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(stripWeekStart, i))
+
+  // Friendly label for the selected date
+  const dateLabel = useMemo(() => {
+    if (selectedDate === todayISO) return 'Tänään'
+    if (selectedDate === addDays(todayISO, -1)) return 'Eilen'
+    if (selectedDate === addDays(todayISO, 1)) return 'Huomenna'
+    return fromISO(selectedDate).toLocaleDateString('fi-FI', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+  }, [selectedDate, todayISO])
+
+  const canGoNextWeek = stripWeekStart < weekStart(todayISO)
+  const goPrevWeek = () => setSelectedDate(addDays(selectedDate, -7))
+  const goNextWeek = () => {
+    if (!canGoNextWeek) return
+    const next = addDays(selectedDate, 7)
+    setSelectedDate(next > todayISO ? todayISO : next)
+  }
 
   // Inline form view replaces the list when creating or editing.
   // Avoids fighting iOS Safari over bottom-sheet modal scrolling.
@@ -142,8 +176,124 @@ export function HabitsView({
         </button>
       </div>
 
+      {/* Week strip — tap a day to backfill entries on that date */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <button
+            onClick={goPrevWeek}
+            aria-label="Edellinen viikko"
+            style={{ ...s.iconBtn, color: 'rgba(255,255,255,0.55)' }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div
+            style={{
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.35)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontFamily: "ui-monospace, 'SF Mono', monospace",
+            }}
+          >
+            {fromISO(stripWeekStart).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+            {' – '}
+            {fromISO(addDays(stripWeekStart, 6)).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+          </div>
+          <button
+            onClick={goNextWeek}
+            aria-label="Seuraava viikko"
+            disabled={!canGoNextWeek}
+            style={{ ...s.iconBtn, color: 'rgba(255,255,255,0.55)', opacity: canGoNextWeek ? 1 : 0.25 }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          {weekDays.map((d, i) => {
+            const c = completionFor(d)
+            const isSelected = d === selectedDate
+            const isToday = d === todayISO
+            const isFuture = d > todayISO
+            const dayNum = fromISO(d).getDate()
+            const fillOpacity = c.total === 0 ? 0 : c.ratio === 0 ? 0 : Math.max(0.18, c.ratio * 0.7)
+            const fillBg = c.ratio > 0
+              ? `rgba(212, 184, 90, ${fillOpacity})`
+              : 'transparent'
+            return (
+              <button
+                key={d}
+                onClick={() => !isFuture && setSelectedDate(d)}
+                disabled={isFuture}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 2px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: isFuture ? 'not-allowed' : 'pointer',
+                  opacity: isFuture ? 0.3 : 1,
+                  minHeight: 'auto',
+                  minWidth: 'auto',
+                }}
+                aria-label={d}
+              >
+                <div
+                  style={{
+                    fontSize: 9,
+                    fontFamily: "ui-monospace, 'SF Mono', monospace",
+                    color: isSelected ? '#d4b85a' : 'rgba(255,255,255,0.4)',
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {DAY_LETTERS[i]}
+                </div>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    border: isSelected
+                      ? '1.5px solid #d4b85a'
+                      : isToday
+                        ? '1px solid rgba(212,184,90,0.4)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                    backgroundColor: fillBg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {c.perfect && (
+                    <Crown
+                      size={9}
+                      color="#d4b85a"
+                      fill="#d4b85a"
+                      style={{ position: 'absolute', top: -3, right: -2 }}
+                    />
+                  )}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: isSelected || isToday ? 700 : 500,
+                      color: isSelected ? '#fff' : isToday ? '#d4b85a' : '#ebebeb',
+                      fontVariantNumeric: 'tabular-nums',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {dayNum}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Empty state */}
-      {todayHabits.length === 0 && (
+      {scheduledHabits.length === 0 && (
         <div
           style={{
             backgroundColor: 'rgba(255,255,255,0.04)',
@@ -153,7 +303,7 @@ export function HabitsView({
           }}
         >
           <p style={{ margin: '0 0 6px', fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
-            {habits.length === 0 ? 'Ei vielä tapoja' : 'Tänään ei ole ajastettuja tapoja'}
+            {habits.length === 0 ? 'Ei vielä tapoja' : `${dateLabel} ei ole ajastettuja tapoja`}
           </p>
           <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
             {habits.length === 0
@@ -164,10 +314,10 @@ export function HabitsView({
       )}
 
       {/* List */}
-      {todayHabits.length > 0 && (
+      {scheduledHabits.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="list-stagger">
-          {todayHabits.map((habit) => {
-            const value = valueFor(habit)
+          {scheduledHabits.map((habit) => {
+            const value = valueFor(habit, selectedDate)
             const goal = habit.goalValue
             const reached = goal > 0 && value >= goal
             const pct = goal > 0 ? Math.min(1, value / goal) : 0
@@ -231,7 +381,7 @@ export function HabitsView({
                     >
                       {isBinary ? (
                         <button
-                          onClick={() => onSetBinary(habit, !reached)}
+                          onClick={() => onSetBinary(habit, !reached, selectedDate)}
                           aria-label={reached ? 'Poista merkintä' : 'Merkitse tehdyksi'}
                           style={{
                             width: 36,
@@ -254,7 +404,7 @@ export function HabitsView({
                       ) : (
                         <>
                           <button
-                            onClick={() => onIncrement(habit, -1)}
+                            onClick={() => onIncrement(habit, -1, selectedDate)}
                             disabled={value <= 0}
                             aria-label="Vähennä"
                             style={{
@@ -277,7 +427,7 @@ export function HabitsView({
                             <Minus size={14} />
                           </button>
                           <button
-                            onClick={() => onIncrement(habit, +1)}
+                            onClick={() => onIncrement(habit, +1, selectedDate)}
                             aria-label="Kasvata"
                             style={{
                               width: 36,
@@ -345,15 +495,15 @@ export function HabitsView({
         </button>
       )}
 
-      {/* Detail */}
+      {/* Detail — operates on selectedDate so edits land on the navigated day */}
       {detail && (
         <HabitDetailModal
           habit={detail}
           entries={entries}
-          todayValue={valueFor(detail)}
-          todayISO={todayISO}
-          onIncrement={(delta) => onIncrement(detail, delta)}
-          onSetBinary={(done) => onSetBinary(detail, done)}
+          todayValue={valueFor(detail, selectedDate)}
+          todayISO={selectedDate}
+          onIncrement={(delta) => onIncrement(detail, delta, selectedDate)}
+          onSetBinary={(done) => onSetBinary(detail, done, selectedDate)}
           onEdit={() => {
             setEditing(detail)
             setDetailId(null)

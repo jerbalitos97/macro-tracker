@@ -351,30 +351,28 @@ export default function App() {
               setHabits((prev) => prev.filter((h) => h.id !== id))
               archiveHabitRemote(user.id, id)
             }}
-            onIncrement={(habit, delta) => {
+            onIncrement={(habit, delta, date) => {
               if (!user) return
-              const today = todayISO
-              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === today)
+              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === date)
               const nextValue = Math.max(0, (existing?.value ?? 0) + delta)
               const entry: HabitEntry = existing
                 ? { ...existing, value: nextValue }
-                : { id: Date.now(), habitId: habit.id, date: today, value: nextValue }
+                : { id: Date.now(), habitId: habit.id, date, value: nextValue }
               setHabitEntries((prev) => {
-                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === today))
+                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === date))
                 return [...without, entry]
               })
               syncHabitEntry(user.id, entry)
             }}
-            onSetBinary={(habit, done) => {
+            onSetBinary={(habit, done, date) => {
               if (!user) return
-              const today = todayISO
-              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === today)
+              const existing = habitEntries.find((e) => e.habitId === habit.id && e.date === date)
               const value = done ? 1 : 0
               const entry: HabitEntry = existing
                 ? { ...existing, value }
-                : { id: Date.now(), habitId: habit.id, date: today, value }
+                : { id: Date.now(), habitId: habit.id, date, value }
               setHabitEntries((prev) => {
-                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === today))
+                const without = prev.filter((e) => !(e.habitId === habit.id && e.date === date))
                 return [...without, entry]
               })
               syncHabitEntry(user.id, entry)
