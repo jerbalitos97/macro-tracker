@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ComputedResult, Settings, WeightEntry } from '../types'
 import { computeWeightTrend } from '../lib/weight'
 import { daysBetween, toISO, addDays, fromISO } from '../lib/dates'
 import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
+import { s } from '../styles/tokens'
 
 // ── Recommendation thresholds ────────────────────────────────
 // Weight analysis is position-based:
@@ -229,11 +230,38 @@ export function GoalView({ settings, weights, computed }: Props) {
       {analysis && (
         <>
           {/* Recommendation banner — driven by position gap (kg above/below the target line) */}
-          <WeightRecommendationBanner
-            rec={analysis.recommendation}
-            positionGapKg={analysis.positionGap}
-            requiredDailyDeficit={analysis.requiredDailyDeficit}
-          />
+          <InfoCardWrapper
+            info={{
+              title: 'Suositus (painon perusteella)',
+              body: (
+                <>
+                  <p style={{ margin: '0 0 8px' }}>
+                    Tämä laatikko vertaa nykyistä trendipainoa siihen, missä sinun
+                    pitäisi olla tavoitelinjalla tänään.
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong style={{ color: '#fff' }}>Toleranssit:</strong>
+                  </p>
+                  <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>
+                    <li>±0,3 kg → Oikealla radalla (vihreä)</li>
+                    <li>0,3–1,0 kg yli → Hieman jäljessä (keltainen)</li>
+                    <li>&gt;1,0 kg yli → Selkeästi jäljessä (punainen)</li>
+                    <li>&lt;−0,3 kg (alle linjan) → Edellä tavoitetta</li>
+                  </ul>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                    Tekstissä mainittu kcal/pv-luku = mitä päivätason vajetta loppuajalle
+                    tarvittaisiin, jotta tavoite saavutetaan suunniteltuna päivänä.
+                  </p>
+                </>
+              ),
+            }}
+          >
+            <WeightRecommendationBanner
+              rec={analysis.recommendation}
+              positionGapKg={analysis.positionGap}
+              requiredDailyDeficit={analysis.requiredDailyDeficit}
+            />
+          </InfoCardWrapper>
 
           {/* Position-based key numbers */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -242,6 +270,25 @@ export function GoalView({ settings, weights, computed }: Props) {
               value={`${analysis.expectedWeightToday.toFixed(1)} kg`}
               sub="lineaarinen tavoitelinja"
               accent={false}
+              info={{
+                title: 'Tavoitepaino tänään',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Mikä paino sinulla pitäisi olla tänään, jos pudotus tapahtuisi
+                      tasaisesti koko cut-jakson ajan.
+                    </p>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> aloituspaino −
+                      (kokonaispudotus × kulunut osuus jaksosta).
+                    </p>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                      Tämä on sama lineaarinen viiva, joka näkyy yllä olevassa kuvaajassa
+                      katkoviivana.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Nykyinen trendi"
@@ -252,6 +299,25 @@ export function GoalView({ settings, weights, computed }: Props) {
                   : '—'
               }
               accent={false}
+              info={{
+                title: 'Nykyinen trendi',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Trendipaino:</strong> 7 päivän
+                      liukuva keskiarvo painokirjauksistasi. Tasoittaa vesipainon ja
+                      päivittäisen vaihtelun, joten heijastaa todellista kehitystä
+                      paremmin kuin yksittäinen mittaus.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      <strong style={{ color: '#fff' }}>Viikkotahti (kg/vk):</strong>{' '}
+                      trendikäyrän kulmakerroin viimeisten 14 päivän aikaikkunassa,
+                      kerrottuna seitsemällä. Aikapohjainen — toimii vaikka kirjauksia
+                      jäisi väliin.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Ero tavoitelinjasta"
@@ -268,22 +334,83 @@ export function GoalView({ settings, weights, computed }: Props) {
                     : 'linjalla'
               }
               accent={Math.abs(analysis.positionGap) > POS_THRESHOLD_OK}
+              info={{
+                title: 'Ero tavoitelinjasta',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> nykyinen
+                      trendipaino − tavoitepaino tänään.
+                    </p>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Positiivinen luku tarkoittaa että paino on{' '}
+                      <strong style={{ color: '#e87a6a' }}>yli linjan</strong> (jäljessä
+                      aikataulusta). Negatiivinen luku ={' '}
+                      <strong style={{ color: '#8acb88' }}>alle linjan</strong> (edellä).
+                    </p>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                      Toleranssit: ±0,3 kg = oikealla radalla · 0,3–1,0 kg = hieman
+                      jäljessä · &gt;1,0 kg = selkeästi jäljessä. Tämä määrää myös
+                      suosituslaatikon värin.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Jäljellä"
               value={`${analysis.remainingKg.toFixed(2)} kg`}
               sub={`${analysis.remainingDays} pv jäljellä`}
               accent={false}
+              info={{
+                title: 'Jäljellä',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Kuinka monta kiloa nykyisestä trendipainosta on enää pudotettava
+                      tavoitepainoon, sekä jäljellä olevat päivät tavoitepäivään.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> max(0,
+                      nykyinen trendi − tavoitepaino). Päivät = jakson päättymispäivä −
+                      tänään.
+                    </p>
+                  </>
+                ),
+              }}
             />
           </div>
 
           {/* Projected date */}
-          <ProjectedDateCard
-            projectedDate={analysis.projectedDate}
-            targetDate={settings.endDate}
-            targetWeight={settings.targetWeight}
-            currentTrend={analysis.currentTrend}
-          />
+          <InfoCardWrapper
+            info={{
+              title: 'Arvioitu tavoitepäivä',
+              body: (
+                <>
+                  <p style={{ margin: '0 0 8px' }}>
+                    Milloin saavutat tavoitepainosi, jos jatkat nykyisellä
+                    viikkotahdilla.
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong style={{ color: '#fff' }}>Laskenta:</strong> jäljellä
+                    olevat kilot ÷ nykyinen viikkotahti × 7 päivää, lisättynä
+                    tämänpäivän päiväykseen.
+                  </p>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                    Vaatii selvän laskevan trendin (&gt; 0,01 kg/vk pudotusta).
+                    Tasaisella tai nousevalla trendillä päivää ei voi projisoida.
+                  </p>
+                </>
+              ),
+            }}
+          >
+            <ProjectedDateCard
+              projectedDate={analysis.projectedDate}
+              targetDate={settings.endDate}
+              targetWeight={settings.targetWeight}
+              currentTrend={analysis.currentTrend}
+            />
+          </InfoCardWrapper>
         </>
       )}
 
@@ -324,7 +451,33 @@ export function GoalView({ settings, weights, computed }: Props) {
 
       {deficit.hasData && (
         <>
-          <RecommendationBanner rec={deficit.recommendation} gap={deficit.gapPerDay} />
+          <InfoCardWrapper
+            info={{
+              title: 'Suositus (vajeen perusteella)',
+              body: (
+                <>
+                  <p style={{ margin: '0 0 8px' }}>
+                    Tämä laatikko vertaa toteutunutta kumulatiivista vajetta
+                    siihen, missä pitäisi olla tasaisella tahdilla.
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong style={{ color: '#fff' }}>Toleranssit (per päivä):</strong>
+                  </p>
+                  <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>
+                    <li>±100 kcal/pv → Oikealla radalla</li>
+                    <li>100–300 kcal/pv jäljessä → Hieman jäljessä</li>
+                    <li>&gt;300 kcal/pv jäljessä → Selkeästi jäljessä</li>
+                    <li>&gt;100 kcal/pv edellä → Voit löystää</li>
+                  </ul>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                    Päivätason ero = kokonaisero ÷ kuluneet päivät.
+                  </p>
+                </>
+              ),
+            }}
+          >
+            <RecommendationBanner rec={deficit.recommendation} gap={deficit.gapPerDay} />
+          </InfoCardWrapper>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <StatCard
@@ -332,12 +485,47 @@ export function GoalView({ settings, weights, computed }: Props) {
               value={`${Math.round(deficit.expectedCum).toLocaleString('fi-FI')} kcal`}
               sub={`${Math.round(computed.dailyDeficitBase)} kcal/pv`}
               accent={false}
+              info={{
+                title: 'Vaadittu vaje',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Mikä kumulatiivinen kalorivaje sinulla pitäisi olla nyt, jos
+                      olisit edennyt tavoitteen mukaisella tahdilla jakson alusta.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> päivittäinen
+                      perusvaje × kuluneet päivät. Päivittäinen perusvaje =
+                      (kokonaispudotus × 7 700 kcal) ÷ jakson kokonaispituus.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Toteutunut vaje"
               value={`${Math.round(deficit.actualCum).toLocaleString('fi-FI')} kcal`}
               sub={`${Math.round(deficit.avgPerDayActual)} kcal/pv keskim.`}
               accent={false}
+              info={{
+                title: 'Toteutunut vaje',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Yhteenlaskettu päivävaje niiltä päiviltä joilta löytyy kirjattu
+                      ateria tai treenikulutus.
+                    </p>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Päivän vaje:</strong> TDEE +
+                      ekstratreeni + treenikulutus − kulutetut kalorit.
+                    </p>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                      Päivät joilta ei ole yhtään kirjausta jätetään pois — emme
+                      arvaa niiden vajetta.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Ero"
@@ -354,20 +542,80 @@ export function GoalView({ settings, weights, computed }: Props) {
                     : 'täsmälleen'
               }
               accent={Math.abs(deficit.gapPerDay) > THRESHOLD_CLOSE}
+              info={{
+                title: 'Ero',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> vaadittu vaje
+                      − toteutunut vaje.
+                    </p>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Positiivinen = jäljessä (vajetta jäänyt kerryttämättä).
+                      Negatiivinen = edellä.
+                    </p>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                      Alarivi: ero ÷ kuluneet päivät. Kertoo paljonko vajetta pitäisi
+                      lisätä joka päivä saadakseen kiinni. Toleranssi ±100 kcal/pv.
+                    </p>
+                  </>
+                ),
+              }}
             />
             <StatCard
               label="Jäljellä"
               value={`${Math.max(0, Math.round(deficit.remainingTotal)).toLocaleString('fi-FI')} kcal`}
               sub={`${deficit.daysLeft} pv jäljellä`}
               accent={false}
+              info={{
+                title: 'Jäljellä',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Kuinka paljon kumulatiivista vajetta on vielä kerättävä, jotta
+                      saavutat kokonaistavoitteen.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong>{' '}
+                      kokonaistavoitevaje (= kokonaispudotus × 7 700 kcal) − toteutunut
+                      vaje tähän asti.
+                    </p>
+                  </>
+                ),
+              }}
             />
           </div>
 
           {deficit.recovery && (
-            <SuggestionCard
-              recovery={deficit.recovery}
-              dailyDeficitBase={Math.round(computed.dailyDeficitBase)}
-            />
+            <InfoCardWrapper
+              info={{
+                title: 'Suositus tasoitukseen',
+                body: (
+                  <>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Tämä laatikko ehdottaa konkreettista määrää lisävajetta ja
+                      päivien lukumäärän, joka palauttaa tasaiselle tavoitelinjalle.
+                    </p>
+                    <p style={{ margin: '0 0 8px' }}>
+                      <strong style={{ color: '#fff' }}>Laskenta:</strong> kokonaisero ÷
+                      14 (oletustavoiteaika kuromiseen), pyöristettynä lähimpään 25
+                      kcal:iin, rajoitettuna välille 50–200 kcal/pv. Tarvittavat päivät =
+                      kokonaisero ÷ valittu kcal/pv.
+                    </p>
+                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.45)' }}>
+                      Jos edes 200 kcal/pv koko jäljellä olevalle ajalle ei riitä, laatikko
+                      muuttuu punaiseksi ja ehdottaa tavoitepäivän pidennystä tai
+                      tavoitepainon nostoa.
+                    </p>
+                  </>
+                ),
+              }}
+            >
+              <SuggestionCard
+                recovery={deficit.recovery}
+                dailyDeficitBase={Math.round(computed.dailyDeficitBase)}
+              />
+            </InfoCardWrapper>
           )}
         </>
       )}
@@ -519,49 +767,164 @@ function StatCard({
   value,
   sub,
   accent,
+  info,
 }: {
   label: string
   value: string
   sub: string
   accent: boolean
+  info?: { title: string; body: React.ReactNode }
+}) {
+  const [showInfo, setShowInfo] = useState(false)
+  const clickable = !!info
+  return (
+    <>
+      <div
+        onClick={clickable ? () => setShowInfo(true) : undefined}
+        role={clickable ? 'button' : undefined}
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderRadius: 12,
+          padding: '14px 14px',
+          border: accent ? '1px solid rgba(212,184,90,0.2)' : '1px solid transparent',
+          cursor: clickable ? 'pointer' : 'default',
+          position: 'relative',
+          minHeight: 'auto',
+          minWidth: 'auto',
+        }}
+      >
+        {clickable && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 10,
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.22)',
+              fontFamily: "ui-monospace, 'SF Mono', monospace",
+              fontWeight: 600,
+              lineHeight: 1,
+            }}
+          >
+            ⓘ
+          </span>
+        )}
+        <p
+          style={{
+            margin: '0 0 6px',
+            fontSize: 10,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: "ui-monospace, 'SF Mono', monospace",
+          }}
+        >
+          {label}
+        </p>
+        <p
+          style={{
+            margin: '0 0 3px',
+            fontSize: 17,
+            fontWeight: 700,
+            color: accent ? '#d4b85a' : '#fff',
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {value}
+        </p>
+        {sub && (
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{sub}</p>
+        )}
+      </div>
+      {showInfo && info && (
+        <InfoModal title={info.title} body={info.body} onClose={() => setShowInfo(false)} />
+      )}
+    </>
+  )
+}
+
+function InfoModal({
+  title,
+  body,
+  onClose,
+}: {
+  title: string
+  body: React.ReactNode
+  onClose: () => void
 }) {
   return (
-    <div
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.04)',
-        borderRadius: 12,
-        padding: '14px 14px',
-        border: accent ? '1px solid rgba(212,184,90,0.2)' : '1px solid transparent',
-      }}
-    >
-      <p
-        style={{
-          margin: '0 0 6px',
-          fontSize: 10,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: 'rgba(255,255,255,0.35)',
-          fontFamily: "ui-monospace, 'SF Mono', monospace",
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          margin: '0 0 3px',
-          fontSize: 17,
-          fontWeight: 700,
-          color: accent ? '#d4b85a' : '#fff',
-          fontVariantNumeric: 'tabular-nums',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {value}
-      </p>
-      {sub && (
-        <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{sub}</p>
-      )}
+    <div style={s.modalBg} onClick={onClose}>
+      <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
+        <div
+          style={{
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            margin: '-4px auto 14px',
+          }}
+        />
+        <div style={s.modalTitle}>{title}</div>
+        <div
+          style={{
+            fontSize: 13,
+            color: 'rgba(255,255,255,0.75)',
+            lineHeight: 1.6,
+          }}
+        >
+          {body}
+        </div>
+        <button onClick={onClose} style={{ ...s.primaryBtn, marginTop: 18, flex: 'unset' }}>
+          Sulje
+        </button>
+      </div>
     </div>
+  )
+}
+
+// Wraps any card so tapping it opens an InfoModal explaining how the number(s)
+// inside are computed. Used for the recommendation banners, the projected-date
+// card, and the recovery suggestion card — anywhere we want to expose the
+// underlying formula without cluttering the card itself.
+function InfoCardWrapper({
+  info,
+  children,
+}: {
+  info: { title: string; body: React.ReactNode }
+  children: React.ReactNode
+}) {
+  const [showInfo, setShowInfo] = useState(false)
+  return (
+    <>
+      <div
+        onClick={() => setShowInfo(true)}
+        role="button"
+        style={{ cursor: 'pointer', position: 'relative' }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 12,
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.28)',
+            fontFamily: "ui-monospace, 'SF Mono', monospace",
+            fontWeight: 600,
+            zIndex: 1,
+            lineHeight: 1,
+          }}
+        >
+          ⓘ
+        </span>
+        {children}
+      </div>
+      {showInfo && (
+        <InfoModal title={info.title} body={info.body} onClose={() => setShowInfo(false)} />
+      )}
+    </>
   )
 }
 
