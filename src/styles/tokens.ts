@@ -404,17 +404,16 @@ export const s: Styles = {
     animation: 'backdropIn 0.22s ease both',
   },
   modal: {
-    // Absolute-positioned bottom sheet. iOS Safari ignores max-height
-    // on flex items inside fixed-position flex parents, so the modal
-    // is positioned directly with explicit bottom/left/right/top
-    // constraints and a hard maxHeight that the browser actually
-    // honors — letting overflow-y: auto enable internal scrolling.
-    position: 'absolute',
+    // Fixed-position bottom sheet — pinned directly to the viewport so it
+    // can't be hidden by an ancestor that accidentally creates a stacking
+    // or transform context. zIndex bumps above the modalBg backdrop (100).
+    position: 'fixed',
     left: 0,
     right: 0,
     bottom: 0,
     marginLeft: 'auto',
     marginRight: 'auto',
+    zIndex: 101,
     backgroundColor: '#181818',
     border: '1px solid rgba(255,255,255,0.10)',
     borderRadius: '20px 20px 0 0',
