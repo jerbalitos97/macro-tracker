@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2 } from 'lucide-react'
-import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout } from '../types'
+import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2, Plus, Flame, X } from 'lucide-react'
+import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout, Meal, TrainingBurn } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
+import { parsePositiveInt, parsePositiveDecimal } from '../lib/format'
 import { CalendarGrid } from '../components/CalendarGrid'
 import { DayBreakdown } from '../components/DayBreakdown'
+import { MealRow } from '../components/MealRow'
 import { UpcomingList } from '../components/UpcomingList'
 import { EventModal } from '../components/EventModal'
 import { ExtraModal } from '../components/ExtraModal'
@@ -24,12 +26,18 @@ interface Props {
   selectedDay: ComputedDay | undefined
   events: SpecialEvent[]
   extras: ExtraWorkout[]
+  meals: Meal[]
+  burns: TrainingBurn[]
   onAddEvent: (ev: Omit<SpecialEvent, 'id'>) => void
   onDeleteEvent: (id: number) => void
   onAddExtra: (ex: Omit<ExtraWorkout, 'id'>) => void
   onDeleteExtra: (id: number) => void
   onSetAdjustment: (date: string, kcal: number, note: string) => void
   onDeleteAdjustment: (id: number) => void
+  onAddMealOnDate: (meal: { kcal: number; protein: number }, date: string) => void
+  onDeleteMeal: (id: number) => void
+  onAddBurnOnDate: (burn: { kcal: number; note: string }, date: string) => void
+  onDeleteBurn: (id: number) => void
 }
 
 export function CalendarView({
@@ -39,15 +47,45 @@ export function CalendarView({
   selectedDay,
   events,
   extras,
+  meals,
+  burns,
   onAddEvent,
   onDeleteEvent,
   onAddExtra,
   onDeleteExtra,
   onSetAdjustment,
   onDeleteAdjustment,
+  onAddMealOnDate,
+  onDeleteMeal,
+  onAddBurnOnDate,
+  onDeleteBurn,
 }: Props) {
   const [modalType, setModalType] = useState<'event' | 'extra' | 'adjustment' | null>(null)
+  const [showMealForm, setShowMealForm] = useState(false)
+  const [showBurnForm, setShowBurnForm] = useState(false)
+  const [mealForm, setMealForm] = useState({ kcal: '', protein: '' })
+  const [burnForm, setBurnForm] = useState({ kcal: '', note: '' })
   const todayISO = toISO(new Date())
+
+  const dayMeals = selectedDate ? meals.filter((m) => m.date === selectedDate) : []
+  const dayBurns = selectedDate ? burns.filter((b) => b.date === selectedDate) : []
+
+  const handleAddMeal = () => {
+    const kcal = parsePositiveInt(mealForm.kcal)
+    const protein = parsePositiveDecimal(mealForm.protein)
+    if (!kcal || kcal <= 0) return
+    onAddMealOnDate({ kcal, protein }, selectedDate)
+    setMealForm({ kcal: '', protein: '' })
+    setShowMealForm(false)
+  }
+
+  const handleAddBurn = () => {
+    const kcal = parsePositiveInt(burnForm.kcal)
+    if (!kcal || kcal <= 0) return
+    onAddBurnOnDate({ kcal, note: burnForm.note }, selectedDate)
+    setBurnForm({ kcal: '', note: '' })
+    setShowBurnForm(false)
+  }
 
   const selectedIdx = computed.days.findIndex((d) => d.date === selectedDate)
   const goPrev = () => {
@@ -108,6 +146,138 @@ export function CalendarView({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit meals + burns for the selected day */}
+      {selectedDay && (
+        <div style={{ ...s.card, marginTop: 10 }}>
+          <div style={s.cardLabel}>Ateriat ({dayMeals.length})</div>
+          {dayMeals.map((m) => (
+            <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />
+          ))}
+          {!showMealForm ? (
+            <button
+              onClick={() => setShowMealForm(true)}
+              style={{ ...s.addBtn, marginTop: dayMeals.length > 0 ? 12 : 8 }}
+            >
+              <Plus size={14} />
+              Lisää ateria
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={s.inputLabel}>kcal</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={mealForm.kcal}
+                    onChange={(e) => setMealForm({ ...mealForm, kcal: e.target.value })}
+                    style={s.input}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label style={s.inputLabel}>Proteiini g</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={mealForm.protein}
+                    onChange={(e) => setMealForm({ ...mealForm, protein: e.target.value })}
+                    style={s.input}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleAddMeal} style={s.primaryBtn}>Tallenna</button>
+                <button
+                  onClick={() => {
+                    setShowMealForm(false)
+                    setMealForm({ kcal: '', protein: '' })
+                  }}
+                  style={s.ghostBtn}
+                >
+                  Peru
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ ...s.cardLabel, marginTop: 18 }}>Treenikulutus ({dayBurns.length})</div>
+          {dayBurns.map((b) => (
+            <div
+              key={b.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 0',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Flame size={14} color="#6a9ad4" />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#ebebeb', fontVariantNumeric: 'tabular-nums' }}>
+                    +{b.kcal.toLocaleString('fi-FI')}
+                    <span style={{ fontSize: 11, color: '#555', marginLeft: 4 }}>kcal</span>
+                  </div>
+                  {b.note && (
+                    <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>{b.note}</div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => onDeleteBurn(b.id)}
+                aria-label="Poista treenikulutus"
+                style={{ ...s.iconBtn, color: '#3a3a3a' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          {!showBurnForm ? (
+            <button
+              onClick={() => setShowBurnForm(true)}
+              style={{ ...s.addBtn, marginTop: dayBurns.length > 0 ? 12 : 8 }}
+            >
+              <Plus size={14} />
+              Lisää treenikulutus
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={s.inputLabel}>kcal</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={burnForm.kcal}
+                onChange={(e) => setBurnForm({ ...burnForm, kcal: e.target.value })}
+                style={s.input}
+                autoFocus
+              />
+              <label style={s.inputLabel}>Muistiinpano (valinnainen)</label>
+              <input
+                type="text"
+                value={burnForm.note}
+                onChange={(e) => setBurnForm({ ...burnForm, note: e.target.value })}
+                style={s.input}
+                placeholder="esim. juoksu"
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleAddBurn} style={s.primaryBtn}>Tallenna</button>
+                <button
+                  onClick={() => {
+                    setShowBurnForm(false)
+                    setBurnForm({ kcal: '', note: '' })
+                  }}
+                  style={s.ghostBtn}
+                >
+                  Peru
+                </button>
+              </div>
             </div>
           )}
         </div>

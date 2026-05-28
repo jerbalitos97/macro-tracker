@@ -73,6 +73,58 @@ export function DayBreakdown({ day }: Props) {
           {(day.budget + day.burnKcal).toLocaleString('fi-FI')} kcal
         </span>
       </div>
+
+      {/* Toteutuma — actual consumed and resulting deficit vs the planned baseline */}
+      {(day.consumed > 0 || day.burnKcal > 0) && day.actualDeficit !== undefined && (
+        <>
+          <div
+            style={{
+              ...s.cardLabel,
+              marginTop: 14,
+              marginBottom: 4,
+              color: '#666',
+            }}
+          >
+            Toteutuma
+          </div>
+          <div style={s.breakdownRow}>
+            <span style={s.breakdownLabel}>Syöty</span>
+            <span style={s.breakdownVal}>
+              {day.consumed.toLocaleString('fi-FI')} kcal
+            </span>
+          </div>
+          {(() => {
+            const actual = day.actualDeficit ?? 0
+            const planned = day.dailyDeficitBase
+            const diff = actual - planned
+            const deficitColor =
+              diff >= 100 ? '#8acb88' : diff <= -100 ? '#e87a6a' : '#d4b85a'
+            return (
+              <>
+                <div style={s.breakdownRow}>
+                  <span style={s.breakdownLabel}>Toteutunut vaje</span>
+                  <span style={{ ...s.breakdownVal, color: deficitColor, fontWeight: 600 }}>
+                    {actual >= 0 ? '+' : '−'}
+                    {Math.abs(Math.round(actual)).toLocaleString('fi-FI')} kcal
+                  </span>
+                </div>
+                <div style={s.breakdownRow}>
+                  <span style={{ ...s.breakdownLabel, color: '#666' }}>Suunniteltu vaje</span>
+                  <span style={{ ...s.breakdownVal, color: '#666' }}>
+                    +{planned.toLocaleString('fi-FI')} kcal
+                  </span>
+                </div>
+                <div style={s.breakdownRow}>
+                  <span style={{ ...s.breakdownLabel, color: '#666' }}>Ero suunnitelmaan</span>
+                  <span style={{ ...s.breakdownVal, color: deficitColor }}>
+                    {diff >= 0 ? '+' : '−'}{Math.abs(Math.round(diff)).toLocaleString('fi-FI')} kcal
+                  </span>
+                </div>
+              </>
+            )
+          })()}
+        </>
+      )}
     </div>
   )
 }

@@ -464,6 +464,26 @@ export default function App() {
               setAdjustments((prev) => prev.filter((a) => a.id !== id))
               if (user) syncDeleteAdjustment(user.id, id)
             }}
+            meals={meals}
+            burns={burns}
+            onAddMealOnDate={(meal, date) => {
+              const m = { ...meal, id: Date.now(), date }
+              setMeals((prev) => [...prev, m])
+              if (user) syncMeal(user.id, m)
+            }}
+            onDeleteMeal={(id) => {
+              setMeals((prev) => prev.filter((m) => m.id !== id))
+              if (user) syncDeleteMeal(user.id, id)
+            }}
+            onAddBurnOnDate={(burn, date) => {
+              const b = { ...burn, id: Date.now(), date }
+              setBurns((prev) => [...prev, b])
+              if (user) syncBurn(user.id, b)
+            }}
+            onDeleteBurn={(id) => {
+              setBurns((prev) => prev.filter((b) => b.id !== id))
+              if (user) syncDeleteBurn(user.id, id)
+            }}
           />
         </div>
       )}
