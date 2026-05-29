@@ -44,6 +44,17 @@ export function WeightView({
   const sortedWeights = [...weights].sort((a, b) => b.date.localeCompare(a.date))
   const displayedWeights = showAll ? sortedWeights : sortedWeights.slice(0, 10)
 
+  // IDs currently feeding the displayed "Liukuva keskiarvo (7 pv)" — the latest
+  // 7 non-excluded entries. Highlight those so the user sees which weigh-ins
+  // are actively shaping the number.
+  const activeAvgIds = useMemo(() => {
+    const lastSeven = [...weights]
+      .filter((w) => !w.excludeFromTrend)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-7)
+    return new Set(lastSeven.map((w) => w.id))
+  }, [weights])
+
   const projectedDate = useMemo(() => {
     if (!trend.currentTrend || !trend.weeklyChange || trend.weeklyChange >= 0) return null
     const kgToLose = trend.currentTrend - settings.targetWeight
@@ -219,9 +230,28 @@ export function WeightView({
       {/* Weight log */}
       {weights.length > 0 && (
         <div style={{ marginTop: 18 }}>
-          <div style={s.sectionLabel}>Kirjaukset ({weights.length})</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+            <div style={s.sectionLabel}>Kirjaukset ({weights.length})</div>
+            <div
+              style={{
+                fontSize: 9,
+                color: 'rgba(255,255,255,0.3)',
+                fontFamily: "ui-monospace, 'SF Mono', monospace",
+                letterSpacing: '0.06em',
+              }}
+            >
+              <span style={{ color: '#d4b85a' }}>■</span> nyk. keskiarvossa
+            </div>
+          </div>
           <div className="list-stagger">
-            {displayedWeights.map((w) => (
+            {displayedWeights.map((w) => {
+              const inAvg = activeAvgIds.has(w.id)
+              const accent = w.excludeFromTrend
+                ? 'rgba(232,122,106,0.35)'
+                : inAvg
+                  ? '#d4b85a'
+                  : 'rgba(255,255,255,0.10)'
+              return (
               <div
                 key={w.id}
                 style={{
@@ -236,11 +266,12 @@ export function WeightView({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
-                    width: 3, height: 28, borderRadius: 2,
-                    backgroundColor: w.excludeFromTrend
-                      ? 'rgba(232,122,106,0.35)'
-                      : 'rgba(212,184,90,0.35)',
+                    width: inAvg ? 4 : 3,
+                    height: 28,
+                    borderRadius: 2,
+                    backgroundColor: accent,
                     flexShrink: 0,
+                    boxShadow: inAvg ? '0 0 6px rgba(212,184,90,0.45)' : 'none',
                   }} />
                   <div>
                     <div style={{
@@ -248,15 +279,19 @@ export function WeightView({
                       fontWeight: 650,
                       fontVariantNumeric: 'tabular-nums',
                       letterSpacing: '-0.01em',
-                      color: '#ebebeb',
+                      color: inAvg ? '#fff' : '#ebebeb',
                     }}>
                       {w.kg.toFixed(1)}
                       <span style={{ fontSize: 11, color: '#555', fontWeight: 400, marginLeft: 4 }}>kg</span>
-                      {w.excludeFromTrend && (
+                      {w.excludeFromTrend ? (
                         <span style={{ fontSize: 9, color: '#e87a6a', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                           ohitettu
                         </span>
-                      )}
+                      ) : inAvg ? (
+                        <span style={{ fontSize: 9, color: '#d4b85a', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          keskiarvossa
+                        </span>
+                      ) : null}
                     </div>
                     <div style={{ fontSize: 10, color: '#444', marginTop: 1 }}>{formatDateShort(w.date)}</div>
                   </div>
@@ -287,7 +322,8 @@ export function WeightView({
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
           {sortedWeights.length > 10 && (
             <button
