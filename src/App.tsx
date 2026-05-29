@@ -22,6 +22,8 @@ import type { View } from './components/NavBar'
 import { SyncBadge } from './components/SyncBadge'
 import type { SyncStatus } from './components/SyncBadge'
 import { MigrationPrompt } from './components/MigrationPrompt'
+import { SurplusPrompt } from './components/SurplusPrompt'
+import { getAcknowledgedSurpluses, acknowledgeSurplus } from './lib/surplusAck'
 import { LoginView } from './views/LoginView'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
@@ -76,6 +78,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
   const [showMigration, setShowMigration] = useState(false)
   const [migrating, setMigrating] = useState(false)
+  const [ackedSurpluses, setAckedSurpluses] = useState<Set<string>>(() => getAcknowledgedSurpluses())
 
   // Auto-clear the "synced" badge so it doesn't permanently sit over the
   // navbar tabs. 'syncing' / 'error' / 'offline' stay visible until they change.
@@ -242,6 +245,66 @@ export default function App() {
 
   const todayISO = toISO(new Date())
 
+  // ── Surplus prompt: did yesterday earn extra deficit? ────────
+  const surplusOffer = useMemo(() => {
+    if (!loaded) return null
+    const yesterday = addDays(todayISO, -1)
+    if (ackedSurpluses.has(yesterday)) return null
+    const day = computed.days.find((d) => d.date === yesterday)
+    if (!day || day.actualDeficit === undefined || day.actualDeficit === null) return null
+    const extra = day.actualDeficit - day.dailyDeficitBase
+    // Only nudge when the surplus is meaningful — ~one snack worth or more.
+    if (extra < 200) return null
+    return { date: yesterday, surplus: Math.round(extra) }
+  }, [loaded, computed, todayISO, ackedSurpluses])
+
+  const applySurplusToDate = useCallback(
+    (date: string, addKcal: number, sourceDate: string) => {
+      if (!user) return
+      const existing = adjustments.find((a) => a.date === date)
+      const newKcal = (existing?.kcal ?? 0) + addKcal
+      const tag = `bonus ${sourceDate.slice(5)}`
+      const noteParts = [existing?.note, tag].filter(Boolean)
+      const updated: DailyAdjustment = existing
+        ? { ...existing, kcal: newKcal, note: noteParts.join(' · ') }
+        : { id: Date.now() + Math.floor(Math.random() * 1000), date, kcal: newKcal, note: tag }
+      setAdjustments((prev) => [...prev.filter((a) => a.date !== date), updated])
+      syncAdjustment(user.id, updated)
+    },
+    [user, adjustments],
+  )
+
+  const handleSurplusSpread = useCallback(
+    (days: number) => {
+      if (!surplusOffer) return
+      const perDay = Math.floor(surplusOffer.surplus / days)
+      for (let i = 0; i < days; i++) {
+        const target = addDays(todayISO, i)
+        if (target > settings.endDate) break
+        applySurplusToDate(target, perDay, surplusOffer.date)
+      }
+      acknowledgeSurplus(surplusOffer.date)
+      setAckedSurpluses(getAcknowledgedSurpluses())
+    },
+    [surplusOffer, todayISO, settings.endDate, applySurplusToDate],
+  )
+
+  const handleSurplusSingle = useCallback(
+    (date: string) => {
+      if (!surplusOffer) return
+      applySurplusToDate(date, surplusOffer.surplus, surplusOffer.date)
+      acknowledgeSurplus(surplusOffer.date)
+      setAckedSurpluses(getAcknowledgedSurpluses())
+    },
+    [surplusOffer, applySurplusToDate],
+  )
+
+  const handleSurplusDismiss = useCallback(() => {
+    if (!surplusOffer) return
+    acknowledgeSurplus(surplusOffer.date)
+    setAckedSurpluses(getAcknowledgedSurpluses())
+  }, [surplusOffer])
+
   // ── Loading screens ───────────────────────────────────────────
   if (authLoading || !loaded) {
     return (
@@ -297,6 +360,18 @@ export default function App() {
           onMigrate={handleMigrate}
           onSkip={() => setShowMigration(false)}
           migrating={migrating}
+        />
+      )}
+
+      {/* Surplus prompt — fires when yesterday's deficit beat the plan */}
+      {surplusOffer && !showMigration && (
+        <SurplusPrompt
+          surplusDate={surplusOffer.date}
+          surplus={surplusOffer.surplus}
+          cutEndDate={settings.endDate}
+          onApplySpread={handleSurplusSpread}
+          onApplySingle={handleSurplusSingle}
+          onDismiss={handleSurplusDismiss}
         />
       )}
 
