@@ -1,7 +1,7 @@
 {
-  "name": "Makrot – Kaloriseuranta",
-  "short_name": "Makrot",
-  "description": "Henkilökohtainen kaloriseuranta cut-jaksolle",
+  "name": "Mimir — Your Life OS",
+  "short_name": "Mimir",
+  "description": "Henkilökohtainen elämän datahub — Norse god of wisdom at the bottom of your well.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
@@ -19,6 +19,11 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     },
     {
       "src": "/icons/favicon-32.png",

@@ -1,6 +1,7 @@
 import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
+import { MimirMark } from '../components/MimirMark'
 
 interface Tool {
   label: string
@@ -34,25 +35,25 @@ export function HomeView({ setView }: Props) {
         gap: 32,
       }}
     >
-      {/* Header */}
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            color: 'rgba(255,255,255,0.45)',
-            letterSpacing: '0.25em',
-            fontFamily: "ui-monospace, 'SF Mono', monospace",
-            marginBottom: 8,
-          }}
-        >
-          MAKROT
+      {/* Header — inline Mimir mark + name */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <MimirMark size={44} />
+        <div>
+          <div
+            style={{
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.45)',
+              letterSpacing: '0.32em',
+              fontFamily: "ui-monospace, 'SF Mono', monospace",
+              marginBottom: 4,
+            }}
+          >
+            MIMIR
+          </div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.015em', color: '#fff' }}>
+            Työkalut
+          </h1>
         </div>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', color: '#fff' }}>
-          Työkalut
-        </h1>
-        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-          Valitse mihin haluat sukeltaa.
-        </p>
       </div>
 
       {/* Tool grid */}

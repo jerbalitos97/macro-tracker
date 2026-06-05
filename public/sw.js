@@ -1,5 +1,5 @@
 // Bump this string on every deploy to expire old caches.
-const CACHE = 'makrot-v3'
+const CACHE = 'mimir-v1'
 
 const PRECACHE = [
   '/',

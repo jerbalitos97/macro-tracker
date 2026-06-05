@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { MimirMark } from '../components/MimirMark'
 
 export function LoginView() {
   const { signIn, signUp } = useAuth()
@@ -34,17 +35,20 @@ export function LoginView() {
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 12 }}>🔥</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+          <MimirMark size={64} />
+        </div>
         <h1
           style={{
             fontSize: 22,
             fontWeight: 700,
             color: '#fff',
-            margin: '0 0 6px',
-            letterSpacing: '-0.01em',
+            margin: '0 0 4px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
           }}
         >
-          Makrot
+          Mimir
         </h1>
         <p
           style={{
