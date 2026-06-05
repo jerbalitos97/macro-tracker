@@ -25,6 +25,7 @@ import { MigrationPrompt } from './components/MigrationPrompt'
 import { SurplusPrompt } from './components/SurplusPrompt'
 import { getAcknowledgedSurpluses, acknowledgeSurplus } from './lib/surplusAck'
 import { LoginView } from './views/LoginView'
+import { HomeView } from './views/HomeView'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
@@ -60,7 +61,7 @@ const DEFAULT_SETTINGS: Settings = {
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled } = useAuth()
 
-  const [view, setView] = useState<View>('today')
+  const [view, setView] = useState<View>('home')
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
@@ -375,15 +376,23 @@ export default function App() {
         />
       )}
 
-      {/* Nav with sync badge */}
-      <div style={{ position: 'relative' }}>
-        <NavBar view={view} setView={setView} />
-        {user && syncStatus !== 'idle' && (
-          <div style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 6px)', right: 10, zIndex: 20 }}>
-            <SyncBadge status={syncStatus} />
-          </div>
-        )}
-      </div>
+      {/* Nav with sync badge — hidden on the launcher (home) view */}
+      {view !== 'home' && (
+        <div style={{ position: 'relative' }}>
+          <NavBar view={view} setView={setView} />
+          {user && syncStatus !== 'idle' && (
+            <div style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 6px)', right: 10, zIndex: 20 }}>
+              <SyncBadge status={syncStatus} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {view === 'home' && (
+        <div className="view-enter">
+          <HomeView setView={setView} />
+        </div>
+      )}
 
       {view === 'habits' && (
         <div className="view-enter">

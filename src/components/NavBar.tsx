@@ -1,7 +1,7 @@
-import { Home, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-type View = 'today' | 'habits' | 'calendar' | 'weight' | 'history' | 'goal' | 'settings'
+type View = 'home' | 'today' | 'habits' | 'calendar' | 'weight' | 'history' | 'goal' | 'settings'
 
 interface Tab {
   id: View
@@ -10,6 +10,7 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
+  { id: 'home',     label: 'Koti',      Icon: LayoutGrid },
   { id: 'today',    label: 'Tänään',    Icon: Home },
   { id: 'habits',   label: 'Tavat',     Icon: ListChecks },
   { id: 'calendar', label: 'Kalenteri', Icon: CalendarDays },
@@ -94,13 +95,14 @@ export function NavBar({ view, setView }: Props) {
             />
             <span
               style={{
-                fontSize: 9,
+                fontSize: 8,
                 fontFamily: "ui-monospace, 'SF Mono', monospace",
                 textTransform: 'uppercase',
-                letterSpacing: '0.07em',
+                letterSpacing: '0.05em',
                 fontWeight: active ? 700 : 400,
                 lineHeight: 1,
                 transition: 'font-weight 0.2s ease',
+                whiteSpace: 'nowrap',
               }}
             >
               {tab.label}
