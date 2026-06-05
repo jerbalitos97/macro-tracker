@@ -9,16 +9,28 @@ interface Tab {
   Icon: LucideIcon
 }
 
-const TABS: Tab[] = [
+// Two tab sets — the navbar selects the right one based on the current view,
+// so Habit tracking and Fitness tracking each get their own self-contained
+// tool navigation rooted at the launcher (Koti).
+const FITNESS_TABS: Tab[] = [
   { id: 'home',     label: 'Koti',      Icon: LayoutGrid },
   { id: 'today',    label: 'Tänään',    Icon: Home },
-  { id: 'habits',   label: 'Tavat',     Icon: ListChecks },
   { id: 'calendar', label: 'Kalenteri', Icon: CalendarDays },
   { id: 'weight',   label: 'Paino',     Icon: TrendingDown },
   { id: 'history',  label: 'Trendit',   Icon: BarChart2 },
   { id: 'goal',     label: 'Tavoite',   Icon: Target },
   { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
+
+const HABIT_TABS: Tab[] = [
+  { id: 'home',     label: 'Koti',      Icon: LayoutGrid },
+  { id: 'habits',   label: 'Tavat',     Icon: ListChecks },
+  { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
+]
+
+function tabsForView(v: View): Tab[] {
+  return v === 'habits' ? HABIT_TABS : FITNESS_TABS
+}
 
 export type { View }
 
@@ -28,7 +40,8 @@ interface Props {
 }
 
 export function NavBar({ view, setView }: Props) {
-  const activeIdx = TABS.findIndex((t) => t.id === view)
+  const tabs = tabsForView(view)
+  const activeIdx = tabs.findIndex((t) => t.id === view)
 
   return (
     <nav
@@ -52,7 +65,7 @@ export function NavBar({ view, setView }: Props) {
           position: 'absolute',
           bottom: 0,
           left: 0,
-          width: `${100 / TABS.length}%`,
+          width: `${100 / tabs.length}%`,
           height: 2,
           background: 'linear-gradient(90deg, transparent 8%, #d4b85a 50%, transparent 92%)',
           boxShadow: '0 0 10px rgba(212,184,90,0.55)',
@@ -62,7 +75,7 @@ export function NavBar({ view, setView }: Props) {
         }}
       />
 
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = view === tab.id
         return (
           <button
@@ -95,10 +108,10 @@ export function NavBar({ view, setView }: Props) {
             />
             <span
               style={{
-                fontSize: 8,
+                fontSize: 9,
                 fontFamily: "ui-monospace, 'SF Mono', monospace",
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.07em',
                 fontWeight: active ? 700 : 400,
                 lineHeight: 1,
                 transition: 'font-weight 0.2s ease',
