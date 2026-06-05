@@ -8,6 +8,38 @@ export interface TdeeMap {
   volleyball: number
 }
 
+export type PeriodType = 'cut' | 'maintenance' | 'refill' | 'bulk'
+export type PeriodStatus = 'active' | 'achieved' | 'retired'
+
+/**
+ * One tavoitejakso. Multiple periods chain end→end to form a step-shaped
+ * goal history. Type drives the trend interpretation (`src/lib/trendStatus.ts`)
+ * and how `compute.ts` derives the day's `dailyDeficitBase`.
+ *
+ * Legacy data without `goalPeriods` is handled by a shim in
+ * `src/lib/goalPeriods.ts` that synthesises one 'cut' period from the
+ * legacy startDate/endDate/startWeight/targetWeight fields.
+ */
+export interface GoalPeriod {
+  id: number
+  type: PeriodType
+  status: PeriodStatus
+  startDate: string
+  endDate: string
+  startWeight: number
+  targetWeight: number
+  /** Optional ±band around targetWeight (used by maintenance/refill UIs). */
+  targetMin?: number
+  targetMax?: number
+  /** Refill: how many weeks the controlled rise window lasts. Default 3. */
+  refillWindowWeeks?: number
+  /** Refill: how much gain is expected in total across the window. Default ~1.5–2 kg. */
+  expectedRefillKg?: number
+  /** Free-form label shown in history. */
+  label?: string
+  createdAt: string
+}
+
 export interface Settings {
   startDate: string
   endDate: string
@@ -16,6 +48,13 @@ export interface Settings {
   tdee: TdeeMap
   weeklyPattern: Record<number, DayType>
   proteinTarget: number
+  /**
+   * Goal history. When present, this is the source of truth and the legacy
+   * startDate/endDate/startWeight/targetWeight fields are ignored. When
+   * absent, the selectors in `src/lib/goalPeriods.ts` synthesise a single
+   * 'cut' period from the legacy fields — old data keeps working untouched.
+   */
+  goalPeriods?: GoalPeriod[]
 }
 
 export interface SpecialEvent {

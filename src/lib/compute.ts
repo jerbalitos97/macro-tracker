@@ -7,8 +7,25 @@ import type {
   DailyAdjustment,
   ComputedDay,
   ComputedResult,
+  GoalPeriod,
 } from '../types'
 import { addDays, daysBetween, getWeekdayNum, toISO } from './dates'
+import { getActivePeriod } from './goalPeriods'
+
+/** kcal/day deficit baseline implied by a single period's start→target over
+ *  its duration. Non-cut periods convert sensibly:
+ *   - maintenance: 0 kcal/day (eat at TDEE)
+ *   - bulk: a negative number, i.e. a surplus, so the "deficit" is the
+ *     deliberate gain that keeps the user inside the bulk envelope
+ *   - refill: 0 by default — refill envelope is checked separately in
+ *     `trendStatus`; we don't want refill weeks accidentally counted as a
+ *     cut in the cumulative deficit chart. */
+function periodDailyDeficit(p: GoalPeriod): number {
+  if (p.type === 'maintenance' || p.type === 'refill') return 0
+  const dur = Math.max(1, daysBetween(p.startDate, p.endDate) + 1)
+  const kg = p.startWeight - p.targetWeight // positive for cut, negative for bulk
+  return (kg * 7700) / dur
+}
 
 export function computeDays(
   settings: Settings,
@@ -19,14 +36,24 @@ export function computeDays(
   adjustments: DailyAdjustment[] = [],
 ): ComputedResult {
   const days: ComputedDay[] = []
-  const total = daysBetween(settings.startDate, settings.endDate) + 1
+  const todayISO = toISO(new Date())
+  const activePeriod = getActivePeriod(settings, todayISO)
 
-  const weightLossKg = settings.startWeight - settings.targetWeight
+  // Fall back to legacy fields when there's literally no period info.
+  const fallbackStart = activePeriod?.startDate ?? settings.startDate
+  const fallbackEnd = activePeriod?.endDate ?? settings.endDate
+  const fallbackStartW = activePeriod?.startWeight ?? settings.startWeight
+  const fallbackTargetW = activePeriod?.targetWeight ?? settings.targetWeight
+
+  const total = daysBetween(fallbackStart, fallbackEnd) + 1
+  const weightLossKg = fallbackStartW - fallbackTargetW
   const totalDeficitTarget = weightLossKg * 7700
-  const dailyDeficitBase = totalDeficitTarget / total
+  const dailyDeficitBase = activePeriod
+    ? periodDailyDeficit(activePeriod)
+    : totalDeficitTarget / total
 
   for (let i = 0; i < total; i++) {
-    const date = addDays(settings.startDate, i)
+    const date = addDays(fallbackStart, i)
     const dow = getWeekdayNum(date)
 
     const eventsOnDay = events.filter((e) => e.date === date)
@@ -132,7 +159,6 @@ export function computeDays(
     })
   }
 
-  const todayISO = toISO(new Date())
   let cumulativeDeficit = 0
   days.forEach((d) => {
     if (d.consumed > 0 || d.burnKcal > 0) {

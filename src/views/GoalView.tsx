@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import type { ComputedResult, Settings, WeightEntry } from '../types'
 import { computeWeightTrend } from '../lib/weight'
 import { daysBetween, toISO, addDays, fromISO } from '../lib/dates'
+import { getPeriods, getActivePeriod } from '../lib/goalPeriods'
+import { interpretTrend } from '../lib/trendStatus'
 import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
 import { s } from '../styles/tokens'
@@ -30,6 +32,12 @@ export function GoalView({ settings, weights, computed }: Props) {
   const trend = useMemo(() => computeWeightTrend(weights), [weights])
 
   const todayISO = toISO(new Date())
+  const periods = useMemo(() => getPeriods(settings), [settings])
+  const activePeriod = useMemo(() => getActivePeriod(settings, todayISO), [settings, todayISO])
+  const trendStatus = useMemo(
+    () => (activePeriod ? interpretTrend({ period: activePeriod, trend, today: todayISO }) : null),
+    [activePeriod, trend, todayISO],
+  )
 
   const analysis = useMemo(() => {
     const { currentTrend, weeklyChange, trendData } = trend
@@ -170,9 +178,26 @@ export function GoalView({ settings, weights, computed }: Props) {
     <div style={{ padding: '16px 16px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Title */}
       <div>
-        <h2 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700, color: '#fff' }}>Tavoiteanalyysi</h2>
+        <h2 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700, color: '#fff' }}>
+          Tavoiteanalyysi
+          {activePeriod && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#d4b85a',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                fontFamily: "ui-monospace, 'SF Mono', monospace",
+              }}
+            >
+              {activePeriod.type}
+            </span>
+          )}
+        </h2>
         <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
-          {settings.startDate.slice(5).replace('-', '/')} – {settings.endDate.slice(5).replace('-', '/')} · {settings.startWeight} → {settings.targetWeight} kg
+          {(activePeriod?.startDate ?? settings.startDate).slice(5).replace('-', '/')} – {(activePeriod?.endDate ?? settings.endDate).slice(5).replace('-', '/')} · {(activePeriod?.startWeight ?? settings.startWeight)} → {(activePeriod?.targetWeight ?? settings.targetWeight)} kg
         </p>
       </div>
 
@@ -198,11 +223,12 @@ export function GoalView({ settings, weights, computed }: Props) {
       {/* Chart */}
       <div style={{ marginTop: -4 }}>
         <GoalChart
-          startDate={settings.startDate}
-          endDate={settings.endDate}
-          startWeight={settings.startWeight}
-          targetWeight={settings.targetWeight}
+          startDate={activePeriod?.startDate ?? settings.startDate}
+          endDate={activePeriod?.endDate ?? settings.endDate}
+          startWeight={activePeriod?.startWeight ?? settings.startWeight}
+          targetWeight={activePeriod?.targetWeight ?? settings.targetWeight}
           trendData={trend.trendData}
+          periods={periods}
         />
       </div>
 
@@ -224,6 +250,12 @@ export function GoalView({ settings, weights, computed }: Props) {
             ({trend.trendData.length}/4 kirjausta)
           </p>
         </div>
+      )}
+
+      {/* Per-type trend status — slope-based interpretation that's aware of
+          cut vs maintenance vs refill (envelope + plateau) vs bulk. */}
+      {trendStatus && trendStatus.status !== 'no-data' && (
+        <TrendStatusBanner result={trendStatus} period={activePeriod} />
       )}
 
       {/* Analysis cards */}
@@ -720,6 +752,62 @@ function BannerShell({ rec, body }: { rec: Recommendation; body: string }) {
       <div>
         <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#fff' }}>{c.title}</p>
         <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{body}</p>
+      </div>
+    </div>
+  )
+}
+
+// Trend status banner — driven by lib/trendStatus.ts, per-period-type
+// interpretation. Lives alongside the position-based banner; both are
+// shown so the user gets "where you are" AND "how you're moving".
+function TrendStatusBanner({
+  result,
+  period,
+}: {
+  result: import('../lib/trendStatus').TrendStatusResult
+  period: import('../types').GoalPeriod | null
+}) {
+  const palette: Record<typeof result.tone, { bg: string; border: string; emoji: string }> = {
+    ok: { bg: 'rgba(100,200,120,0.06)', border: 'rgba(100,200,120,0.2)', emoji: '✅' },
+    info: { bg: 'rgba(106,154,212,0.06)', border: 'rgba(106,154,212,0.2)', emoji: '💡' },
+    warn: { bg: 'rgba(232,184,90,0.06)', border: 'rgba(232,184,90,0.2)', emoji: '⚠️' },
+    danger: { bg: 'rgba(232,122,106,0.06)', border: 'rgba(232,122,106,0.2)', emoji: '🔴' },
+  }
+  const c = palette[result.tone]
+  return (
+    <div
+      style={{
+        backgroundColor: c.bg,
+        border: `1px solid ${c.border}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start',
+      }}
+    >
+      <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{c.emoji}</span>
+      <div>
+        <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+          {result.title}
+          {period && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.4)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                fontFamily: "ui-monospace, 'SF Mono', monospace",
+              }}
+            >
+              {period.type}
+            </span>
+          )}
+        </p>
+        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+          {result.body}
+        </p>
       </div>
     </div>
   )
