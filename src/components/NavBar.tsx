@@ -23,9 +23,8 @@ const FITNESS_TABS: Tab[] = [
 ]
 
 const HABIT_TABS: Tab[] = [
-  { id: 'home',     label: 'Koti',      Icon: LayoutGrid },
-  { id: 'habits',   label: 'Tavat',     Icon: ListChecks },
-  { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
+  { id: 'home',   label: 'Koti',  Icon: LayoutGrid },
+  { id: 'habits', label: 'Tavat', Icon: ListChecks },
 ]
 
 function tabsForView(v: View): Tab[] {
