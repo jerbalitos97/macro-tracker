@@ -92,10 +92,12 @@ input[type="date"], select { color-scheme: dark; }
 
 /* ═══════════════════════════════ ANIMATIONS ════════════════════════════════════ */
 
-/* View entrance */
+/* View entrance — opacity only. A persistent `transform` on the view
+   container (even translateY(0)) makes it the containing block for
+   position:fixed descendants in WebKit, breaking modal positioning. */
 @keyframes viewFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .view-enter {
   animation: viewFadeIn var(--dur-base) var(--ease-out) both;
