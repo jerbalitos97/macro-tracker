@@ -14,7 +14,7 @@ interface Tool {
 const TOOLS: Tool[] = [
   { label: 'Habit Tracking',    Icon: ListChecks,     color: '#c98ad4', target: 'habits' },
   { label: 'Fitness Tracking',  Icon: Activity,       color: '#d4b85a', target: 'today' },
-  { label: 'Wealth',            Icon: Wallet,         color: '#8acb88', target: null,    short: 'Wealth' },
+  { label: 'Wealth',            Icon: Wallet,         color: '#8acb88', target: 'wealth' },
   { label: 'Workout',           Icon: Dumbbell,       color: '#6a9ad4', target: null,    short: 'Workout' },
   { label: 'Grocery',           Icon: ShoppingBasket, color: '#e87a6a', target: null,    short: 'Grocery' },
   { label: 'Jarvis',            Icon: Sparkles,       color: '#9d8ad4', target: null,    short: 'Jarvis' },

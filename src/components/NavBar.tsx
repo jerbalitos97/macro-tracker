@@ -1,7 +1,17 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-type View = 'home' | 'today' | 'habits' | 'calendar' | 'weight' | 'history' | 'goal' | 'settings'
+type View =
+  | 'home'
+  | 'today'
+  | 'habits'
+  | 'calendar'
+  | 'weight'
+  | 'history'
+  | 'goal'
+  | 'settings'
+  | 'wealth'
+  | 'wealth-settings'
 
 interface Tab {
   id: View
@@ -27,8 +37,16 @@ const HABIT_TABS: Tab[] = [
   { id: 'habits', label: 'Tavat', Icon: ListChecks },
 ]
 
+const WEALTH_TABS: Tab[] = [
+  { id: 'home',            label: 'Koti',      Icon: LayoutGrid },
+  { id: 'wealth',          label: 'Wealth',    Icon: Wallet },
+  { id: 'wealth-settings', label: 'Asetukset', Icon: SlidersHorizontal },
+]
+
 function tabsForView(v: View): Tab[] {
-  return v === 'habits' ? HABIT_TABS : FITNESS_TABS
+  if (v === 'habits') return HABIT_TABS
+  if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
+  return FITNESS_TABS
 }
 
 export type { View }

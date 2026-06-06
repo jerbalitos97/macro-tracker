@@ -26,6 +26,8 @@ import { SurplusPrompt } from './components/SurplusPrompt'
 import { getAcknowledgedSurpluses, acknowledgeSurplus } from './lib/surplusAck'
 import { LoginView } from './views/LoginView'
 import { HomeView } from './views/HomeView'
+import { WealthView } from './views/WealthView'
+import { WealthSettingsView } from './views/WealthSettingsView'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
@@ -391,6 +393,18 @@ export default function App() {
       {view === 'home' && (
         <div className="view-enter">
           <HomeView setView={setView} />
+        </div>
+      )}
+
+      {view === 'wealth' && (
+        <div className="view-enter">
+          <WealthView onOpenSettings={() => setView('wealth-settings')} />
+        </div>
+      )}
+
+      {view === 'wealth-settings' && (
+        <div className="view-enter">
+          <WealthSettingsView onBack={() => setView('wealth')} />
         </div>
       )}
 
