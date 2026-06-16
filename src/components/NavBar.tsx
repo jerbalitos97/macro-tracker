@@ -90,7 +90,7 @@ export function NavBar({ view, setView }: Props) {
             role="tab"
             aria-selected={active}
             aria-label={tab.label}
-            className={`nav-btn flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent pb-[11px] pt-[9px] transition-colors duration-200 ${
+            className={`nav-btn flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent px-0.5 pb-[11px] pt-[9px] transition-colors duration-200 ${
               active ? 'text-accent' : 'text-white/[0.28]'
             }`}
             onClick={() => setView(tab.id)}
@@ -101,7 +101,7 @@ export function NavBar({ view, setView }: Props) {
               style={{ transition: 'stroke-width 0.2s ease' }}
             />
             <span
-              className={`whitespace-nowrap font-mono text-[9px] uppercase leading-none tracking-[0.07em] ${
+              className={`max-w-full truncate font-mono text-[8px] uppercase leading-none tracking-[0.03em] ${
                 active ? 'font-bold' : 'font-normal'
               }`}
             >
