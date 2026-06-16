@@ -63,17 +63,7 @@ export function NavBar({ view, setView }: Props) {
   return (
     <nav
       role="tablist"
-      style={{
-        display: 'flex',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-        paddingTop: 'env(safe-area-inset-top)',
-        backgroundColor: 'rgba(10,10,10,0.88)',
-        backdropFilter: 'blur(24px) saturate(1.5)',
-        WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}
+      className="sticky top-0 z-10 flex border-b border-white/[0.06] bg-[rgba(10,10,10,0.88)] pt-[env(safe-area-inset-top)] [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
     >
       {/* Sliding indicator bar */}
       <div
@@ -100,23 +90,10 @@ export function NavBar({ view, setView }: Props) {
             role="tab"
             aria-selected={active}
             aria-label={tab.label}
-            className="nav-btn"
+            className={`nav-btn flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent pb-[11px] pt-[9px] transition-colors duration-200 ${
+              active ? 'text-accent' : 'text-white/[0.28]'
+            }`}
             onClick={() => setView(tab.id)}
-            style={{
-              flex: 1,
-              padding: '9px 0 11px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              cursor: 'pointer',
-              color: active ? '#d4b85a' : 'rgba(255,255,255,0.28)',
-              minWidth: 'auto',
-              minHeight: 'auto',
-              transition: 'color 0.22s ease',
-            }}
           >
             <tab.Icon
               size={18}
@@ -124,16 +101,9 @@ export function NavBar({ view, setView }: Props) {
               style={{ transition: 'stroke-width 0.2s ease' }}
             />
             <span
-              style={{
-                fontSize: 9,
-                fontFamily: "ui-monospace, 'SF Mono', monospace",
-                textTransform: 'uppercase',
-                letterSpacing: '0.07em',
-                fontWeight: active ? 700 : 400,
-                lineHeight: 1,
-                transition: 'font-weight 0.2s ease',
-                whiteSpace: 'nowrap',
-              }}
+              className={`whitespace-nowrap font-mono text-[9px] uppercase leading-none tracking-[0.07em] ${
+                active ? 'font-bold' : 'font-normal'
+              }`}
             >
               {tab.label}
             </span>

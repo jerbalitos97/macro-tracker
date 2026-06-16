@@ -5,7 +5,7 @@ import { formatDayOfWeek } from '../lib/dates'
 import { parsePositiveInt, parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
 import { MealRow } from '../components/MealRow'
 import { ProgressBar } from '../components/ProgressBar'
-import { s } from '../styles/tokens'
+import { Card, Button, Field } from '../components/ui'
 
 const DAY_TYPE_LABEL: Record<string, string> = {
   rest:       'Lepopäivä',
@@ -13,6 +13,9 @@ const DAY_TYPE_LABEL: Record<string, string> = {
   double:     '2 treeniä',
   volleyball: 'Volleyball',
 }
+
+const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
 interface Props {
   day: ComputedDay | undefined
@@ -47,9 +50,9 @@ export function TodayView({
 
   if (!day) {
     return (
-      <div style={{ padding: 32, color: '#555', textAlign: 'center', marginTop: 40 }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
-        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+      <div className="mt-10 p-8 text-center text-muted">
+        <div className="mb-3 text-[32px]">📅</div>
+        <div className="text-[13px] leading-relaxed">
           Tämä päivä ei ole cut-ajanjakson sisällä.
           <br />Tarkista asetukset.
         </div>
@@ -96,102 +99,64 @@ export function TodayView({
   const dayName = formatDayOfWeek(day.date)
   const dayNameCap = dayName.charAt(0).toUpperCase() + dayName.slice(1)
 
-  // Budget card colour coding
   const isOver = remaining < 0
-  const budgetBorder = isOver
-    ? '1px solid rgba(232,122,106,0.20)'
-    : '1px solid rgba(255,255,255,0.07)'
-  const budgetBg = isOver
-    ? 'linear-gradient(145deg, #151210 0%, #131313 100%)'
-    : 'linear-gradient(145deg, #141414 0%, #131313 100%)'
 
   const deficitPct = computed.totalDeficitTarget > 0
     ? computed.cumulativeDeficit / computed.totalDeficitTarget
     : 0
 
   return (
-    <div style={s.content}>
+    <div className="px-4 pb-2 pt-4">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div style={{
-        ...s.dateHeader,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-      }}>
+      <div className="mb-4 flex items-start justify-between">
         <div>
-          <div style={s.dateMain}>{dayNameCap}</div>
-          <div style={s.dateSub}>{DAY_TYPE_LABEL[day.dayType]}</div>
+          <div className="text-[22px] font-bold tracking-[-0.025em] text-text">{dayNameCap}</div>
+          <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">{DAY_TYPE_LABEL[day.dayType]}</div>
         </div>
         {savedFlash && (
-          <div
-            className="save-flash"
-            style={{
-              fontSize: 20,
-              color: '#d4b85a',
-              lineHeight: 1,
-              marginTop: 2,
-            }}
-          >
-            ✓
-          </div>
+          <div className="save-flash mt-0.5 text-[20px] leading-none text-accent">✓</div>
         )}
       </div>
 
       {/* ── Budget card ─────────────────────────────────────────────── */}
-      <div style={{ ...s.card, background: budgetBg, border: budgetBorder }}>
-        <div style={s.cardLabel}>Budjetti tänään</div>
+      <div
+        className={`rounded-card p-4 ${isOver ? 'border border-danger/20' : 'border border-border'}`}
+        style={{ background: isOver ? 'linear-gradient(145deg, #151210 0%, #131313 100%)' : 'linear-gradient(145deg, #141414 0%, #131313 100%)' }}
+      >
+        <div className={cardLabel}>Budjetti tänään</div>
 
         {/* Big remaining number */}
-        <div style={{ marginBottom: 2 }}>
-          <span style={{
-            fontSize: 46,
-            fontWeight: 800,
-            letterSpacing: '-0.04em',
-            fontVariantNumeric: 'tabular-nums',
-            color: isOver ? '#e87a6a' : '#d4b85a',
-            lineHeight: 1,
-          }}>
+        <div className="mb-0.5">
+          <span className={`text-[46px] font-extrabold leading-none tracking-[-0.04em] tabular-nums ${isOver ? 'text-danger' : 'text-accent'}`}>
             {remaining >= 0 ? '+' : ''}{Math.round(remaining).toLocaleString('fi-FI')}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>kcal jäljellä</div>
+        <div className="mb-1 text-xs text-muted">kcal jäljellä</div>
 
         <ProgressBar value={pctConsumed} color={isOver ? '#e87a6a' : '#d4b85a'} height={7} />
 
-        <div style={s.statsRow}>
+        <div className="mt-2.5 flex items-baseline justify-between text-xs">
           <div>
-            <span style={s.statNum}>{day.consumed.toLocaleString('fi-FI')}</span>
-            <span style={s.statLabel}> / {effectiveBudget.toLocaleString('fi-FI')} kcal</span>
+            <span className="text-text tabular-nums">{day.consumed.toLocaleString('fi-FI')}</span>
+            <span className="text-muted"> / {effectiveBudget.toLocaleString('fi-FI')} kcal</span>
           </div>
-          <div style={{ fontSize: 10, color: '#444', letterSpacing: '0.04em' }}>
+          <div className="text-[10px] tracking-[0.04em] text-[#444]">
             TDEE {day.baseTdee.toLocaleString('fi-FI')}
           </div>
         </div>
 
         {/* Training burn breakdown */}
         {totalBurnKcal > 0 && (
-          <div style={{
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-          }}>
+          <div className="mt-3 border-t border-white/[0.06] pt-3">
             {[
-              { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,                color: '#777' },
-              { label: 'Treenikulutus', val: `+${totalBurnKcal.toLocaleString('fi-FI')} kcal`,            color: '#6a9ad4' },
-              { label: 'Budjetti',      val: `${effectiveBudget.toLocaleString('fi-FI')} kcal`,           color: '#ebebeb' },
-            ].map(({ label, val, color }) => (
+              { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,      cls: 'text-[#777]' },
+              { label: 'Treenikulutus', val: `+${totalBurnKcal.toLocaleString('fi-FI')} kcal`,   cls: 'text-protein' },
+              { label: 'Budjetti',      val: `${effectiveBudget.toLocaleString('fi-FI')} kcal`,  cls: 'text-text' },
+            ].map(({ label, val, cls }) => (
               <div
                 key={label}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 11,
-                  color,
-                  marginTop: 4,
-                  fontVariantNumeric: 'tabular-nums',
-                  fontWeight: label === 'Budjetti' ? 600 : 400,
-                }}
+                className={`mt-1 flex justify-between text-[11px] tabular-nums ${cls} ${label === 'Budjetti' ? 'font-semibold' : 'font-normal'}`}
               >
                 <span>{label}</span>
                 <span>{val}</span>
@@ -200,7 +165,11 @@ export function TodayView({
           </div>
         )}
 
-        {day.note && <div style={s.noteBadge}>{day.note}</div>}
+        {day.note && (
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent">
+            {day.note}
+          </div>
+        )}
       </div>
 
       {/* ── Spread-the-excess suggestion ────────────────────────────── */}
@@ -228,33 +197,26 @@ export function TodayView({
         }
 
         return (
-          <div
-            style={{
-              ...s.card,
-              marginTop: 10,
-              background: 'rgba(232,122,106,0.05)',
-              border: '1px solid rgba(232,122,106,0.22)',
-            }}
-          >
-            <div style={{ ...s.cardLabel, color: '#e87a6a' }}>Tasoitus</div>
-            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
-              Ylitit budjetin <strong style={{ color: '#fff' }}>{excess.toLocaleString('fi-FI')} kcal</strong>.
+          <div className="mt-2.5 rounded-card border border-danger/[0.22] bg-danger/[0.05] p-4">
+            <div className={`${cardLabel} text-danger`}>Tasoitus</div>
+            <p className="m-0 mb-3 text-[13px] leading-normal text-white/70">
+              Ylitit budjetin <strong className="text-white">{excess.toLocaleString('fi-FI')} kcal</strong>.
               Jaa se tulevien päivien lisävajeeksi pysyäksesi linjalla.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 6 }}>
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
               {options.map((n) => {
                 const perDay = Math.ceil(excess / n)
                 return (
                   <button
                     key={n}
                     onClick={() => apply(n)}
-                    style={{ ...s.toggleBtn, padding: '10px 6px', textAlign: 'center' }}
+                    className="rounded-lg border border-white/[0.08] bg-black/30 px-1.5 py-2.5 text-center"
                   >
-                    <div style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    <div className="text-[13px] font-bold tabular-nums text-white">
                       −{perDay}
-                      <span style={{ color: '#777', fontWeight: 400 }}> kcal/pv</span>
+                      <span className="font-normal text-[#777]"> kcal/pv</span>
                     </div>
-                    <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>
+                    <div className="mt-0.5 text-[10px] text-[#777]">
                       {n} päivälle
                     </div>
                   </button>
@@ -266,27 +228,27 @@ export function TodayView({
       })()}
 
       {/* ── Protein card ────────────────────────────────────────────── */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Proteiini</div>
-        <div style={s.proteinRow}>
+      <Card className="mt-2.5">
+        <div className={cardLabel}>Proteiini</div>
+        <div className="flex items-end justify-between">
           <div>
-            <span style={s.proteinBig}>{Math.round(day.protein)}</span>
-            <span style={s.proteinUnit}> / {proteinTarget} g</span>
+            <span className="text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein">{Math.round(day.protein)}</span>
+            <span className="text-xs text-muted"> / {proteinTarget} g</span>
           </div>
-          <div style={{ fontSize: 11, color: proteinRemaining <= 0 ? '#6ab46a' : '#555' }}>
+          <div className={`text-[11px] ${proteinRemaining <= 0 ? 'text-[#6ab46a]' : 'text-muted'}`}>
             {proteinRemaining > 0
               ? `vielä ${Math.round(proteinRemaining)} g`
               : '✓ tavoite täynnä'}
           </div>
         </div>
         <ProgressBar value={day.protein / proteinTarget} color="#6a9ad4" height={6} />
-      </div>
+      </Card>
 
       {/* ── Meals list ──────────────────────────────────────────────── */}
-      <div style={{ marginTop: 18 }}>
-        <div style={s.sectionLabel}>Ateriat ({meals.length})</div>
+      <div className="mt-[18px]">
+        <div className={sectionLabel}>Ateriat ({meals.length})</div>
         {meals.length === 0 ? (
-          <div style={{ fontSize: 12, color: '#3a3a3a', padding: '10px 0' }}>
+          <div className="py-2.5 text-xs text-[#3a3a3a]">
             Ei vielä aterioita.
           </div>
         ) : (
@@ -300,27 +262,26 @@ export function TodayView({
 
       {/* ── Training burns list ──────────────────────────────────────── */}
       {burns.length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={s.sectionLabel}>Treenikulutus ({burns.length})</div>
+        <div className="mt-3.5">
+          <div className={sectionLabel}>Treenikulutus ({burns.length})</div>
           <div className="list-stagger">
             {burns.map((b) => (
-              <div key={b.id} style={s.mealRow}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 3, height: 28, borderRadius: 2, backgroundColor: 'rgba(106,154,212,0.4)', flexShrink: 0 }} />
+              <div key={b.id} className="flex items-center justify-between border-b border-white/[0.05] py-[11px]">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-[3px] flex-shrink-0 rounded-sm bg-protein/40" />
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 650, color: '#6a9ad4', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+                    <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-protein">
                       −{b.kcal.toLocaleString('fi-FI')}
-                      <span style={{ fontSize: 11, color: '#4a6a94', fontWeight: 400, marginLeft: 4 }}>kcal</span>
+                      <span className="ml-1 text-[11px] font-normal text-[#4a6a94]">kcal</span>
                     </div>
                     {b.note && (
-                      <div style={{ fontSize: 11, color: '#444', marginTop: 1 }}>{b.note}</div>
+                      <div className="mt-px text-[11px] text-[#444]">{b.note}</div>
                     )}
                   </div>
                 </div>
                 <button
-                  className="icon-btn"
+                  className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#333]"
                   onClick={() => onDeleteBurn(b.id)}
-                  style={{ ...s.iconBtn, color: '#333' }}
                 >
                   <X size={14} />
                 </button>
@@ -332,52 +293,42 @@ export function TodayView({
 
       {/* ── Add meal form ────────────────────────────────────────────── */}
       {showMealForm ? (
-        <div className="card-enter" style={{ ...s.card, marginTop: 12, border: '1px solid rgba(212,184,90,0.15)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={s.inputLabel}>kcal</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={mealForm.kcal}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (/^\d*$/.test(v)) setMealForm({ ...mealForm, kcal: v })
-                }}
-                style={s.input}
-                autoFocus
-                placeholder="500"
-              />
-            </div>
-            <div>
-              <label style={s.inputLabel}>proteiini (g)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={mealForm.protein}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (isValidDecimalInput(v) || v === '') setMealForm({ ...mealForm, protein: v })
-                }}
-                style={s.input}
-                placeholder="30"
-              />
-            </div>
+        <Card className="card-enter mt-3 border-accent/15">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field
+              label="kcal"
+              type="text"
+              inputMode="numeric"
+              value={mealForm.kcal}
+              onChange={(e) => {
+                const v = e.target.value
+                if (/^\d*$/.test(v)) setMealForm({ ...mealForm, kcal: v })
+              }}
+              autoFocus
+              placeholder="500"
+            />
+            <Field
+              label="proteiini (g)"
+              type="text"
+              inputMode="decimal"
+              value={mealForm.protein}
+              onChange={(e) => {
+                const v = e.target.value
+                if (isValidDecimalInput(v) || v === '') setMealForm({ ...mealForm, protein: v })
+              }}
+              placeholder="30"
+            />
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button onClick={() => handleAddMeal(false)} style={s.primaryBtn}>
-              Lisää
-            </button>
-            <button onClick={() => handleAddMeal(true)} style={s.secondaryBtn}>
-              + Uusi
-            </button>
-            <button onClick={() => setShowMealForm(false)} style={s.ghostBtn}>Peru</button>
+          <div className="mt-2 flex gap-2">
+            <Button variant="primary" onClick={() => handleAddMeal(false)}>Lisää</Button>
+            <Button variant="secondary" onClick={() => handleAddMeal(true)}>+ Uusi</Button>
+            <Button variant="ghost" onClick={() => setShowMealForm(false)}>Peru</Button>
           </div>
-        </div>
+        </Card>
       ) : (
         <button
           onClick={() => { setShowMealForm(true); setShowBurnForm(false) }}
-          style={s.addBtn}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#666]"
         >
           <Plus size={14} />Lisää ateria
         </button>
@@ -385,86 +336,66 @@ export function TodayView({
 
       {/* ── Add training burn form ───────────────────────────────────── */}
       {showBurnForm ? (
-        <div className="card-enter" style={{ ...s.card, marginTop: 8, border: '1px solid rgba(106,154,212,0.15)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={s.inputLabel}>Kulutettu (kcal)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={burnForm.kcal}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (/^\d*$/.test(v)) setBurnForm({ ...burnForm, kcal: v })
-                }}
-                style={s.input}
-                autoFocus
-                placeholder="350"
-              />
-            </div>
-            <div>
-              <label style={s.inputLabel}>Huomio (vapaaehtoinen)</label>
-              <input
-                type="text"
-                value={burnForm.note}
-                onChange={(e) => setBurnForm({ ...burnForm, note: e.target.value })}
-                style={s.input}
-                placeholder="juoksu, sali…"
-              />
-            </div>
+        <Card className="card-enter mt-2 border-protein/15">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field
+              label="Kulutettu (kcal)"
+              type="text"
+              inputMode="numeric"
+              value={burnForm.kcal}
+              onChange={(e) => {
+                const v = e.target.value
+                if (/^\d*$/.test(v)) setBurnForm({ ...burnForm, kcal: v })
+              }}
+              autoFocus
+              placeholder="350"
+            />
+            <Field
+              label="Huomio (vapaaehtoinen)"
+              type="text"
+              value={burnForm.note}
+              onChange={(e) => setBurnForm({ ...burnForm, note: e.target.value })}
+              placeholder="juoksu, sali…"
+            />
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div className="mt-2 flex gap-2">
             <button
               onClick={handleAddBurn}
-              style={{ ...s.primaryBtn, backgroundColor: 'rgba(106,154,212,0.15)', color: '#6a9ad4', border: '1px solid rgba(106,154,212,0.3)' }}
+              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-protein/30 bg-protein/15 px-4 py-3 text-[13px] font-bold text-protein"
             >
               Lisää
             </button>
-            <button onClick={() => setShowBurnForm(false)} style={s.ghostBtn}>Peru</button>
+            <Button variant="ghost" onClick={() => setShowBurnForm(false)}>Peru</Button>
           </div>
-        </div>
+        </Card>
       ) : (
         <button
           onClick={() => { setShowBurnForm(true); setShowMealForm(false) }}
-          style={{ ...s.addBtn, borderColor: 'rgba(106,154,212,0.2)', color: '#5a8ac4', marginTop: 8 }}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-protein/20 bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#5a8ac4]"
         >
           <Flame size={13} />Lisää treenikulutus
         </button>
       )}
 
       {/* ── Cumulative deficit ───────────────────────────────────────── */}
-      <div style={{
-        ...s.card,
-        marginTop: 22,
-        background: 'linear-gradient(145deg, #0f0f0f 0%, #111 100%)',
-        border: '1px solid rgba(212,184,90,0.08)',
-      }}>
-        <div style={s.cardLabel}>Kumulatiivinen vaje</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div
+        className="mt-[22px] rounded-card border border-accent/[0.08] p-4"
+        style={{ background: 'linear-gradient(145deg, #0f0f0f 0%, #111 100%)' }}
+      >
+        <div className={cardLabel}>Kumulatiivinen vaje</div>
+        <div className="flex items-end justify-between">
           <div>
-            <div style={{
-              fontSize: 26,
-              fontWeight: 800,
-              color: '#ebebeb',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.025em',
-            }}>
+            <div className="text-[26px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
               {Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}
-              <span style={{ fontSize: 13, color: '#555', fontWeight: 400, letterSpacing: '0', marginLeft: 4 }}>kcal</span>
+              <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
             </div>
-            <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>
+            <div className="mt-0.5 text-[11px] text-[#444]">
               / {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal tavoite
             </div>
           </div>
-          <div style={{
-            fontSize: 22,
-            fontWeight: 800,
-            color: '#d4b85a',
-            fontVariantNumeric: 'tabular-nums',
-            letterSpacing: '-0.025em',
-          }}>
+          <div className="text-[22px] font-extrabold tabular-nums tracking-[-0.025em] text-accent">
             {(deficitPct * 100).toFixed(1)}
-            <span style={{ fontSize: 12, color: '#666', fontWeight: 400, letterSpacing: '0' }}>%</span>
+            <span className="text-xs font-normal text-[#666]">%</span>
           </div>
         </div>
         <ProgressBar value={deficitPct} color="#d4b85a" height={4} />

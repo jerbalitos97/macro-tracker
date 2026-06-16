@@ -1,6 +1,33 @@
+@import "tailwindcss";
+
+/* ─── Design tokens (single source of truth) ─────────────────────────────────────
+   Mapped to Tailwind utilities: bg-surface, text-accent, border-border,
+   rounded-card, font-mono, etc. Consolidates the old s-object (tokens.ts)
+   and the wealth C-palette (lib/wealth/ui.ts). */
+@theme {
+  --color-bg:        #0a0a0a;
+  --color-surface:   #131313;
+  --color-modal:     #181818;
+  --color-accent:    #d4b85a;
+  --color-protein:   #6a9ad4;
+  --color-danger:    #e87a6a;
+  --color-goal:      #f59e0b;
+  --color-text:      #ebebeb;
+  --color-muted:     #555555;
+  --color-border:    rgb(255 255 255 / 0.07);
+  --color-border-hi: rgb(212 184 90 / 0.35);
+
+  --radius-card:  12px;
+  --radius-sheet: 20px;
+  --radius-input: 8px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
 /* ─── CSS Custom Properties ──────────────────────────────────────────────────── */
 :root {
-  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
   --spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth:    cubic-bezier(0.45, 0, 0.55, 1);
 
@@ -20,6 +47,7 @@ html, body {
   height: 100%;
   background-color: #0a0a0a;
   color: #ebebeb;
+  font-family: var(--font-mono);
   -webkit-text-size-adjust: 100%;
   /* Side safe-area insets only. Top is handled by sticky NavBar so it stays
      out from under the Dynamic Island on scroll. Bottom is handled by the
