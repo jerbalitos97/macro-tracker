@@ -61,17 +61,20 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
 
   const yLabels = [maxCum, (maxCum + minCum) / 2, minCum]
 
+  // Axis / label font — var() so it picks up the theme token
+  const monoFont = "ui-monospace, 'SF Mono', monospace"
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {yLabels.map((v, i) => (
         <text
           key={i}
           x={pad.left - 5}
           y={yPos(v) + 3}
-          fill="#444"
+          fill="var(--color-muted)"
           fontSize="8.5"
           textAnchor="end"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           {fmtKcal(v)}
         </text>
@@ -118,7 +121,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
         y1={ty1}
         x2={tx2}
         y2={ty2}
-        stroke="#d4b85a"
+        stroke="var(--color-accent)"
         strokeWidth="1.5"
         strokeDasharray="5,3"
         opacity="0.55"
@@ -131,7 +134,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
 
       {/* Cumulative path */}
       {trendPath && (
-        <path d={trendPath} fill="none" stroke="#d4b85a" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d={trendPath} fill="none" stroke="var(--color-accent)" strokeWidth="2.2" strokeLinejoin="round" />
       )}
 
       {/* Latest dot */}
@@ -140,21 +143,21 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
           cx={xPos(inRange[inRange.length - 1].date)}
           cy={yPos(inRange[inRange.length - 1].cum)}
           r="3.5"
-          fill="#d4b85a"
+          fill="var(--color-accent)"
         />
       )}
 
       {/* X-axis labels */}
-      <text x={pad.left} y={H - 4} fill="#444" fontSize="8.5" fontFamily="ui-monospace, 'SF Mono', monospace">
+      <text x={pad.left} y={H - 4} fill="var(--color-muted)" fontSize="8.5" fontFamily={monoFont}>
         {startDate.slice(5)}
       </text>
       <text
         x={W - pad.right}
         y={H - 4}
-        fill="#444"
+        fill="var(--color-muted)"
         fontSize="8.5"
         textAnchor="end"
-        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontFamily={monoFont}
       >
         {endDate.slice(5)}
       </text>
@@ -165,7 +168,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
           fill="rgba(255,255,255,0.25)"
           fontSize="8"
           textAnchor="middle"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           tänään
         </text>
@@ -177,12 +180,12 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
         y1={pad.top + 4}
         x2={W - 83}
         y2={pad.top + 4}
-        stroke="#d4b85a"
+        stroke="var(--color-accent)"
         strokeWidth="1.5"
         strokeDasharray="4,2"
         opacity="0.55"
       />
-      <text x={W - 80} y={pad.top + 7} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">
+      <text x={W - 80} y={pad.top + 7} fill="#555" fontSize="8" fontFamily={monoFont}>
         tavoitelinja
       </text>
       <line
@@ -190,10 +193,10 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
         y1={pad.top + 14}
         x2={W - 83}
         y2={pad.top + 14}
-        stroke="#d4b85a"
+        stroke="var(--color-accent)"
         strokeWidth="2"
       />
-      <text x={W - 80} y={pad.top + 17} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">
+      <text x={W - 80} y={pad.top + 17} fill="#555" fontSize="8" fontFamily={monoFont}>
         toteutunut
       </text>
     </svg>

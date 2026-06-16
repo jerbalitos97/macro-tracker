@@ -7,7 +7,7 @@ import { parsePositiveDecimal, parsePositiveInt, isValidDecimalInput } from '../
 import { getPeriods, addPeriod, endActivePeriod, removePeriod, updatePeriod } from '../lib/goalPeriods'
 import { useAuth } from '../contexts/AuthContext'
 import { GoalPeriodModal } from '../components/GoalPeriodModal'
-import { s } from '../styles/tokens'
+import { Card, Button, Field } from '../components/ui'
 
 const PERIOD_TYPE_LABEL: Record<PeriodType, string> = {
   cut: 'Cut',
@@ -45,6 +45,8 @@ const DOW_NAMES: Record<number, string> = {
 }
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024
+
+const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
 export function SettingsView({ settings, setSettings, computed, usedBytes, onExport, onImport, user }: Props) {
   const { signOut, enabled: authEnabled } = useAuth()
@@ -125,7 +127,8 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
 
   const usedKB = (usedBytes / 1024).toFixed(1)
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100)
-  const storageColor = usedPct > 80 ? '#e87a6a' : usedPct > 50 ? '#d4b85a' : '#6a9ad4'
+  const storageColorClass = usedPct > 80 ? 'bg-danger' : usedPct > 50 ? 'bg-accent' : 'bg-protein'
+  const storageTextClass  = usedPct > 80 ? 'text-danger' : usedPct > 50 ? 'text-accent' : 'text-protein'
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -139,20 +142,29 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
     e.target.value = ''
   }
 
+  // Shared input class for raw <input> / <select> elements that aren't
+  // wrapped by the Field primitive.
+  const inputCls = 'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]'
+  const inputLabelCls = 'mt-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+
   return (
-    <div style={s.content}>
-      <div style={s.dateHeader}>
-        <div style={s.dateMain}>Asetukset</div>
+    <div className="px-4 pb-2 pt-4">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <div className="font-display text-[22px] font-bold tracking-[-0.025em] text-text">Asetukset</div>
       </div>
 
-      {/* Tavoitehistoria — list of all goal periods + create/end actions */}
-      <div style={{ ...s.card, marginBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={s.cardLabel}>Tavoitehistoria</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{periods.length} jakso{periods.length === 1 ? '' : 'a'}</div>
+      {/* ── Tavoitehistoria ─────────────────────────────────────────── */}
+      <Card variant="glass" className="mb-2.5">
+        <div className="flex items-baseline justify-between">
+          <div className={cardLabel}>Tavoitehistoria</div>
+          <div className="text-[10px] text-white/30">
+            {periods.length} jakso{periods.length === 1 ? '' : 'a'}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+        <div className="mt-2 flex flex-col gap-1.5">
           {periods.map((p) => {
             const isActive = p.status === 'active'
             const color = PERIOD_TYPE_COLOR[p.type]
@@ -161,47 +173,31 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
                 key={p.id}
                 onClick={() => setPeriodModal({ mode: 'edit', initial: p })}
                 role="button"
+                className="flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-3 py-2.5"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 12px',
-                  borderRadius: 10,
                   backgroundColor: isActive ? `${color}14` : 'rgba(255,255,255,0.03)',
-                  border: isActive ? `1px solid ${color}55` : '1px solid rgba(255,255,255,0.05)',
-                  cursor: 'pointer',
+                  borderColor: isActive ? `${color}55` : 'rgba(255,255,255,0.05)',
                 }}
               >
                 <div
-                  style={{
-                    width: 4,
-                    height: 28,
-                    borderRadius: 2,
-                    backgroundColor: color,
-                    opacity: isActive ? 1 : 0.4,
-                    flexShrink: 0,
-                  }}
+                  className="h-7 w-1 flex-shrink-0 rounded-sm"
+                  style={{ backgroundColor: color, opacity: isActive ? 1 : 0.4 }}
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: '#fff', fontWeight: 600, display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-1.5 text-[12px] font-semibold text-text">
                     <span>{PERIOD_TYPE_LABEL[p.type]}</span>
-                    <span style={{ color: '#888', fontWeight: 400 }}>
+                    <span className="font-normal text-white/50">
                       {p.startWeight.toFixed(1)} → {p.targetWeight.toFixed(1)} kg
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                  <div className="mt-0.5 text-[10px] text-white/40">
                     {p.startDate.slice(5).replace('-', '/')} – {p.endDate.slice(5).replace('-', '/')}
                     {p.label ? ` · ${p.label}` : ''}
                   </div>
                 </div>
                 <div
-                  style={{
-                    fontSize: 9,
-                    color: isActive ? color : '#666',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    fontFamily: "ui-monospace, 'SF Mono', monospace",
-                  }}
+                  className="font-mono text-[9px] uppercase tracking-[0.08em]"
+                  style={{ color: isActive ? color : '#666' }}
                 >
                   {p.status === 'active' ? 'Aktiivinen' : p.status === 'achieved' ? 'Saavutettu' : 'Päätetty'}
                 </div>
@@ -213,7 +209,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
                         setSettings(removePeriod(settings, p.id))
                       }
                     }}
-                    style={{ ...s.iconBtn, color: '#3a3a3a' }}
+                    className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#3a3a3a]"
                     aria-label="Poista jakso"
                   >
                     <Trash2 size={12} />
@@ -224,115 +220,119 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
           })}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 12 }}>
-          <button
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          <Button
+            variant="action"
             onClick={() => {
               if (!window.confirm('Päätetään nykyinen tavoite? Voit avata uuden jakson sen jälkeen.')) return
               setSettings(endActivePeriod(settings, todayISO, 'achieved'))
             }}
-            style={s.actionBtn}
           >
             <CheckCircle2 size={13} />
             Päätä nykyinen
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="action"
+            className="text-accent"
             onClick={() => setPeriodModal({ mode: 'create' })}
-            style={{ ...s.actionBtn, color: '#d4b85a' }}
           >
             <Plus size={13} />
             Aseta uusi
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Date range */}
-      <div style={s.card}>
-        <div style={s.cardLabel}>Cut-ajanjakso</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+      {/* ── Cut-ajanjakso ────────────────────────────────────────────── */}
+      <Card variant="glass">
+        <div className={cardLabel}>Cut-ajanjakso</div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
-            <label style={s.inputLabel}>Alkaa</label>
-            <input type="date" value={settings.startDate}
-              onChange={(e) => update({ startDate: e.target.value })} style={s.input} />
-          </div>
-          <div>
-            <label style={s.inputLabel}>Päättyy</label>
-            <input type="date" value={settings.endDate}
-              onChange={(e) => update({ endDate: e.target.value })} style={s.input} />
-          </div>
-        </div>
-        <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>{totalDays} päivää yhteensä</div>
-      </div>
-
-      {/* Weight */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Paino ja vaje</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-          <div>
-            <label style={s.inputLabel}>Lähtöpaino (kg)</label>
+            <label className={inputLabelCls}>Alkaa</label>
             <input
-              type="text"
-              inputMode="decimal"
-              value={swText}
-              onChange={(e) => {
-                const v = e.target.value
-                if (isValidDecimalInput(v) || v === '') setSwText(v)
-              }}
-              onBlur={commitStartWeight}
-              style={s.input}
-              placeholder="74,7"
+              type="date"
+              value={settings.startDate}
+              onChange={(e) => update({ startDate: e.target.value })}
+              className={inputCls}
             />
           </div>
           <div>
-            <label style={s.inputLabel}>Tavoitepaino (kg)</label>
+            <label className={inputLabelCls}>Päättyy</label>
             <input
-              type="text"
-              inputMode="decimal"
-              value={twText}
-              onChange={(e) => {
-                const v = e.target.value
-                if (isValidDecimalInput(v) || v === '') setTwText(v)
-              }}
-              onBlur={commitTargetWeight}
-              style={s.input}
-              placeholder="72,9"
+              type="date"
+              value={settings.endDate}
+              onChange={(e) => update({ endDate: e.target.value })}
+              className={inputCls}
             />
           </div>
         </div>
-        <div style={{ marginTop: 12, padding: 10, backgroundColor: '#0a0a0a', borderRadius: 3, border: '1px solid #1f1f1f' }}>
+        <div className="mt-1.5 text-[11px] text-muted">{totalDays} päivää yhteensä</div>
+      </Card>
+
+      {/* ── Paino ja vaje ────────────────────────────────────────────── */}
+      <Card variant="glass" className="mt-2.5">
+        <div className={cardLabel}>Paino ja vaje</div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Field
+            label="Lähtöpaino (kg)"
+            type="text"
+            inputMode="decimal"
+            value={swText}
+            onChange={(e) => {
+              const v = e.target.value
+              if (isValidDecimalInput(v) || v === '') setSwText(v)
+            }}
+            onBlur={commitStartWeight}
+            placeholder="74,7"
+          />
+          <Field
+            label="Tavoitepaino (kg)"
+            type="text"
+            inputMode="decimal"
+            value={twText}
+            onChange={(e) => {
+              const v = e.target.value
+              if (isValidDecimalInput(v) || v === '') setTwText(v)
+            }}
+            onBlur={commitTargetWeight}
+            placeholder="72,9"
+          />
+        </div>
+        <div className="mt-1 rounded-[6px] border border-white/[0.07] bg-black/30 p-2.5">
           {[
-            ['Pudotus', `${(settings.startWeight - settings.targetWeight).toFixed(1)} kg`],
-            ['Kokonaisvaje', `${Math.round((settings.startWeight - settings.targetWeight) * 7700).toLocaleString('fi-FI')} kcal`],
-            ['Päivävaje (perus)', `${Math.round(dailyDeficit)} kcal / pv`],
-            ['Tempo', `${weeklyTempo} kg / vko`],
-          ].map(([label, value]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-              <span style={{ color: '#888' }}>{label}</span>
-              <span style={{ color: label === 'Päivävaje (perus)' ? '#d4b85a' : '#e5e5e5', fontWeight: 600 }}>{value}</span>
+            ['Pudotus', `${(settings.startWeight - settings.targetWeight).toFixed(1)} kg`, false],
+            ['Kokonaisvaje', `${Math.round((settings.startWeight - settings.targetWeight) * 7700).toLocaleString('fi-FI')} kcal`, false],
+            ['Päivävaje (perus)', `${Math.round(dailyDeficit)} kcal / pv`, true],
+            ['Tempo', `${weeklyTempo} kg / vko`, false],
+          ].map(([label, value, highlight]) => (
+            <div key={label as string} className="mt-1 flex justify-between text-[12px]">
+              <span className="text-muted">{label}</span>
+              <span className={`tabular-nums font-semibold ${highlight ? 'text-accent' : 'text-text'}`}>{value}</span>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
-      {/* TDEE */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>TDEE per päivätyyppi</div>
+      {/* ── TDEE per päivätyyppi ─────────────────────────────────────── */}
+      <Card variant="glass" className="mt-2.5">
+        <div className={cardLabel}>TDEE per päivätyyppi</div>
         {(['rest', 'single', 'double', 'volleyball'] as const).map((key) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <label style={{ fontSize: 12, color: '#888' }}>{TDEE_LABELS[key]}</label>
+          <div key={key} className="mt-2 flex items-center justify-between gap-3">
+            <label className="text-[12px] text-muted">{TDEE_LABELS[key]}</label>
             <input
               type="text"
               inputMode="numeric"
               value={settings.tdee[key]}
               onChange={(e) => updateTdee(key, e.target.value)}
-              style={{ ...s.input, width: 100, margin: 0 }}
+              className={`${inputCls} w-[100px]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
             />
           </div>
         ))}
-      </div>
+      </Card>
 
-      {/* Protein target */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Proteiinitavoite</div>
+      {/* ── Proteiinitavoite ─────────────────────────────────────────── */}
+      <Card variant="glass" className="mt-2.5">
+        <div className={cardLabel}>Proteiinitavoite</div>
         <input
           type="text"
           inputMode="numeric"
@@ -341,23 +341,24 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
             const n = parsePositiveInt(e.target.value)
             if (n > 0) update({ proteinTarget: n })
           }}
-          style={s.input}
+          className={inputCls}
         />
-      </div>
+      </Card>
 
-      {/* Weekly pattern */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Viikkorytmi</div>
-        <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
+      {/* ── Viikkorytmi ─────────────────────────────────────────────── */}
+      <Card variant="glass" className="mt-2.5">
+        <div className={cardLabel}>Viikkorytmi</div>
+        <div className="mb-2 text-[11px] text-muted">
           Mitä päivätyyppiä kukin viikonpäivä oletusarvoisesti on
         </div>
         {([1, 2, 3, 4, 5, 6, 0] as number[]).map((dow) => (
-          <div key={dow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-            <label style={{ fontSize: 12, color: '#888' }}>{DOW_NAMES[dow]}</label>
+          <div key={dow} className="mt-1.5 flex items-center justify-between gap-3">
+            <label className="text-[12px] text-muted">{DOW_NAMES[dow]}</label>
             <select
               value={settings.weeklyPattern[dow]}
               onChange={(e) => updatePattern(dow, e.target.value as DayType)}
-              style={{ ...s.input, width: 140, margin: 0, colorScheme: 'dark' }}
+              className={`${inputCls} w-[140px] [color-scheme:dark]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
             >
               <option value="rest">Lepo</option>
               <option value="single">1 treeni</option>
@@ -366,58 +367,60 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
             </select>
           </div>
         ))}
-      </div>
+      </Card>
 
-      {/* Export / Import */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Varmuuskopio</div>
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666', marginBottom: 4 }}>
-            <span>Tallennustila käytössä</span>
-            <span style={{ color: storageColor, fontVariantNumeric: 'tabular-nums' }}>
-              {usedKB} KB / 5 000 KB
-            </span>
+      {/* ── Varmuuskopio ─────────────────────────────────────────────── */}
+      <Card variant="glass" className="mt-2.5">
+        <div className={cardLabel}>Varmuuskopio</div>
+        <div className="mb-3.5">
+          <div className="mb-1 flex justify-between text-[11px]">
+            <span className="text-muted">Tallennustila käytössä</span>
+            <span className={`tabular-nums ${storageTextClass}`}>{usedKB} KB / 5 000 KB</span>
           </div>
-          <div style={{ ...s.progressBg, marginTop: 0 }}>
-            <div style={{ ...s.progressFill, width: `${usedPct}%`, backgroundColor: storageColor }} />
+          <div className="h-1.5 overflow-hidden rounded-sm bg-white/[0.06]">
+            <div
+              className={`h-full rounded-sm transition-[width] duration-[450ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${storageColorClass}`}
+              style={{ width: `${usedPct}%` }}
+            />
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button onClick={onExport} style={s.secondaryBtn}>↓ Vie varmuuskopio (JSON)</button>
-          <input ref={fileInputRef} type="file" accept=".json,application/json"
-            onChange={handleFileChange} style={{ display: 'none' }} />
-          <button onClick={() => fileInputRef.current?.click()}
-            style={{ ...s.ghostBtn, width: '100%', textAlign: 'center' }}>
+        <div className="flex flex-col gap-2">
+          <Button variant="secondary" onClick={onExport}>↓ Vie varmuuskopio (JSON)</Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <Button variant="ghost" className="w-full" onClick={() => fileInputRef.current?.click()}>
             ↑ Tuo varmuuskopio (JSON)
-          </button>
+          </Button>
         </div>
-        <div style={{ fontSize: 10, color: '#555', marginTop: 10, lineHeight: 1.5 }}>
+        <div className="mt-2.5 text-[10px] leading-relaxed text-white/30">
           Tuonti korvaa kaiken nykyisen datan. Vie ensin varmuuskopio ennen tuontia.{'\n'}
           Data säilyy vaikka poistaisit pikakuvakkeen kotinäytöltä — se asuu Safarin
           sivustomuistissa. Poistaminen ei tyhjennä dataa.
         </div>
-      </div>
+      </Card>
 
-      {/* Cloud account */}
+      {/* ── Pilvitili ───────────────────────────────────────────────── */}
       {authEnabled && (
-        <div style={{ ...s.card, marginTop: 10 }}>
-          <div style={s.cardLabel}>Pilvitili</div>
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Pilvitili</div>
           {user ? (
             <div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-                Kirjautunut: <span style={{ color: '#d4b85a' }}>{user.email}</span>
+              <div className="mb-3 text-[12px] text-muted">
+                Kirjautunut: <span className="text-accent">{user.email}</span>
               </div>
-              <button
-                onClick={() => signOut()}
-                style={{ ...s.ghostBtn, width: '100%', textAlign: 'center', color: '#e87a6a' }}
-              >
+              <Button variant="ghost" className="w-full text-danger" onClick={() => signOut()}>
                 Kirjaudu ulos
-              </button>
+              </Button>
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: '#555' }}>Ei kirjautunut.</div>
+            <div className="text-[12px] text-white/30">Ei kirjautunut.</div>
           )}
-        </div>
+        </Card>
       )}
 
       {periodModal && (

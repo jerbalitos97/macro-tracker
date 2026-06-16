@@ -6,7 +6,10 @@ import { parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
 import { computeWeightTrend, estimateTdeeAdjustment } from '../lib/weight'
 import { WeightChart } from '../components/WeightChart'
 import { ProgressBar } from '../components/ProgressBar'
-import { s } from '../styles/tokens'
+import { Card, Button, Field } from '../components/ui'
+
+const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
 interface Props {
   weights: WeightEntry[]
@@ -69,153 +72,138 @@ export function WeightView({
   ).toFixed(2)
 
   return (
-    <div style={s.content}>
-      <div style={s.dateHeader}>
-        <div style={s.dateMain}>Paino</div>
-        <div style={s.dateSub}>7 pv liukuva trendi</div>
+    <div className="px-4 pb-2 pt-4">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">Paino</div>
+        <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">7 pv liukuva trendi</div>
       </div>
 
-      {/* Trend card */}
-      <div style={{ ...s.card, background: 'linear-gradient(145deg, #141414 0%, #111 100%)' }}>
-        <div style={s.cardLabel}>Liukuva keskiarvo (7 pv)</div>
+      {/* ── Trend card ──────────────────────────────────────────────── */}
+      <Card variant="glass">
+        <div className={cardLabel}>Liukuva keskiarvo (7 pv)</div>
         {trend.currentTrend ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <div>
-                <span style={{
-                  fontSize: 42,
-                  fontWeight: 800,
-                  letterSpacing: '-0.04em',
-                  fontVariantNumeric: 'tabular-nums',
-                  color: '#ebebeb',
-                }}>
-                  {trend.currentTrend.toFixed(2)}
-                </span>
-                <span style={{ ...s.unit, marginLeft: 4 }}>kg</span>
-              </div>
-              {trend.weeklyChange !== null && (
-                <div style={{ textAlign: 'right', paddingBottom: 4 }}>
-                  <div style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    fontVariantNumeric: 'tabular-nums',
-                    letterSpacing: '-0.025em',
-                    color: trend.weeklyChange < 0 ? '#d4b85a' : '#e87a6a',
-                  }}>
-                    {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
-                    <span style={{ fontSize: 11, color: '#555', fontWeight: 400 }}> kg/vko</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>
-                    tavoite −{targetWeeklyRate} kg/vko
-                  </div>
-                </div>
-              )}
+          <div className="flex items-end justify-between">
+            <div>
+              <span className="font-display text-[42px] font-extrabold tabular-nums leading-none tracking-[-0.04em] text-text">
+                {trend.currentTrend.toFixed(2)}
+              </span>
+              <span className="ml-1 text-sm font-normal text-muted">kg</span>
             </div>
-          </>
+            {trend.weeklyChange !== null && (
+              <div className="pb-1 text-right">
+                <div className={`text-[20px] font-bold tabular-nums tracking-[-0.025em] ${trend.weeklyChange < 0 ? 'text-accent' : 'text-danger'}`}>
+                  {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
+                  <span className="text-[11px] font-normal text-muted"> kg/vko</span>
+                </div>
+                <div className="mt-0.5 text-[10px] text-[#444]">
+                  tavoite −{targetWeeklyRate} kg/vko
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
-          <div style={{ fontSize: 13, color: '#444', lineHeight: 1.5, marginTop: 4 }}>
+          <div className="mt-1 text-[13px] leading-relaxed text-[#444]">
             Kirjaa vähintään 2 päivän paino<br />aloittaaksesi trendin.
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Add weight form */}
-      <div style={{ ...s.card, marginTop: 10 }}>
-        <div style={s.cardLabel}>Kirjaa aamupaino</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div>
-            <label style={s.inputLabel}>Päivä</label>
-            <input
-              type="date"
-              value={form.date}
-              max={toISO(new Date())}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              style={s.input}
-            />
-          </div>
-          <div>
-            <label style={s.inputLabel}>Paino (kg)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={form.kg}
-              onChange={(e) => {
-                const v = e.target.value
-                if (isValidDecimalInput(v) || v === '') setForm({ ...form, kg: v })
-              }}
-              style={s.input}
-              placeholder="74,5"
-            />
-          </div>
+      {/* ── Add weight form ──────────────────────────────────────────── */}
+      <Card className="mt-2.5">
+        <div className={cardLabel}>Kirjaa aamupaino</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field
+            label="Päivä"
+            type="date"
+            value={form.date}
+            max={toISO(new Date())}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+          />
+          <Field
+            label="Paino (kg)"
+            type="text"
+            inputMode="decimal"
+            value={form.kg}
+            onChange={(e) => {
+              const v = e.target.value
+              if (isValidDecimalInput(v) || v === '') setForm({ ...form, kg: v })
+            }}
+            placeholder="74,5"
+          />
         </div>
-        <button
+        <Button
+          variant="primary"
           onClick={handleAdd}
           disabled={!form.kg}
-          style={{ ...s.primaryBtn, width: '100%', marginTop: 4, opacity: form.kg ? 1 : 0.4 }}
+          className="mt-1 w-full"
         >
           Tallenna
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      {/* TDEE evaluation */}
+      {/* ── TDEE evaluation ──────────────────────────────────────────── */}
       {tdeeEval && (
-        <div style={{
-          ...s.card, marginTop: 10,
-          backgroundColor: tdeeEval.ready && tdeeEval.significantError ? '#1a1a0e' : '#111',
-          border: tdeeEval.ready && tdeeEval.significantError ? '1px solid #3a3a1a' : '1px solid #1f1f1f',
-        }}>
-          <div style={s.cardLabel}>TDEE-arviointi</div>
+        <Card
+          className={`mt-2.5 ${
+            tdeeEval.ready && tdeeEval.significantError
+              ? 'border-accent/20 bg-accent/[0.04]'
+              : ''
+          }`}
+        >
+          <div className={cardLabel}>TDEE-arviointi</div>
           {!tdeeEval.ready ? (
-            <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5 }}>{tdeeEval.message}</div>
+            <div className="text-[12px] leading-relaxed text-muted">{tdeeEval.message}</div>
           ) : tdeeEval.significantError ? (
             <>
-              <div style={{ fontSize: 13, color: '#d4b85a', marginBottom: 10, lineHeight: 1.5 }}>
+              <div className="mb-2.5 text-[13px] leading-relaxed text-accent">
                 Trendi ei vastaa TDEE-arvioita. Suositus:{' '}
                 {tdeeEval.direction === 'lower' ? 'laske' : 'nosta'} TDEE:tä noin{' '}
                 <strong>{Math.abs(Math.round(tdeeEval.tdeeError))} kcal</strong> kaikissa päivätyypeissä.
               </div>
-              <div style={{ fontSize: 11, color: '#888', lineHeight: 1.6 }}>
+              <div className="text-[11px] leading-relaxed text-muted">
                 Implikoitu vaje (paino): {Math.round(tdeeEval.trendImpliedDailyDeficit)} kcal/pv<br />
                 Oletettu vaje (TDEE): {Math.round(tdeeEval.assumedDailyDeficit)} kcal/pv<br />
                 Ero: {tdeeEval.tdeeError > 0 ? '+' : ''}{Math.round(tdeeEval.tdeeError)} kcal/pv
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: '#d4b85a' }}>
+            <div className="text-[13px] text-accent">
               ✓ TDEE-arvio matchää painotrendin kanssa (ero alle 100 kcal/pv).
             </div>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Projection */}
+      {/* ── Projection ───────────────────────────────────────────────── */}
       {projectedDate && projectedDate !== 'saavutettu' && (
-        <div style={{ ...s.card, marginTop: 10 }}>
-          <div style={s.cardLabel}>Ennuste tavoitteeseen ({settings.targetWeight} kg)</div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>{formatDateShort(projectedDate)}</div>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+        <Card className="mt-2.5">
+          <div className={cardLabel}>Ennuste tavoitteeseen ({settings.targetWeight} kg)</div>
+          <div className="text-[16px] font-semibold text-text">{formatDateShort(projectedDate)}</div>
+          <div className="mt-1 text-[11px] text-muted">
             Cut-jakson loppu: {formatDateShort(settings.endDate)}
             {projectedDate <= settings.endDate
-              ? <span style={{ color: '#d4b85a', marginLeft: 8 }}>✓ ehditään</span>
-              : <span style={{ color: '#e87a6a', marginLeft: 8 }}>× ei ehditä nykyisellä tempolla</span>
+              ? <span className="ml-2 text-accent">✓ ehditään</span>
+              : <span className="ml-2 text-danger">× ei ehditä nykyisellä tempolla</span>
             }
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Chart */}
+      {/* ── Chart ────────────────────────────────────────────────────── */}
       {trend.trendData.length >= 3 && (
-        <div style={{ ...s.card, marginTop: 10 }}>
-          <div style={s.cardLabel}>Trendi</div>
+        <Card className="mt-2.5">
+          <div className={cardLabel}>Trendi</div>
           <WeightChart trendData={trend.trendData} settings={settings} />
-        </div>
+        </Card>
       )}
 
-      {/* Progress bar to target */}
+      {/* ── Progress bar to target ───────────────────────────────────── */}
       {trend.currentTrend && (
-        <div style={{ ...s.card, marginTop: 10 }}>
-          <div style={s.cardLabel}>Matka tavoitteeseen</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#666' }}>
+        <Card className="mt-2.5">
+          <div className={cardLabel}>Matka tavoitteeseen</div>
+          <div className="flex justify-between text-[12px] text-muted">
             <span>{settings.startWeight} kg</span>
             <span>{settings.targetWeight} kg</span>
           </div>
@@ -224,114 +212,87 @@ export function WeightView({
             color="#d4b85a"
             height={6}
           />
-        </div>
+        </Card>
       )}
 
-      {/* Weight log */}
+      {/* ── Weight log ───────────────────────────────────────────────── */}
       {weights.length > 0 && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-            <div style={s.sectionLabel}>Kirjaukset ({weights.length})</div>
-            <div
-              style={{
-                fontSize: 9,
-                color: 'rgba(255,255,255,0.3)',
-                fontFamily: "ui-monospace, 'SF Mono', monospace",
-                letterSpacing: '0.06em',
-              }}
-            >
-              <span style={{ color: '#d4b85a' }}>■</span> nyk. keskiarvossa
+        <div className="mt-[18px]">
+          <div className="mb-1 flex items-baseline justify-between">
+            <div className={sectionLabel}>Kirjaukset ({weights.length})</div>
+            <div className="font-mono text-[9px] tracking-[0.06em] text-white/30">
+              <span className="text-accent">■</span> nyk. keskiarvossa
             </div>
           </div>
           <div className="list-stagger">
             {displayedWeights.map((w) => {
               const inAvg = activeAvgIds.has(w.id)
-              const accent = w.excludeFromTrend
-                ? 'rgba(232,122,106,0.35)'
-                : inAvg
-                  ? '#d4b85a'
-                  : 'rgba(255,255,255,0.10)'
               return (
-              <div
-                key={w.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '11px 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  opacity: w.excludeFromTrend ? 0.45 : 1,
-                  transition: 'opacity 0.2s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: inAvg ? 4 : 3,
-                    height: 28,
-                    borderRadius: 2,
-                    backgroundColor: accent,
-                    flexShrink: 0,
-                    boxShadow: inAvg ? '0 0 6px rgba(212,184,90,0.45)' : 'none',
-                  }} />
-                  <div>
-                    <div style={{
-                      fontSize: 15,
-                      fontWeight: 650,
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: '-0.01em',
-                      color: inAvg ? '#fff' : '#ebebeb',
-                    }}>
-                      {w.kg.toFixed(1)}
-                      <span style={{ fontSize: 11, color: '#555', fontWeight: 400, marginLeft: 4 }}>kg</span>
-                      {w.excludeFromTrend ? (
-                        <span style={{ fontSize: 9, color: '#e87a6a', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          ohitettu
-                        </span>
-                      ) : inAvg ? (
-                        <span style={{ fontSize: 9, color: '#d4b85a', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          keskiarvossa
-                        </span>
-                      ) : null}
+                <div
+                  key={w.id}
+                  className={`flex items-center justify-between border-b border-white/[0.05] py-[11px] transition-opacity duration-200 ${w.excludeFromTrend ? 'opacity-45' : 'opacity-100'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex-shrink-0 rounded-sm ${inAvg ? 'w-1 h-7' : 'w-[3px] h-7'}`}
+                      style={{
+                        backgroundColor: w.excludeFromTrend
+                          ? 'rgba(232,122,106,0.35)'
+                          : inAvg
+                            ? 'var(--color-accent)'
+                            : 'rgba(255,255,255,0.10)',
+                        boxShadow: inAvg ? '0 0 6px rgba(212,184,90,0.45)' : 'none',
+                      }}
+                    />
+                    <div>
+                      <div className={`text-[15px] font-[650] tabular-nums tracking-[-0.01em] ${inAvg ? 'text-text' : 'text-text'}`}>
+                        {w.kg.toFixed(1)}
+                        <span className="ml-1 text-[11px] font-normal text-[#555]">kg</span>
+                        {w.excludeFromTrend ? (
+                          <span className="ml-2 text-[9px] uppercase tracking-[0.06em] text-danger">
+                            ohitettu
+                          </span>
+                        ) : inAvg ? (
+                          <span className="ml-2 text-[9px] uppercase tracking-[0.06em] text-accent">
+                            keskiarvossa
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-px text-[10px] text-[#444]">{formatDateShort(w.date)}</div>
                     </div>
-                    <div style={{ fontSize: 10, color: '#444', marginTop: 1 }}>{formatDateShort(w.date)}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onToggleExclude(w.id)}
+                      className={`rounded-[7px] border px-2.5 py-1.5 text-[10px] tracking-[0.04em] ${
+                        w.excludeFromTrend
+                          ? 'border-accent/30 text-accent'
+                          : 'border-white/[0.06] text-[#444]'
+                      }`}
+                      style={{ minHeight: 'auto', minWidth: 'auto' }}
+                    >
+                      {w.excludeFromTrend ? '+ trendi' : '− trendi'}
+                    </button>
+                    <button
+                      className="icon-btn flex items-center justify-center rounded-md p-1.5 text-[#333]"
+                      onClick={() => onDeleteWeight(w.id)}
+                      style={{ minHeight: 'auto', minWidth: 'auto' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <button
-                    onClick={() => onToggleExclude(w.id)}
-                    style={{
-                      ...s.ghostBtn,
-                      padding: '6px 10px',
-                      fontSize: 10,
-                      borderRadius: 7,
-                      color: w.excludeFromTrend ? '#d4b85a' : '#444',
-                      borderColor: w.excludeFromTrend ? 'rgba(212,184,90,0.3)' : 'rgba(255,255,255,0.06)',
-                      minHeight: 'auto',
-                      minWidth: 'auto',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {w.excludeFromTrend ? '+ trendi' : '− trendi'}
-                  </button>
-                  <button
-                    className="icon-btn"
-                    onClick={() => onDeleteWeight(w.id)}
-                    style={{ ...s.iconBtn, color: '#333' }}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
               )
             })}
           </div>
           {sortedWeights.length > 10 && (
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setShowAll(!showAll)}
-              style={{ ...s.ghostBtn, width: '100%', marginTop: 10, fontSize: 11 }}
+              className="mt-2.5 w-full text-[11px]"
             >
               {showAll ? 'Näytä vähemmän' : `Näytä kaikki (${sortedWeights.length})`}
-            </button>
+            </Button>
           )}
         </div>
       )}

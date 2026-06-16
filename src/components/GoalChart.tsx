@@ -130,18 +130,21 @@ export function GoalChart({
   // Y-axis labels
   const yLabels = [maxKg, (maxKg + minKg) / 2, minKg]
 
+  // Axis / label font — var() so it picks up the theme token
+  const monoFont = "ui-monospace, 'SF Mono', monospace"
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {/* Y-axis labels */}
       {yLabels.map((kg, i) => (
         <text
           key={i}
           x={pad.left - 5}
           y={yPos(kg) + 3}
-          fill="#444"
+          fill="var(--color-muted)"
           fontSize="8.5"
           textAnchor="end"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           {kg.toFixed(1)}
         </text>
@@ -215,19 +218,19 @@ export function GoalChart({
       <text
         x={pad.left}
         y={H - 4}
-        fill="#444"
+        fill="var(--color-muted)"
         fontSize="8.5"
-        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontFamily={monoFont}
       >
         {chartStart.slice(5)}
       </text>
       <text
         x={W - pad.right}
         y={H - 4}
-        fill="#444"
+        fill="var(--color-muted)"
         fontSize="8.5"
         textAnchor="end"
-        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontFamily={monoFont}
       >
         {chartEnd.slice(5)}
       </text>
@@ -238,7 +241,7 @@ export function GoalChart({
           fill="rgba(255,255,255,0.25)"
           fontSize="8"
           textAnchor="middle"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           tänään
         </text>
@@ -246,9 +249,9 @@ export function GoalChart({
 
       {/* Legend */}
       <line x1={W - 90} y1={pad.top + 4} x2={W - 78} y2={pad.top + 4} stroke="#d4b85a" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.55" />
-      <text x={W - 75} y={pad.top + 7} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">tavoitelinja</text>
+      <text x={W - 75} y={pad.top + 7} fill="#555" fontSize="8" fontFamily={monoFont}>tavoitelinja</text>
       <line x1={W - 90} y1={pad.top + 14} x2={W - 78} y2={pad.top + 14} stroke="#d4b85a" strokeWidth="2" />
-      <text x={W - 75} y={pad.top + 17} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">trendi</text>
+      <text x={W - 75} y={pad.top + 17} fill="#555" fontSize="8" fontFamily={monoFont}>trendi</text>
     </svg>
   )
 }
