@@ -1,4 +1,4 @@
-import { chip } from '../../lib/wealth/ui'
+import { Chip } from '../ui'
 
 type Props = {
   active: boolean
@@ -9,21 +9,15 @@ type Props = {
 
 export default function ToggleChip({ active, onClick, children, swatch }: Props) {
   return (
-    <button type="button" onClick={onClick} style={chip(active)}>
+    <Chip type="button" active={active} onClick={onClick}>
       {swatch ? (
         <span
           aria-hidden
-          style={{
-            display: 'inline-block',
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: swatch,
-            opacity: active ? 1 : 0.45,
-          }}
+          className="inline-block h-2 w-2 flex-shrink-0 rounded-full"
+          style={{ background: swatch, opacity: active ? 1 : 0.45 }}
         />
       ) : null}
       {children}
-    </button>
+    </Chip>
   )
 }

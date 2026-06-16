@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { TrendingDown, CalendarDays } from 'lucide-react'
 import { fromISO, toISO } from '../lib/dates'
 import { useBodyScrollLock } from '../lib/useBodyScrollLock'
-import { s } from '../styles/tokens'
+import { Button, Field } from './ui'
 
 interface Props {
   surplusDate: string      // ISO date of the day the surplus was earned
@@ -35,33 +35,29 @@ export function SurplusPrompt({
   })
 
   return (
-    <div style={s.modalBg} onClick={onDismiss}>
-      <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
-        <div
-          style={{
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            margin: '-4px auto 14px',
-          }}
-        />
+    /* Backdrop */
+    <div
+      className="backdrop-enter fixed inset-0 z-[100] overscroll-contain [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)] bg-black/[0.72]"
+      onClick={onDismiss}
+    >
+      {/* Bottom sheet */}
+      <div
+        className="modal-enter fixed bottom-0 left-0 right-0 z-[101] mx-auto w-full max-w-[480px] overflow-y-auto overscroll-contain rounded-t-[20px] border border-white/[0.1] bg-modal px-5 pt-6 pb-[max(40px,calc(env(safe-area-inset-bottom)+24px))] shadow-[0_-16px_60px_rgba(0,0,0,0.70)]"
+        style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - 64px)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="-mt-1 mx-auto mb-3.5 h-1 w-9 rounded-sm bg-white/[0.15]" />
 
-        <div style={s.modalTitle}>
+        {/* Title */}
+        <div className="mb-[18px] flex items-center gap-2 font-mono text-[13px] font-bold uppercase tracking-[0.12em] text-accent">
           <TrendingDown size={14} />
           Lisäbudjettia jaettavaksi
         </div>
 
-        <p
-          style={{
-            margin: '0 0 14px',
-            fontSize: 13,
-            color: 'rgba(255,255,255,0.75)',
-            lineHeight: 1.55,
-          }}
-        >
+        <p className="m-0 mb-3.5 text-[13px] leading-[1.55] text-white/75">
           {dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)} vajetta kertyi{' '}
-          <strong style={{ color: '#8acb88' }}>
+          <strong className="text-[#8acb88]">
             {surplus.toLocaleString('fi-FI')} kcal
           </strong>{' '}
           yli suunnitellun. Voit antaa tämän ylimäärän bonuksena tuleville päiville.
@@ -69,25 +65,15 @@ export function SurplusPrompt({
 
         {!pickerOpen ? (
           <>
-            <div
-              style={{
-                fontSize: 10,
-                color: 'rgba(255,255,255,0.4)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontFamily: "ui-monospace, 'SF Mono', monospace",
-                marginBottom: 6,
-              }}
-            >
+            {/* Spread label */}
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40">
               Jaa tasaisesti
             </div>
+
+            {/* Spread grid */}
             <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${SPREAD_OPTIONS.length}, 1fr)`,
-                gap: 6,
-                marginBottom: 14,
-              }}
+              className="mb-3.5 grid gap-1.5"
+              style={{ gridTemplateColumns: `repeat(${SPREAD_OPTIONS.length}, 1fr)` }}
             >
               {SPREAD_OPTIONS.map((n) => {
                 const perDay = Math.floor(surplus / n)
@@ -95,20 +81,13 @@ export function SurplusPrompt({
                   <button
                     key={n}
                     onClick={() => onApplySpread(n)}
-                    style={{ ...s.toggleBtn, padding: '10px 6px', textAlign: 'center' }}
+                    className="rounded-[8px] border border-white/[0.08] bg-black/30 px-1.5 py-[10px] text-center text-[#777] cursor-pointer"
                   >
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    >
+                    <div className="text-[13px] font-bold tabular-nums text-text">
                       +{perDay}
-                      <span style={{ color: '#777', fontWeight: 400 }}> kcal/pv</span>
+                      <span className="font-normal text-[#777]"> kcal/pv</span>
                     </div>
-                    <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>
+                    <div className="mt-0.5 text-[10px] text-[#777]">
                       {n} päivälle
                     </div>
                   </button>
@@ -116,53 +95,40 @@ export function SurplusPrompt({
               })}
             </div>
 
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setPickerOpen(true)}
-              style={{
-                ...s.secondaryBtn,
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                marginBottom: 8,
-              }}
+              className="mb-2 flex w-full items-center justify-center gap-2"
             >
               <CalendarDays size={14} />
               Valitse yksittäinen päivä…
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="ghost"
               onClick={onDismiss}
-              style={{ ...s.ghostBtn, width: '100%' }}
+              className="w-full"
             >
               Ohita
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <label style={s.inputLabel}>Lisää koko ylimäärä päivälle</label>
-            <input
+            <Field
+              label="Lisää koko ylimäärä päivälle"
               type="date"
               value={picked}
               min={today}
               max={cutEndDate}
               onChange={(e) => setPicked(e.target.value)}
-              style={s.input}
             />
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button
-                onClick={() => onApplySingle(picked)}
-                style={s.primaryBtn}
-              >
+            <div className="mt-3 flex gap-2">
+              <Button variant="primary" onClick={() => onApplySingle(picked)}>
                 Lisää +{surplus.toLocaleString('fi-FI')} kcal
-              </button>
-              <button
-                onClick={() => setPickerOpen(false)}
-                style={s.ghostBtn}
-              >
+              </Button>
+              <Button variant="ghost" onClick={() => setPickerOpen(false)}>
                 Takaisin
-              </button>
+              </Button>
             </div>
           </>
         )}

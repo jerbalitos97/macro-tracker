@@ -10,7 +10,13 @@ import {
 } from 'recharts'
 import type { Asset, ChartPoint } from '../../lib/wealth/types'
 import { formatMoney } from '../../lib/wealth/format'
-import { C, card } from '../../lib/wealth/ui'
+import { Card } from '../ui'
+
+// recharts renders raw SVG and ignores Tailwind classes, so chart chrome
+// colors are supplied as JS values that mirror the theme tokens.
+const CHART_BORDER = 'rgba(255,255,255,0.07)'
+const CHART_TEXT = '#eef1f6'
+const CHART_MUTED = '#6a6f7a'
 
 const ASSET_COLORS = [
   '#22d3ee', '#a78bfa', '#f472b6', '#fb923c',
@@ -48,24 +54,14 @@ export default function PortfolioChart({
 }: Props) {
   if (data.length === 0) {
     return (
-      <div
-        style={{
-          ...card,
-          height: 280,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: C.muted,
-          fontSize: 13,
-        }}
-      >
+      <Card variant="glass" className="flex h-[280px] items-center justify-center text-[13px] text-muted">
         Add an asset to start tracking.
-      </div>
+      </Card>
     )
   }
   return (
-    <div style={{ ...card, padding: 12 }}>
-      <div style={{ height: 280, width: '100%' }}>
+    <Card variant="glass" className="p-3">
+      <div className="h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="#1c1c1c" strokeDasharray="3 3" vertical={false} />
@@ -80,11 +76,11 @@ export default function PortfolioChart({
             <Tooltip
               contentStyle={{
                 background: '#181818',
-                border: `1px solid ${C.border}`,
+                border: `1px solid ${CHART_BORDER}`,
                 borderRadius: 8,
-                color: C.text,
+                color: CHART_TEXT,
               }}
-              labelStyle={{ color: C.muted }}
+              labelStyle={{ color: CHART_MUTED }}
               labelFormatter={(v) => formatTick(String(v))}
               formatter={(value, name) => {
                 const n = typeof value === 'number' ? value : Number(value)
@@ -164,6 +160,6 @@ export default function PortfolioChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   )
 }

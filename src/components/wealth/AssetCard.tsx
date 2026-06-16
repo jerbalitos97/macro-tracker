@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { addAssetValue, deleteAsset, updateAsset } from '../../lib/wealth/assets'
 import { formatMoney, formatPercent, todayIso } from '../../lib/wealth/format'
 import type { Asset } from '../../lib/wealth/types'
-import { C, card, errorBanner, ghostBtn, input, labelText, primaryBtn, secondaryBtn } from '../../lib/wealth/ui'
+import { Card, Field, Button } from '../ui'
+
+const errorBanner =
+  'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
 
 type Mode = 'closed' | 'addValue' | 'edit'
 
@@ -131,192 +134,144 @@ export default function AssetCard({
       : null
 
   return (
-    <div style={card}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+    <Card variant="glass">
+      <div className="flex items-start justify-between gap-3">
         <button
           type="button"
           onClick={onToggle}
           aria-pressed={visible}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            textAlign: 'left',
-            cursor: 'pointer',
-            color: 'inherit',
-            minHeight: 'auto',
-            minWidth: 'auto',
-          }}
+          className="flex min-h-0 min-w-0 cursor-pointer items-start gap-2.5 border-none bg-transparent p-0 text-left text-inherit"
         >
           <span
             aria-hidden
-            style={{
-              marginTop: 4,
-              display: 'inline-block',
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              background: swatch,
-              opacity: visible ? 1 : 0.35,
-              flexShrink: 0,
-            }}
+            className="mt-1 inline-block h-3 w-3 flex-shrink-0 rounded-full"
+            style={{ background: swatch, opacity: visible ? 1 : 0.35 }}
           />
-          <div>
-            <div style={{ fontWeight: 600, color: C.text, fontSize: 14 }}>{asset.name}</div>
-            <div style={{ ...labelText, marginTop: 2 }}>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-text">{asset.name}</div>
+            <div className="mt-0.5 text-[11px] text-muted">
               Expected {formatPercent(asset.estimatedAnnualReturn)}/yr · tap to{' '}
               {visible ? 'hide' : 'show'} on chart
             </div>
             {contribLine && (
-              <div style={{ fontSize: 11, color: C.accent, marginTop: 2 }}>{contribLine}</div>
+              <div className="mt-0.5 text-[11px] text-accent">{contribLine}</div>
             )}
           </div>
         </button>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+        <div className="min-w-0 text-right">
+          <div className="text-[18px] font-semibold tabular-nums text-text">
             {currentValue !== null ? formatMoney(currentValue, currency) : '—'}
           </div>
           {change !== null && (
-            <div style={{ fontSize: 11, color: change >= 0 ? C.accent : C.danger, marginTop: 2 }}>
+            <div className={`mt-0.5 text-[11px] ${change >= 0 ? 'text-[#8acb88]' : 'text-danger'}`}>
               {formatPercent(change)} since start
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-        <button
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
           type="button"
+          variant="secondary"
+          className="flex-none"
           onClick={() => setMode((m) => (m === 'addValue' ? 'closed' : 'addValue'))}
-          style={secondaryBtn}
         >
           {mode === 'addValue' ? 'Cancel' : '+ Add value'}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
+          className="flex-none"
           onClick={() => (mode === 'edit' ? setMode('closed') : openEdit())}
-          style={secondaryBtn}
         >
           {mode === 'edit' ? 'Cancel' : 'Edit'}
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          style={{ ...ghostBtn, opacity: busy ? 0.5 : 1 }}
-        >
+        </Button>
+        <Button type="button" variant="ghost" className="flex-none" onClick={onDelete} disabled={busy}>
           Delete
-        </button>
+        </Button>
       </div>
 
       {mode === 'addValue' && (
-        <form
-          onSubmit={onSubmitValue}
-          style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}
-        >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
-            <span style={labelText}>New value ({currency})</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              required
-              value={valueInput}
-              onChange={(e) => setValueInput(e.target.value)}
-              style={input}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={labelText}>Date</span>
-            <input
-              type="date"
-              required
-              value={dateInput}
-              onChange={(e) => setDateInput(e.target.value)}
-              style={input}
-            />
-          </label>
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button type="submit" disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.5 : 1 }}>
+        <form onSubmit={onSubmitValue} className="mt-3 grid grid-cols-2 gap-2">
+          <Field
+            label={`New value (${currency})`}
+            type="number"
+            inputMode="decimal"
+            step="any"
+            required
+            value={valueInput}
+            onChange={(e) => setValueInput(e.target.value)}
+            className="col-span-2"
+          />
+          <Field
+            label="Date"
+            type="date"
+            required
+            value={dateInput}
+            onChange={(e) => setDateInput(e.target.value)}
+          />
+          <div className="flex items-end">
+            <Button type="submit" variant="primary" disabled={busy}>
               {busy ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {mode === 'edit' && (
-        <form
-          onSubmit={onSubmitEdit}
-          style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}
-        >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
-            <span style={labelText}>Name</span>
-            <input
-              type="text"
-              required
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              style={input}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={labelText}>Expected annual return (%)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              required
-              value={editRate}
-              onChange={(e) => setEditRate(e.target.value)}
-              style={input}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={labelText}>Monthly contribution (€/mo)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              placeholder="0"
-              value={editMonthly}
-              onChange={(e) => setEditMonthly(e.target.value)}
-              style={input}
-            />
-          </label>
+        <form onSubmit={onSubmitEdit} className="mt-3 grid grid-cols-2 gap-2">
+          <Field
+            label="Name"
+            type="text"
+            required
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="col-span-2"
+          />
+          <Field
+            label="Expected annual return (%)"
+            type="number"
+            inputMode="decimal"
+            step="any"
+            required
+            value={editRate}
+            onChange={(e) => setEditRate(e.target.value)}
+          />
+          <Field
+            label="Monthly contribution (€/mo)"
+            type="number"
+            inputMode="decimal"
+            step="any"
+            placeholder="0"
+            value={editMonthly}
+            onChange={(e) => setEditMonthly(e.target.value)}
+          />
           {Number(editMonthly) > 0 && (
             <>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={labelText}>Contribution start</span>
-                <input
-                  type="date"
-                  value={editStart}
-                  onChange={(e) => setEditStart(e.target.value)}
-                  style={input}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={labelText}>Contribution end</span>
-                <input
-                  type="date"
-                  value={editEnd}
-                  onChange={(e) => setEditEnd(e.target.value)}
-                  style={input}
-                />
-              </label>
+              <Field
+                label="Contribution start"
+                type="date"
+                value={editStart}
+                onChange={(e) => setEditStart(e.target.value)}
+              />
+              <Field
+                label="Contribution end"
+                type="date"
+                value={editEnd}
+                onChange={(e) => setEditEnd(e.target.value)}
+              />
             </>
           )}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <button type="submit" disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.5 : 1 }}>
+          <div className="col-span-2">
+            <Button type="submit" variant="primary" disabled={busy}>
               {busy ? 'Saving…' : 'Save changes'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
-      {error && <p style={errorBanner}>{error}</p>}
-    </div>
+      {error && <p className={errorBanner}>{error}</p>}
+    </Card>
   )
 }

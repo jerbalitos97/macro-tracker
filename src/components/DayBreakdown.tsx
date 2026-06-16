@@ -1,75 +1,59 @@
 import type { ComputedDay } from '../types'
-import { s } from '../styles/tokens'
 
 interface Props {
   day: ComputedDay
 }
 
+const row = 'flex justify-between py-[5px] text-xs'
+const label = 'text-muted'
+const val = 'tabular-nums text-text'
+
 export function DayBreakdown({ day }: Props) {
   return (
     <div>
-      <div style={s.breakdownRow}>
-        <span style={s.breakdownLabel}>TDEE ({day.dayType})</span>
-        <span style={s.breakdownVal}>+{day.baseTdee}</span>
+      <div className={row}>
+        <span className={label}>TDEE ({day.dayType})</span>
+        <span className={val}>+{day.baseTdee}</span>
       </div>
-      <div style={s.breakdownRow}>
-        <span style={s.breakdownLabel}>Cut-vaje (perus)</span>
-        <span style={{ ...s.breakdownVal, color: '#888' }}>−{day.dailyDeficitBase}</span>
+      <div className={row}>
+        <span className={label}>Cut-vaje (perus)</span>
+        <span className={`${val} text-white/50`}>−{day.dailyDeficitBase}</span>
       </div>
       {day.preBufferReduction > 0 && (
-        <div style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Pre-buffer</span>
-          <span style={{ ...s.breakdownVal, color: '#e87a6a' }}>−{day.preBufferReduction}</span>
+        <div className={row}>
+          <span className={label}>Pre-buffer</span>
+          <span className={`${val} text-danger`}>−{day.preBufferReduction}</span>
         </div>
       )}
       {day.extraKcal > 0 && (
-        <div style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Ekstratreeni</span>
-          <span style={{ ...s.breakdownVal, color: '#6a9ad4' }}>+{day.extraKcal}</span>
+        <div className={row}>
+          <span className={label}>Ekstratreeni</span>
+          <span className={`${val} text-protein`}>+{day.extraKcal}</span>
         </div>
       )}
       {day.events.map((e) => (
-        <div key={e.id} style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Juhla · {e.name}</span>
-          <span style={{ ...s.breakdownVal, color: '#d4b85a' }}>+{e.excessKcal}</span>
+        <div key={e.id} className={row}>
+          <span className={label}>Juhla · {e.name}</span>
+          <span className={`${val} text-accent`}>+{e.excessKcal}</span>
         </div>
       ))}
       {day.adjustment && day.adjustment.kcal !== 0 && (
-        <div style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Säätö{day.adjustment.note ? ` · ${day.adjustment.note}` : ''}</span>
-          <span
-            style={{
-              ...s.breakdownVal,
-              color: day.adjustment.kcal > 0 ? '#6a9ad4' : '#e87a6a',
-            }}
-          >
+        <div className={row}>
+          <span className={label}>Säätö{day.adjustment.note ? ` · ${day.adjustment.note}` : ''}</span>
+          <span className={`${val} ${day.adjustment.kcal > 0 ? 'text-protein' : 'text-danger'}`}>
             {day.adjustment.kcal > 0 ? '+' : '−'}{Math.abs(day.adjustment.kcal)}
           </span>
         </div>
       )}
       {day.burnKcal > 0 && (
-        <div style={s.breakdownRow}>
-          <span style={s.breakdownLabel}>Treenikulutus</span>
-          <span style={{ ...s.breakdownVal, color: '#6a9ad4' }}>+{day.burnKcal}</span>
+        <div className={row}>
+          <span className={label}>Treenikulutus</span>
+          <span className={`${val} text-protein`}>+{day.burnKcal}</span>
         </div>
       )}
-      <div
-        style={{
-          ...s.breakdownRow,
-          borderTop: '1px solid #1f1f1f',
-          paddingTop: 8,
-          marginTop: 6,
-        }}
-      >
-        <span style={{ ...s.breakdownLabel, color: '#e5e5e5', fontWeight: 600 }}>Budjetti</span>
-        <span
-          style={{
-            ...s.breakdownVal,
-            color: '#d4b85a',
-            fontWeight: 700,
-            fontSize: 15,
-          }}
-        >
+      <div className={`${row} mt-1.5 border-t border-white/[0.1] pt-2`}>
+        <span className={`${label} font-semibold text-text`}>Budjetti</span>
+        <span className={`${val} text-[15px] font-bold text-accent`}>
           {(day.budget + day.burnKcal).toLocaleString('fi-FI')} kcal
         </span>
       </div>
@@ -77,19 +61,12 @@ export function DayBreakdown({ day }: Props) {
       {/* Toteutuma — actual consumed and resulting deficit vs the planned baseline */}
       {(day.consumed > 0 || day.burnKcal > 0) && day.actualDeficit !== undefined && (
         <>
-          <div
-            style={{
-              ...s.cardLabel,
-              marginTop: 14,
-              marginBottom: 4,
-              color: '#666',
-            }}
-          >
+          <div className="mb-1 mt-3.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[#666]">
             Toteutuma
           </div>
-          <div style={s.breakdownRow}>
-            <span style={s.breakdownLabel}>Syöty</span>
-            <span style={s.breakdownVal}>
+          <div className={row}>
+            <span className={label}>Syöty</span>
+            <span className={val}>
               {day.consumed.toLocaleString('fi-FI')} kcal
             </span>
           </div>
@@ -98,25 +75,25 @@ export function DayBreakdown({ day }: Props) {
             const planned = day.dailyDeficitBase
             const diff = actual - planned
             const deficitColor =
-              diff >= 100 ? '#8acb88' : diff <= -100 ? '#e87a6a' : '#d4b85a'
+              diff >= 100 ? 'text-[#8acb88]' : diff <= -100 ? 'text-danger' : 'text-accent'
             return (
               <>
-                <div style={s.breakdownRow}>
-                  <span style={s.breakdownLabel}>Toteutunut vaje</span>
-                  <span style={{ ...s.breakdownVal, color: deficitColor, fontWeight: 600 }}>
+                <div className={row}>
+                  <span className={label}>Toteutunut vaje</span>
+                  <span className={`${val} font-semibold ${deficitColor}`}>
                     {actual >= 0 ? '+' : '−'}
                     {Math.abs(Math.round(actual)).toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
-                <div style={s.breakdownRow}>
-                  <span style={{ ...s.breakdownLabel, color: '#666' }}>Suunniteltu vaje</span>
-                  <span style={{ ...s.breakdownVal, color: '#666' }}>
+                <div className={row}>
+                  <span className={`${label} text-[#666]`}>Suunniteltu vaje</span>
+                  <span className={`${val} text-[#666]`}>
                     +{planned.toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
-                <div style={s.breakdownRow}>
-                  <span style={{ ...s.breakdownLabel, color: '#666' }}>Ero suunnitelmaan</span>
-                  <span style={{ ...s.breakdownVal, color: deficitColor }}>
+                <div className={row}>
+                  <span className={`${label} text-[#666]`}>Ero suunnitelmaan</span>
+                  <span className={`${val} ${deficitColor}`}>
                     {diff >= 0 ? '+' : '−'}{Math.abs(Math.round(diff)).toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
