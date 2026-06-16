@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>Mimir — Brandbook Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --inter: 'Inter', -apple-system, system-ui, sans-serif;
+    --sora: 'Sora', 'Inter', sans-serif;
+    --sf: -apple-system, 'SF Pro Display', 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html, body { background: #07080a; color: #ebebeb; font-family: var(--inter); -webkit-font-smoothing: antialiased; }
+  body { padding: 0 0 80px; }
+
+  /* sticky pager */
+  .pager {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; gap: 6px; padding: 12px;
+    background: rgba(7,8,10,0.82); backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .pager a {
+    flex: 1; text-align: center; text-decoration: none;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255,255,255,0.55); padding: 9px 4px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+  }
+  .pager a.v { color: #f5c451; border-color: rgba(245,196,81,0.4); }
+  .pager a.m { color: #d4b85a; }
+  .pager a.g { color: #aee3ff; }
+
+  .intro { padding: 28px 20px 8px; }
+  .intro h1 { font-family: var(--sora); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .intro p { margin-top: 8px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.55); max-width: 60ch; }
+
+  section { padding: 32px 20px; border-top: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px; }
+  .dirName { font-size: 30px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; }
+  .dirDesc { margin-top: 10px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.6); max-width: 56ch; }
+  .specRow { margin-top: 22px; }
+  .specLabel { font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 10px; }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sw { width: 46px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); position: relative; }
+  .sw span { position: absolute; bottom: -16px; left: 0; font-family: var(--mono); font-size: 8px; color: rgba(255,255,255,0.4); }
+  .swwrap { display:flex; gap:18px; flex-wrap:wrap; }
+  .btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .mock { margin-top: 22px; }
+  .progress { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.07); overflow: hidden; margin-top: 14px; }
+  .progress > div { height: 100%; border-radius: 99px; width: 64%; }
+
+  /* ───────── 1. VIBRANT & GLOWING ───────── */
+  #vibrant { background:
+      radial-gradient(120% 80% at 80% -10%, rgba(245,196,81,0.10), transparent 60%),
+      radial-gradient(100% 70% at -10% 110%, rgba(232,122,106,0.08), transparent 55%), #07080a; }
+  #vibrant .tag { background: linear-gradient(135deg, rgba(245,196,81,0.18), rgba(232,148,58,0.18)); color: #f5c451; border: 1px solid rgba(245,196,81,0.3); }
+  #vibrant .dirName { font-family: var(--sora); background: linear-gradient(135deg,#fff 30%, #f5c451); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #vibrant .card {
+    border-radius: 22px; padding: 22px;
+    background: linear-gradient(160deg,#191712 0%, #121214 100%);
+    border: 1px solid rgba(245,196,81,0.22);
+    box-shadow: 0 20px 50px -20px rgba(245,196,81,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  #vibrant .cLabel { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(245,196,81,0.7); }
+  #vibrant .hero { font-family: var(--sora); font-size: 58px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin-top: 8px;
+    background: linear-gradient(135deg,#ffe9a8, #f5c451 60%, #e8943a); -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(245,196,81,0.25); }
+  #vibrant .sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+  #vibrant .progress > div { background: linear-gradient(90deg,#e8943a,#f5c451); box-shadow: 0 0 16px rgba(245,196,81,0.6); }
+  #vibrant .btn-fill { background: linear-gradient(135deg,#f5c451,#e8943a); color:#1a1206; font-weight:700; box-shadow: 0 8px 24px -8px rgba(245,196,81,0.6); }
+  #vibrant .btn-soft { background: rgba(245,196,81,0.12); color:#f5c451; border:1px solid rgba(245,196,81,0.3); }
+
+  /* ───────── 2. PREMIUM MINIMAL ───────── */
+  #minimal { background: #0a0a0b; }
+  #minimal .tag { background: rgba(212,184,90,0.1); color: #d4b85a; border: 1px solid rgba(212,184,90,0.22); }
+  #minimal .dirName { font-family: var(--inter); font-weight: 700; }
+  #minimal .card {
+    border-radius: 14px; padding: 26px 24px;
+    background: #121214; border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 12px 40px -24px rgba(0,0,0,0.9);
+  }
+  #minimal .cLabel { font-size: 12px; font-weight:500; letter-spacing: 0.01em; color: rgba(255,255,255,0.45); }
+  #minimal .hero { font-family: var(--inter); font-size: 46px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; margin-top: 16px; color: #f3f3f3; font-variant-numeric: tabular-nums; }
+  #minimal .sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 8px; }
+  #minimal .progress { height: 4px; margin-top: 22px; }
+  #minimal .progress > div { background: #d4b85a; }
+  #minimal .btn-fill { background: #d4b85a; color:#0a0a0a; font-weight:600; }
+  #minimal .btn-soft { background: transparent; color: rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.12); }
+
+  /* ───────── 3. iOS GLASS ───────── */
+  #glass { background: #08090c; }
+  #glass .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.5; z-index:0; }
+  #glass .b1 { width: 240px; height: 240px; background: #d4a23a; top: -40px; right: -60px; }
+  #glass .b2 { width: 220px; height: 220px; background: #3a7bd4; bottom: 20px; left: -70px; opacity:0.4; }
+  #glass > * { position: relative; z-index: 1; }
+  #glass .tag { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); }
+  #glass .dirName { font-family: var(--sf); font-weight: 800; }
+  #glass .card {
+    border-radius: 28px; padding: 24px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+  #glass .cLabel { font-family: var(--sf); font-size: 11px; font-weight:600; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+  #glass .hero { font-family: var(--sf); font-size: 52px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin-top: 10px; color: #fff; }
+  #glass .sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+  #glass .progress { background: rgba(255,255,255,0.12); }
+  #glass .progress > div { background: linear-gradient(90deg,#ffd86b,#ffb347); }
+  #glass .btn-fill { background: rgba(255,255,255,0.92); color:#1a1206; font-weight:700; backdrop-filter: blur(10px); }
+  #glass .btn-soft { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); }
+
+  .btn { padding: 12px 18px; border-radius: 12px; font-size: 13px; border: none; cursor: pointer; font-family: var(--inter); }
+  .fontspec { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,0.75); }
+  .fontspec b { color:#fff; }
+</style>
+</head>
+<body>
+  <nav class="pager">
+    <a class="v" href="#vibrant">Vibrant</a>
+    <a class="m" href="#minimal">Minimal</a>
+    <a class="g" href="#glass">Glass</a>
+  </nav>
+
+  <div class="intro">
+    <h1>Mimir — 3 Directions</h1>
+    <p>Same "Budget today" card rendered three ways. Each shows the real font, color palette, card treatment, buttons and progress style. Pick one (or mix) and I'll apply it to the live Today view.</p>
+  </div>
+
+  <!-- 1 -->
+  <section id="vibrant">
+    <span class="tag">Direction 01</span>
+    <div class="dirName">Vibrant &amp; Glowing</div>
+    <div class="dirDesc">Energetic, fitness-app flashy. Gold→amber gradients, glowing accents, big bold hero numbers. Highest visual impact.</div>
+
+    <div class="specRow">
+      <div class="specLabel">Type · Sora + Inter + JetBrains Mono</div>
+      <div class="fontspec" style="font-family:var(--sora)"><b style="font-size:20px;font-weight:800">Sora 800</b> — headings &amp; hero numbers</div>
+      <div class="fontspec" style="font-family:var(--inter)">Inter 400/600 — body &amp; labels</div>
+    </div>
+
+    <div class="specRow">
+      <div class="specLabel">Palette</div>
+      <div class="swwrap">
+        <div class="sw" style="background:linear-gradient(135deg,#f5c451,#e8943a)"><span>gold→amber</span></div>
+        <div class="sw" style="background:#e8946a"><span>coral</span></div>
+        <div class="sw" style="background:#6a9ad4"><span>blue</span></div>
+        <div class="sw" style="background:#191712"><span>card</span></div>
+      </div>
+    </div>
+
+    <div class="mock card">
+      <div class="cLabel">Budjetti tänään</div>
+      <div class="hero">+1,240</div>
+      <div class="sub">kcal jäljellä</div>
+      <div class="progress"><div></div></div>
+      <div class="btns">
+        <button class="btn btn-fill">Lisää ateria</button>
+        <button class="btn btn-soft">+ Uusi</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="minimal">
+    <span class="tag">Direction 02</span>
+    <div class="dirName">Premium Minimal</div>
+    <div class="dirDesc">Linear / Vercel style. Clean Inter type, generous whitespace, restrained depth, sharp hierarchy. Sophisticated, quiet — not loud.</div>
+
+    <div class="specRow">
+      <div class="specLabel">Type · Inter</div>
+      <div class="fontspec" style="font-family:var(--inter)"><b style="font-size:20px;font-weight:700">Inter 700</b> — headings</div>
+      <div class="fontspec" style="font-family:var(--inter)">Inter 400/500 — body, airy spacing</div>
+    </div>
+
+    <div class="specRow">
+      <div class="specLabel">Palette</div>
+      <div class="swwrap">
+        <div class="sw" style="background:#d4b85a"><span>gold</span></div>
+        <div class="sw" style="background:#121214"><span>card</span></div>
+        <div class="sw" style="background:#0a0a0b"><span>bg</span></div>
+        <div class="sw" style="background:rgba(255,255,255,0.06)"><span>border</span></div>
+      </div>
+    </div>
+
+    <div class="mock card">
+      <div class="cLabel">Budget today</div>
+      <div class="hero">+1,240</div>
+      <div class="sub">kcal remaining</div>
+      <div class="progress"><div></div></div>
+      <div class="btns">
+        <button class="btn btn-fill">Add meal</button>
+        <button class="btn btn-soft">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="glass">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <span class="tag">Direction 03</span>
+    <div class="dirName">iOS Glass</div>
+    <div class="dirDesc">visionOS / iOS frosted glass. Heavy translucency &amp; blur, large rounded corners, soft layered surfaces. Feels native-premium on iPhone.</div>
+
+    <div class="specRow">
+      <div class="specLabel">Type · SF Pro</div>
+      <div class="fontspec" style="font-family:var(--sf)"><b style="font-size:20px;font-weight:800">SF Pro 800</b> — headings</div>
+      <div class="fontspec" style="font-family:var(--sf)">System UI — native iOS feel</div>
+    </div>
+
+    <div class="specRow">
+      <div class="specLabel">Palette · translucent</div>
+      <div class="swwrap">
+        <div class="sw" style="background:rgba(255,255,255,0.07);backdrop-filter:blur(8px)"><span>glass</span></div>
+        <div class="sw" style="background:linear-gradient(135deg,#ffd86b,#ffb347)"><span>gold</span></div>
+        <div class="sw" style="background:#3a7bd4"><span>blue glow</span></div>
+        <div class="sw" style="background:rgba(255,255,255,0.14)"><span>border</span></div>
+      </div>
+    </div>
+
+    <div class="mock card">
+      <div class="cLabel">Budget today</div>
+      <div class="hero">+1,240</div>
+      <div class="sub">kcal remaining</div>
+      <div class="progress"><div></div></div>
+      <div class="btns">
+        <button class="btn btn-fill">Add meal</button>
+        <button class="btn btn-soft">Cancel</button>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
