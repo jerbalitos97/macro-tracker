@@ -60,6 +60,7 @@ html, body {
   background-attachment: fixed;
   color: #eef1f6;
   font-family: var(--font-display);
+  overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   /* Side safe-area insets only. Top is handled by sticky NavBar so it stays
      out from under the Dynamic Island on scroll. Bottom is handled by the

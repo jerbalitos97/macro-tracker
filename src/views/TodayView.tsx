@@ -141,17 +141,17 @@ export function TodayView({
         </RingGauge>
 
         {/* Side stats */}
-        <div className="mt-5 flex items-start gap-7">
-          <div className="text-center">
-            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.consumed.toLocaleString('fi-FI')}</div>
+        <div className="mt-5 flex w-full items-start justify-around gap-2">
+          <div className="min-w-0 text-center">
+            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.consumed.toLocaleString('fi-FI')}</div>
             <div className="mt-0.5 text-[11px] text-white/50">syöty</div>
           </div>
-          <div className="text-center">
-            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-text">{effectiveBudget.toLocaleString('fi-FI')}</div>
+          <div className="min-w-0 text-center">
+            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{effectiveBudget.toLocaleString('fi-FI')}</div>
             <div className="mt-0.5 text-[11px] text-white/50">budjetti</div>
           </div>
-          <div className="text-center">
-            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-white/70">{day.baseTdee.toLocaleString('fi-FI')}</div>
+          <div className="min-w-0 text-center">
+            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-white/70">{day.baseTdee.toLocaleString('fi-FI')}</div>
             <div className="mt-0.5 text-[11px] text-white/50">TDEE</div>
           </div>
         </div>
