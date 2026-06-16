@@ -3,237 +3,243 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0a0a" />
-<title>Mimir — Brandbook Directions</title>
+<meta name="theme-color" content="#06070a" />
+<title>Mimir — Oura-inspired Directions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
     --inter: 'Inter', -apple-system, system-ui, sans-serif;
-    --sora: 'Sora', 'Inter', sans-serif;
     --sf: -apple-system, 'SF Pro Display', 'Inter', sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
-  html, body { background: #07080a; color: #ebebeb; font-family: var(--inter); -webkit-font-smoothing: antialiased; }
-  body { padding: 0 0 80px; }
+  html, body { background: #06070a; color: #eef1f6; font-family: var(--inter); -webkit-font-smoothing: antialiased; }
+  body { padding: 0 0 90px; }
 
-  /* sticky pager */
   .pager {
     position: sticky; top: 0; z-index: 50;
     display: flex; gap: 6px; padding: 12px;
-    background: rgba(7,8,10,0.82); backdrop-filter: blur(18px);
+    background: rgba(6,7,10,0.8); backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255,255,255,0.06);
   }
   .pager a {
     flex: 1; text-align: center; text-decoration: none;
-    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: rgba(255,255,255,0.55); padding: 9px 4px; border-radius: 9px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.5); padding: 10px 4px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
   }
-  .pager a.v { color: #f5c451; border-color: rgba(245,196,81,0.4); }
-  .pager a.m { color: #d4b85a; }
-  .pager a.g { color: #aee3ff; }
+  .pager a.a { color: #7fe3d4; border-color: rgba(127,227,212,0.35); }
+  .pager a.b { color: #9bb2ff; border-color: rgba(155,178,255,0.3); }
+  .pager a.c { color: #f5c06a; border-color: rgba(245,192,106,0.32); }
 
-  .intro { padding: 28px 20px 8px; }
-  .intro h1 { font-family: var(--sora); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
-  .intro p { margin-top: 8px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.55); max-width: 60ch; }
+  .intro { padding: 30px 20px 6px; }
+  .intro h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.02em; }
+  .intro p { margin-top: 10px; font-size: 13px; line-height: 1.65; color: rgba(255,255,255,0.55); max-width: 60ch; }
+  .intro .note { margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.4); font-family: var(--mono); line-height:1.6; }
 
-  section { padding: 32px 20px; border-top: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
-  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px; }
-  .dirName { font-size: 30px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; }
-  .dirDesc { margin-top: 10px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.6); max-width: 56ch; }
-  .specRow { margin-top: 22px; }
-  .specLabel { font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 10px; }
-  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
-  .sw { width: 46px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); position: relative; }
-  .sw span { position: absolute; bottom: -16px; left: 0; font-family: var(--mono); font-size: 8px; color: rgba(255,255,255,0.4); }
+  section { padding: 34px 20px; border-top: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; margin-bottom: 16px; }
+  .dirName { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; }
+  .dirDesc { margin-top: 10px; font-size: 13px; line-height: 1.65; color: rgba(255,255,255,0.6); max-width: 56ch; }
+  .specRow { margin-top: 24px; position: relative; z-index: 2; }
+  .specLabel { font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 12px; }
   .swwrap { display:flex; gap:18px; flex-wrap:wrap; }
-  .btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-  .mock { margin-top: 22px; }
-  .progress { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.07); overflow: hidden; margin-top: 14px; }
-  .progress > div { height: 100%; border-radius: 99px; width: 64%; }
-
-  /* ───────── 1. VIBRANT & GLOWING ───────── */
-  #vibrant { background:
-      radial-gradient(120% 80% at 80% -10%, rgba(245,196,81,0.10), transparent 60%),
-      radial-gradient(100% 70% at -10% 110%, rgba(232,122,106,0.08), transparent 55%), #07080a; }
-  #vibrant .tag { background: linear-gradient(135deg, rgba(245,196,81,0.18), rgba(232,148,58,0.18)); color: #f5c451; border: 1px solid rgba(245,196,81,0.3); }
-  #vibrant .dirName { font-family: var(--sora); background: linear-gradient(135deg,#fff 30%, #f5c451); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  #vibrant .card {
-    border-radius: 22px; padding: 22px;
-    background: linear-gradient(160deg,#191712 0%, #121214 100%);
-    border: 1px solid rgba(245,196,81,0.22);
-    box-shadow: 0 20px 50px -20px rgba(245,196,81,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
-  }
-  #vibrant .cLabel { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(245,196,81,0.7); }
-  #vibrant .hero { font-family: var(--sora); font-size: 58px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin-top: 8px;
-    background: linear-gradient(135deg,#ffe9a8, #f5c451 60%, #e8943a); -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(245,196,81,0.25); }
-  #vibrant .sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
-  #vibrant .progress > div { background: linear-gradient(90deg,#e8943a,#f5c451); box-shadow: 0 0 16px rgba(245,196,81,0.6); }
-  #vibrant .btn-fill { background: linear-gradient(135deg,#f5c451,#e8943a); color:#1a1206; font-weight:700; box-shadow: 0 8px 24px -8px rgba(245,196,81,0.6); }
-  #vibrant .btn-soft { background: rgba(245,196,81,0.12); color:#f5c451; border:1px solid rgba(245,196,81,0.3); }
-
-  /* ───────── 2. PREMIUM MINIMAL ───────── */
-  #minimal { background: #0a0a0b; }
-  #minimal .tag { background: rgba(212,184,90,0.1); color: #d4b85a; border: 1px solid rgba(212,184,90,0.22); }
-  #minimal .dirName { font-family: var(--inter); font-weight: 700; }
-  #minimal .card {
-    border-radius: 14px; padding: 26px 24px;
-    background: #121214; border: 1px solid rgba(255,255,255,0.06);
-    box-shadow: 0 12px 40px -24px rgba(0,0,0,0.9);
-  }
-  #minimal .cLabel { font-size: 12px; font-weight:500; letter-spacing: 0.01em; color: rgba(255,255,255,0.45); }
-  #minimal .hero { font-family: var(--inter); font-size: 46px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; margin-top: 16px; color: #f3f3f3; font-variant-numeric: tabular-nums; }
-  #minimal .sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 8px; }
-  #minimal .progress { height: 4px; margin-top: 22px; }
-  #minimal .progress > div { background: #d4b85a; }
-  #minimal .btn-fill { background: #d4b85a; color:#0a0a0a; font-weight:600; }
-  #minimal .btn-soft { background: transparent; color: rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.12); }
-
-  /* ───────── 3. iOS GLASS ───────── */
-  #glass { background: #08090c; }
-  #glass .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.5; z-index:0; }
-  #glass .b1 { width: 240px; height: 240px; background: #d4a23a; top: -40px; right: -60px; }
-  #glass .b2 { width: 220px; height: 220px; background: #3a7bd4; bottom: 20px; left: -70px; opacity:0.4; }
-  #glass > * { position: relative; z-index: 1; }
-  #glass .tag { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); }
-  #glass .dirName { font-family: var(--sf); font-weight: 800; }
-  #glass .card {
-    border-radius: 28px; padding: 24px;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.14);
-    backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
-  }
-  #glass .cLabel { font-family: var(--sf); font-size: 11px; font-weight:600; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
-  #glass .hero { font-family: var(--sf); font-size: 52px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin-top: 10px; color: #fff; }
-  #glass .sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
-  #glass .progress { background: rgba(255,255,255,0.12); }
-  #glass .progress > div { background: linear-gradient(90deg,#ffd86b,#ffb347); }
-  #glass .btn-fill { background: rgba(255,255,255,0.92); color:#1a1206; font-weight:700; backdrop-filter: blur(10px); }
-  #glass .btn-soft { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); }
-
-  .btn { padding: 12px 18px; border-radius: 12px; font-size: 13px; border: none; cursor: pointer; font-family: var(--inter); }
-  .fontspec { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,0.75); }
+  .sw { width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); position: relative; }
+  .sw span { position: absolute; bottom: -15px; left: 0; font-family: var(--mono); font-size: 8px; color: rgba(255,255,255,0.4); white-space:nowrap; }
+  .btns { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .btn { padding: 13px 20px; border-radius: 14px; font-size: 13px; border: none; cursor: pointer; font-family: var(--inter); font-weight: 600; }
+  .fontspec { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.75); }
   .fontspec b { color:#fff; }
+
+  /* Ring gauge */
+  .ringwrap { position: relative; width: 156px; height: 156px; }
+  .ringwrap svg { width: 100%; height: 100%; display:block; }
+  .ringtxt { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ringnum { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ringunit { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-top: 6px; font-family: var(--mono); }
+  .ringside { display:flex; align-items:center; gap: 22px; margin-top: 22px; }
+  .stat { }
+  .stat .k { font-size: 22px; font-weight: 700; letter-spacing:-0.02em; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+  /* ───────── A · OURA GLASS ───────── */
+  #glass { background: radial-gradient(120% 90% at 75% -10%, rgba(95,231,214,0.10), transparent 55%),
+                     radial-gradient(110% 80% at 0% 110%, rgba(91,141,239,0.12), transparent 55%), #06070a; }
+  #glass .blob { position:absolute; border-radius:50%; filter: blur(70px); z-index:0; }
+  #glass .b1 { width:240px; height:240px; background:#2fb7a8; opacity:0.28; top:-30px; right:-50px; }
+  #glass .b2 { width:220px; height:220px; background:#4f73e0; opacity:0.3; bottom:40px; left:-60px; }
+  #glass .tag { background: rgba(255,255,255,0.1); color:#bff3ec; border:1px solid rgba(255,255,255,0.16); backdrop-filter: blur(10px); }
+  #glass .dirName, #glass .intro h1 { font-family: var(--sf); }
+  #glass .card {
+    position: relative; z-index:2; border-radius: 28px; padding: 26px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(26px) saturate(180%); -webkit-backdrop-filter: blur(26px) saturate(180%);
+    box-shadow: 0 28px 70px -24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.16);
+    display:flex; flex-direction:column; align-items:center;
+  }
+  #glass .cLabel { font-family: var(--sf); font-size: 11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color: rgba(255,255,255,0.6); align-self:flex-start; }
+  #glass .ringnum { color:#fff; }
+  #glass .btn-fill { background: linear-gradient(135deg,#7fe3d4,#5b8def); color:#04201d; }
+  #glass .btn-soft { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2); }
+
+  /* ───────── B · OURA CALM (closest to real Oura app) ───────── */
+  #calm { background: linear-gradient(180deg,#0a0c12 0%, #07080c 100%); }
+  #calm .tag { background: rgba(155,178,255,0.12); color:#9bb2ff; border:1px solid rgba(155,178,255,0.28); }
+  #calm .card {
+    border-radius: 24px; padding: 28px 26px;
+    background: linear-gradient(165deg, #141826 0%, #0d0f17 100%);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.9);
+    display:flex; flex-direction:column; align-items:center;
+  }
+  #calm .cLabel { font-size: 11px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color: rgba(255,255,255,0.45); align-self:flex-start; }
+  #calm .ringnum { color:#eef1f6; }
+  #calm .btn-fill { background:#9bb2ff; color:#0a0c12; }
+  #calm .btn-soft { background: transparent; color: rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.14); }
+
+  /* ───────── C · OURA WARM (Mimir gold heritage) ───────── */
+  #warm { background: radial-gradient(120% 90% at 80% -10%, rgba(245,192,106,0.10), transparent 55%),
+                    radial-gradient(100% 80% at 0% 110%, rgba(232,122,106,0.10), transparent 55%), #08070a; }
+  #warm .tag { background: rgba(245,192,106,0.12); color:#f5c06a; border:1px solid rgba(245,192,106,0.3); }
+  #warm .card {
+    border-radius: 24px; padding: 28px 26px;
+    background: linear-gradient(165deg, #1b1712 0%, #100d10 100%);
+    border: 1px solid rgba(245,192,106,0.14);
+    box-shadow: 0 24px 60px -28px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.04);
+    display:flex; flex-direction:column; align-items:center;
+  }
+  #warm .cLabel { font-size: 11px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color: rgba(245,192,106,0.65); align-self:flex-start; }
+  #warm .ringnum { color:#fff; }
+  #warm .btn-fill { background: linear-gradient(135deg,#f5c06a,#e89a4a); color:#1a1206; }
+  #warm .btn-soft { background: rgba(245,192,106,0.12); color:#f5c06a; border:1px solid rgba(245,192,106,0.28); }
 </style>
 </head>
 <body>
   <nav class="pager">
-    <a class="v" href="#vibrant">Vibrant</a>
-    <a class="m" href="#minimal">Minimal</a>
-    <a class="g" href="#glass">Glass</a>
+    <a class="a" href="#glass">Glass</a>
+    <a class="b" href="#calm">Calm</a>
+    <a class="c" href="#warm">Warm</a>
   </nav>
 
   <div class="intro">
-    <h1>Mimir — 3 Directions</h1>
-    <p>Same "Budget today" card rendered three ways. Each shows the real font, color palette, card treatment, buttons and progress style. Pick one (or mix) and I'll apply it to the live Today view.</p>
+    <h1>Mimir × Oura — 3 Directions</h1>
+    <p>Oura's signature: calm deep darks, soft gradient-mesh backgrounds, and luminous <b style="color:#fff">gradient ring gauges</b> instead of flat bars. Same "Budget today" data, shown as an Oura-style ring three ways.</p>
+    <div class="note">Ring = % of daily budget used · center = kcal remaining</div>
   </div>
 
-  <!-- 1 -->
-  <section id="vibrant">
-    <span class="tag">Direction 01</span>
-    <div class="dirName">Vibrant &amp; Glowing</div>
-    <div class="dirDesc">Energetic, fitness-app flashy. Gold→amber gradients, glowing accents, big bold hero numbers. Highest visual impact.</div>
-
-    <div class="specRow">
-      <div class="specLabel">Type · Sora + Inter + JetBrains Mono</div>
-      <div class="fontspec" style="font-family:var(--sora)"><b style="font-size:20px;font-weight:800">Sora 800</b> — headings &amp; hero numbers</div>
-      <div class="fontspec" style="font-family:var(--inter)">Inter 400/600 — body &amp; labels</div>
-    </div>
-
-    <div class="specRow">
-      <div class="specLabel">Palette</div>
-      <div class="swwrap">
-        <div class="sw" style="background:linear-gradient(135deg,#f5c451,#e8943a)"><span>gold→amber</span></div>
-        <div class="sw" style="background:#e8946a"><span>coral</span></div>
-        <div class="sw" style="background:#6a9ad4"><span>blue</span></div>
-        <div class="sw" style="background:#191712"><span>card</span></div>
-      </div>
-    </div>
-
-    <div class="mock card">
-      <div class="cLabel">Budjetti tänään</div>
-      <div class="hero">+1,240</div>
-      <div class="sub">kcal jäljellä</div>
-      <div class="progress"><div></div></div>
-      <div class="btns">
-        <button class="btn btn-fill">Lisää ateria</button>
-        <button class="btn btn-soft">+ Uusi</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2 -->
-  <section id="minimal">
-    <span class="tag">Direction 02</span>
-    <div class="dirName">Premium Minimal</div>
-    <div class="dirDesc">Linear / Vercel style. Clean Inter type, generous whitespace, restrained depth, sharp hierarchy. Sophisticated, quiet — not loud.</div>
-
-    <div class="specRow">
-      <div class="specLabel">Type · Inter</div>
-      <div class="fontspec" style="font-family:var(--inter)"><b style="font-size:20px;font-weight:700">Inter 700</b> — headings</div>
-      <div class="fontspec" style="font-family:var(--inter)">Inter 400/500 — body, airy spacing</div>
-    </div>
-
-    <div class="specRow">
-      <div class="specLabel">Palette</div>
-      <div class="swwrap">
-        <div class="sw" style="background:#d4b85a"><span>gold</span></div>
-        <div class="sw" style="background:#121214"><span>card</span></div>
-        <div class="sw" style="background:#0a0a0b"><span>bg</span></div>
-        <div class="sw" style="background:rgba(255,255,255,0.06)"><span>border</span></div>
-      </div>
-    </div>
-
-    <div class="mock card">
-      <div class="cLabel">Budget today</div>
-      <div class="hero">+1,240</div>
-      <div class="sub">kcal remaining</div>
-      <div class="progress"><div></div></div>
-      <div class="btns">
-        <button class="btn btn-fill">Add meal</button>
-        <button class="btn btn-soft">Cancel</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 3 -->
+  <!-- A -->
   <section id="glass">
     <div class="blob b1"></div>
     <div class="blob b2"></div>
-    <span class="tag">Direction 03</span>
-    <div class="dirName">iOS Glass</div>
-    <div class="dirDesc">visionOS / iOS frosted glass. Heavy translucency &amp; blur, large rounded corners, soft layered surfaces. Feels native-premium on iPhone.</div>
+    <span class="tag">Direction A · Glass</span>
+    <div class="dirName">Oura Glass</div>
+    <div class="dirDesc">Your favourite — frosted translucency — fused with Oura's cool teal→indigo gradient rings and gradient-mesh glow. Premium, airy, native-iOS feel.</div>
 
     <div class="specRow">
       <div class="specLabel">Type · SF Pro</div>
-      <div class="fontspec" style="font-family:var(--sf)"><b style="font-size:20px;font-weight:800">SF Pro 800</b> — headings</div>
-      <div class="fontspec" style="font-family:var(--sf)">System UI — native iOS feel</div>
+      <div class="fontspec" style="font-family:var(--sf)"><b style="font-size:19px;font-weight:700">SF Pro</b> · light/regular weights, calm</div>
     </div>
+    <div class="specRow">
+      <div class="specLabel">Palette</div>
+      <div class="swwrap">
+        <div class="sw" style="background:linear-gradient(135deg,#7fe3d4,#5b8def)"><span>teal→indigo</span></div>
+        <div class="sw" style="background:rgba(255,255,255,0.06);backdrop-filter:blur(8px)"><span>glass</span></div>
+        <div class="sw" style="background:#4f73e0"><span>blue glow</span></div>
+      </div>
+    </div>
+
+    <div class="specRow card">
+      <div class="cLabel">Budget today</div>
+      <div class="ringwrap" style="margin-top:14px">
+        <svg viewBox="0 0 120 120">
+          <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7fe3d4"/><stop offset="1" stop-color="#5b8def"/></linearGradient></defs>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="11"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="url(#gg)" stroke-width="11" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="98" transform="rotate(-90 60 60)" style="filter:drop-shadow(0 0 6px rgba(127,227,212,0.5))"/>
+        </svg>
+        <div class="ringtxt"><div class="ringnum">+1,240</div><div class="ringunit">kcal left</div></div>
+      </div>
+      <div class="ringside">
+        <div class="stat"><div class="k">2,510</div><div class="l">eaten</div></div>
+        <div class="stat"><div class="k">170g</div><div class="l">protein</div></div>
+      </div>
+      <div class="btns"><button class="btn btn-fill">Add meal</button><button class="btn btn-soft">Burn</button></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section id="calm">
+    <span class="tag">Direction B · Calm</span>
+    <div class="dirName">Oura Calm</div>
+    <div class="dirDesc">Closest to the real Oura app: solid deep navy-charcoal cards (no glass), soft indigo→violet rings, restrained and sophisticated. Best legibility in bright light.</div>
 
     <div class="specRow">
-      <div class="specLabel">Palette · translucent</div>
+      <div class="specLabel">Type · Inter</div>
+      <div class="fontspec"><b style="font-size:19px;font-weight:700">Inter</b> · 300–700, generous spacing</div>
+    </div>
+    <div class="specRow">
+      <div class="specLabel">Palette</div>
       <div class="swwrap">
-        <div class="sw" style="background:rgba(255,255,255,0.07);backdrop-filter:blur(8px)"><span>glass</span></div>
-        <div class="sw" style="background:linear-gradient(135deg,#ffd86b,#ffb347)"><span>gold</span></div>
-        <div class="sw" style="background:#3a7bd4"><span>blue glow</span></div>
-        <div class="sw" style="background:rgba(255,255,255,0.14)"><span>border</span></div>
+        <div class="sw" style="background:linear-gradient(135deg,#9bb2ff,#7c6cf0)"><span>indigo→violet</span></div>
+        <div class="sw" style="background:#141826"><span>card</span></div>
+        <div class="sw" style="background:#0a0c12"><span>bg</span></div>
       </div>
     </div>
 
-    <div class="mock card">
+    <div class="specRow card">
       <div class="cLabel">Budget today</div>
-      <div class="hero">+1,240</div>
-      <div class="sub">kcal remaining</div>
-      <div class="progress"><div></div></div>
-      <div class="btns">
-        <button class="btn btn-fill">Add meal</button>
-        <button class="btn btn-soft">Cancel</button>
+      <div class="ringwrap" style="margin-top:14px">
+        <svg viewBox="0 0 120 120">
+          <defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9bb2ff"/><stop offset="1" stop-color="#7c6cf0"/></linearGradient></defs>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="url(#gc)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="98" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="ringtxt"><div class="ringnum">+1,240</div><div class="ringunit">kcal left</div></div>
       </div>
+      <div class="ringside">
+        <div class="stat"><div class="k">2,510</div><div class="l">eaten</div></div>
+        <div class="stat"><div class="k">170g</div><div class="l">protein</div></div>
+      </div>
+      <div class="btns"><button class="btn btn-fill">Add meal</button><button class="btn btn-soft">Burn</button></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section id="warm">
+    <span class="tag">Direction C · Warm</span>
+    <div class="dirName">Oura Warm</div>
+    <div class="dirDesc">Oura's calm structure, but on Mimir's gold heritage — amber→coral rings on deep warm-black. Keeps brand continuity while feeling fresh.</div>
+
+    <div class="specRow">
+      <div class="specLabel">Type · Inter / SF Pro</div>
+      <div class="fontspec"><b style="font-size:19px;font-weight:700">Inter</b> · warm, confident</div>
+    </div>
+    <div class="specRow">
+      <div class="specLabel">Palette</div>
+      <div class="swwrap">
+        <div class="sw" style="background:linear-gradient(135deg,#f5c06a,#e89a4a)"><span>gold→amber</span></div>
+        <div class="sw" style="background:#e8946a"><span>coral</span></div>
+        <div class="sw" style="background:#1b1712"><span>card</span></div>
+      </div>
+    </div>
+
+    <div class="specRow card">
+      <div class="cLabel">Budget today</div>
+      <div class="ringwrap" style="margin-top:14px">
+        <svg viewBox="0 0 120 120">
+          <defs><linearGradient id="gw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5c06a"/><stop offset="1" stop-color="#e8946a"/></linearGradient></defs>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="url(#gw)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="98" transform="rotate(-90 60 60)" style="filter:drop-shadow(0 0 6px rgba(245,192,106,0.4))"/>
+        </svg>
+        <div class="ringtxt"><div class="ringnum">+1,240</div><div class="ringunit">kcal left</div></div>
+      </div>
+      <div class="ringside">
+        <div class="stat"><div class="k">2,510</div><div class="l">eaten</div></div>
+        <div class="stat"><div class="k">170g</div><div class="l">protein</div></div>
+      </div>
+      <div class="btns"><button class="btn btn-fill">Add meal</button><button class="btn btn-soft">Burn</button></div>
     </div>
   </section>
 </body>
