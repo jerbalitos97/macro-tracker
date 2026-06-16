@@ -5,7 +5,7 @@ import { formatDayOfWeek } from '../lib/dates'
 import { parsePositiveInt, parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
 import { MealRow } from '../components/MealRow'
 import { ProgressBar } from '../components/ProgressBar'
-import { Card, Button, Field } from '../components/ui'
+import { Card, Button, Field, RingGauge } from '../components/ui'
 
 const DAY_TYPE_LABEL: Record<string, string> = {
   rest:       'Lepopäivä',
@@ -111,7 +111,7 @@ export function TodayView({
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <div className="text-[22px] font-bold tracking-[-0.025em] text-text">{dayNameCap}</div>
+          <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">{dayNameCap}</div>
           <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">{DAY_TYPE_LABEL[day.dayType]}</div>
         </div>
         {savedFlash && (
@@ -120,35 +120,45 @@ export function TodayView({
       </div>
 
       {/* ── Budget card ─────────────────────────────────────────────── */}
-      <div
-        className={`rounded-card p-4 ${isOver ? 'border border-danger/20' : 'border border-border'}`}
-        style={{ background: isOver ? 'linear-gradient(145deg, #151210 0%, #131313 100%)' : 'linear-gradient(145deg, #141414 0%, #131313 100%)' }}
-      >
-        <div className={cardLabel}>Budjetti tänään</div>
+      <Card variant="glass" className="flex flex-col items-center">
+        <div className={`${cardLabel} self-start`}>Budjetti tänään</div>
 
-        {/* Big remaining number */}
-        <div className="mb-0.5">
-          <span className={`text-[46px] font-extrabold leading-none tracking-[-0.04em] tabular-nums ${isOver ? 'text-danger' : 'text-accent'}`}>
+        {/* Oura-style gradient ring — fill = % of budget used, centre = kcal left */}
+        <RingGauge
+          fraction={isOver ? 1 : pctConsumed}
+          gradientId="budgetRing"
+          from={isOver ? '#e87a6a' : '#7fe3d4'}
+          to={isOver ? '#e8946a' : '#5b8def'}
+          glow={isOver ? 'rgba(232,122,106,0.5)' : 'rgba(127,227,212,0.5)'}
+          size={168}
+        >
+          <span
+            className={`font-display text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isOver ? 'text-danger' : 'text-text'}`}
+          >
             {remaining >= 0 ? '+' : ''}{Math.round(remaining).toLocaleString('fi-FI')}
           </span>
-        </div>
-        <div className="mb-1 text-xs text-muted">kcal jäljellä</div>
+          <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/50">kcal jäljellä</span>
+        </RingGauge>
 
-        <ProgressBar value={pctConsumed} color={isOver ? '#e87a6a' : '#d4b85a'} height={7} />
-
-        <div className="mt-2.5 flex items-baseline justify-between text-xs">
-          <div>
-            <span className="text-text tabular-nums">{day.consumed.toLocaleString('fi-FI')}</span>
-            <span className="text-muted"> / {effectiveBudget.toLocaleString('fi-FI')} kcal</span>
+        {/* Side stats */}
+        <div className="mt-5 flex items-start gap-7">
+          <div className="text-center">
+            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.consumed.toLocaleString('fi-FI')}</div>
+            <div className="mt-0.5 text-[11px] text-white/50">syöty</div>
           </div>
-          <div className="text-[10px] tracking-[0.04em] text-[#444]">
-            TDEE {day.baseTdee.toLocaleString('fi-FI')}
+          <div className="text-center">
+            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-text">{effectiveBudget.toLocaleString('fi-FI')}</div>
+            <div className="mt-0.5 text-[11px] text-white/50">budjetti</div>
+          </div>
+          <div className="text-center">
+            <div className="text-[20px] font-bold tabular-nums tracking-[-0.02em] text-white/70">{day.baseTdee.toLocaleString('fi-FI')}</div>
+            <div className="mt-0.5 text-[11px] text-white/50">TDEE</div>
           </div>
         </div>
 
         {/* Training burn breakdown */}
         {totalBurnKcal > 0 && (
-          <div className="mt-3 border-t border-white/[0.06] pt-3">
+          <div className="mt-4 w-full border-t border-white/[0.1] pt-3">
             {[
               { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,      cls: 'text-[#777]' },
               { label: 'Treenikulutus', val: `+${totalBurnKcal.toLocaleString('fi-FI')} kcal`,   cls: 'text-protein' },
@@ -166,11 +176,11 @@ export function TodayView({
         )}
 
         {day.note && (
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent">
+          <div className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent">
             {day.note}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* ── Spread-the-excess suggestion ────────────────────────────── */}
       {isOver && Math.abs(remaining) >= 50 && (() => {
@@ -228,11 +238,11 @@ export function TodayView({
       })()}
 
       {/* ── Protein card ────────────────────────────────────────────── */}
-      <Card className="mt-2.5">
+      <Card variant="glass" className="mt-2.5">
         <div className={cardLabel}>Proteiini</div>
         <div className="flex items-end justify-between">
           <div>
-            <span className="text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein">{Math.round(day.protein)}</span>
+            <span className="font-display text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein">{Math.round(day.protein)}</span>
             <span className="text-xs text-muted"> / {proteinTarget} g</span>
           </div>
           <div className={`text-[11px] ${proteinRemaining <= 0 ? 'text-[#6ab46a]' : 'text-muted'}`}>
@@ -378,14 +388,11 @@ export function TodayView({
       )}
 
       {/* ── Cumulative deficit ───────────────────────────────────────── */}
-      <div
-        className="mt-[22px] rounded-card border border-accent/[0.08] p-4"
-        style={{ background: 'linear-gradient(145deg, #0f0f0f 0%, #111 100%)' }}
-      >
+      <Card variant="glass" className="mt-[22px]">
         <div className={cardLabel}>Kumulatiivinen vaje</div>
         <div className="flex items-end justify-between">
           <div>
-            <div className="text-[26px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
+            <div className="font-display text-[26px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
               {Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}
               <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
             </div>
@@ -399,7 +406,7 @@ export function TodayView({
           </div>
         </div>
         <ProgressBar value={deficitPct} color="#d4b85a" height={4} />
-      </div>
+      </Card>
     </div>
   )
 }

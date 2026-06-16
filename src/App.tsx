@@ -337,7 +337,7 @@ export default function App() {
   // ── Main app ──────────────────────────────────────────────────
   return (
     <LazyMotion features={domMax}>
-    <div className="mx-auto min-h-dvh max-w-[480px] bg-bg text-text pb-[calc(96px+env(safe-area-inset-bottom))]">
+    <div className="mx-auto min-h-dvh max-w-[480px] text-text pb-[calc(96px+env(safe-area-inset-bottom))]">
       {/* Storage error banner */}
       {saveError && (
         <div className="banner-enter flex items-center justify-between gap-3 border-b border-danger/25 bg-danger/10 px-4 py-2.5 text-xs text-danger">

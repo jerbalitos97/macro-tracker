@@ -12,18 +12,25 @@
   --color-protein:   #6a9ad4;
   --color-danger:    #e87a6a;
   --color-goal:      #f59e0b;
-  --color-text:      #ebebeb;
-  --color-muted:     #555555;
+  --color-text:      #eef1f6;
+  --color-muted:     #6a6f7a;
+
+  /* Oura Glass accents */
+  --color-teal:      #7fe3d4;
+  --color-indigo:    #5b8def;
+
   --color-border:    rgb(255 255 255 / 0.07);
   --color-border-hi: rgb(212 184 90 / 0.35);
 
   --radius-card:  12px;
+  --radius-glass: 24px;
   --radius-sheet: 20px;
   --radius-input: 8px;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  --font-mono:    ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  --font-display: -apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif;
 }
 
 /* ─── CSS Custom Properties ──────────────────────────────────────────────────── */
@@ -45,9 +52,14 @@
 
 html, body {
   height: 100%;
-  background-color: #0a0a0a;
-  color: #ebebeb;
-  font-family: var(--font-mono);
+  background-color: #06070a;
+  /* Oura-style gradient-mesh glow — teal top-right, indigo bottom-left. */
+  background-image:
+    radial-gradient(120% 90% at 88% -8%,  rgba(127, 227, 212, 0.07), transparent 55%),
+    radial-gradient(110% 80% at -5% 108%, rgba(91, 141, 239, 0.09), transparent 55%);
+  background-attachment: fixed;
+  color: #eef1f6;
+  font-family: var(--font-display);
   -webkit-text-size-adjust: 100%;
   /* Side safe-area insets only. Top is handled by sticky NavBar so it stays
      out from under the Dynamic Island on scroll. Bottom is handled by the
