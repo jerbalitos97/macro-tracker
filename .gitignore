@@ -27,3 +27,4 @@ pnpm-debug.log*
 # Environment (add if you ever use one)
 .env
 .env.local
+.claude/
