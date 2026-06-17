@@ -78,11 +78,15 @@
   --dur-slow: 360ms;
 }
 
-/* ─── Reset ──────────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ─── Reset ──────────────────────────────────────────────────────────────────────
+   Must live in @layer base. Unlayered, it would outrank Tailwind's utilities
+   (cascade layers beat specificity) and zero out every p-*/m-* utility app-wide. */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html, body {
