@@ -89,11 +89,15 @@
   }
 }
 
+/* Ink base lives on <html> only. <body> MUST stay transparent: the aurora
+   layer is position:fixed z-index:-10, and a negative-z element paints BEFORE
+   in-flow block backgrounds — so an opaque body background would paint over
+   (hide) the aurora, leaving it visible only where you scroll past the body
+   box (i.e. at the very bottom). That was the "glow only at the bottom" bug. */
+html { background-color: #05060c; }
+
 html, body {
   height: 100%;
-  /* Aurora Glass: solid ink base. The drifting aurora blobs are a real DOM
-     layer (AuroraBackground) so glass cards' backdrop-blur can sample them. */
-  background-color: #05060c;
   color: #ffffff;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
