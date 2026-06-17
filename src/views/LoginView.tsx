@@ -42,7 +42,7 @@ export function LoginView() {
 
       {/* ── Glass card ─────────────────────────────────────────────────── */}
       <div className="w-full max-w-[320px] rounded-glass border border-white/[0.14] bg-white/[0.06] p-6 [backdrop-filter:blur(26px)_saturate(180%)] [-webkit-backdrop-filter:blur(26px)_saturate(180%)] shadow-[0_28px_70px_-24px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)]">
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-1">
           <Field
             label="Sähköpostiosoite"
             type="email"
