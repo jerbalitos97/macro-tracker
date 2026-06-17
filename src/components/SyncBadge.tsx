@@ -12,45 +12,29 @@ const LABEL: Record<SyncStatus, string> = {
   offline: 'Offline',
 }
 
+// Dynamic border/text colors keyed by status — kept inline as they are truly data-driven.
 const COLOR: Record<SyncStatus, string> = {
   idle:    'transparent',
-  syncing: 'rgba(212,184,90,0.55)',
+  syncing: 'rgba(34,211,238,0.55)',
   synced:  'rgba(100,200,120,0.55)',
-  error:   'rgba(232,122,106,0.55)',
+  error:   'rgba(248,113,113,0.55)',
   offline: 'rgba(255,255,255,0.2)',
 }
 
 export function SyncBadge({ status }: Props) {
   if (status === 'idle') return null
 
+  const color = COLOR[status]
+
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '3px 9px',
-        borderRadius: 20,
-        border: `1px solid ${COLOR[status]}`,
-        fontSize: 10,
-        fontFamily: "ui-monospace, 'SF Mono', monospace",
-        textTransform: 'uppercase',
-        letterSpacing: '0.08em',
-        color: COLOR[status],
-        transition: 'all 0.3s ease',
-        whiteSpace: 'nowrap',
-      }}
+      className="flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] font-mono text-[10px] uppercase tracking-[0.08em] transition-all duration-300"
+      style={{ borderColor: color, color }}
     >
       {status === 'syncing' && (
         <span
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            backgroundColor: COLOR[status],
-            animation: 'pulse-dot 1s ease-in-out infinite',
-            flexShrink: 0,
-          }}
+          className="pulse-dot h-[5px] w-[5px] flex-shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
         />
       )}
       {LABEL[status]}

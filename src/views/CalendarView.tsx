@@ -10,7 +10,7 @@ import { UpcomingList } from '../components/UpcomingList'
 import { EventModal } from '../components/EventModal'
 import { ExtraModal } from '../components/ExtraModal'
 import { AdjustmentModal } from '../components/AdjustmentModal'
-import { s } from '../styles/tokens'
+import { Card, Button, Field } from '../components/ui'
 
 const DAY_TYPE_LABEL: Record<string, string> = {
   rest: 'Lepopäivä',
@@ -18,6 +18,10 @@ const DAY_TYPE_LABEL: Record<string, string> = {
   double: '2 treeniä',
   volleyball: 'Volleyball',
 }
+
+const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+
+const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#444]'
 
 interface Props {
   computed: ComputedResult
@@ -96,8 +100,18 @@ export function CalendarView({
       setSelectedDate(computed.days[selectedIdx + 1].date)
   }
 
+  const addBtn = (label: string, onClick: () => void, mt: string) => (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#666] ${mt}`}
+    >
+      <Plus size={14} />
+      {label}
+    </button>
+  )
+
   return (
-    <div style={s.content}>
+    <div className="px-4 pb-2 pt-4">
       <CalendarGrid
         days={computed.days}
         selectedDate={selectedDate}
@@ -105,42 +119,45 @@ export function CalendarView({
       />
 
       {selectedDay && (
-        <div style={{ ...s.card, marginTop: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Card variant="glass" className="mt-4">
+          <div className="flex items-center justify-between">
             <button
               onClick={goPrev}
-              style={s.iconBtn}
+              className={iconBtn}
               disabled={selectedIdx === 0}
             >
               <ChevronLeft size={16} />
             </button>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: '#888' }}>
+            <div className="text-center">
+              <div className="font-display text-[15px] font-semibold tracking-[-0.01em] text-text">
                 {formatDateShort(selectedDay.date)}
               </div>
-              <div style={{ fontSize: 11, color: '#555' }}>
+              <div className="text-[11px] uppercase tracking-[0.1em] text-muted">
                 {DAY_TYPE_LABEL[selectedDay.dayType]}
               </div>
             </div>
             <button
               onClick={goNext}
-              style={s.iconBtn}
+              className={iconBtn}
               disabled={selectedIdx === computed.days.length - 1}
             >
               <ChevronRight size={16} />
             </button>
           </div>
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #1f1f1f' }}>
+          <div className="mt-3.5 border-t border-white/[0.1] pt-3.5">
             <DayBreakdown day={selectedDay} />
           </div>
           {selectedDay.events.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {selectedDay.events.map((e) => (
-                <div key={e.id} style={s.noteBadge}>
+                <div
+                  key={e.id}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent"
+                >
                   🎉 {e.name}
                   <button
                     onClick={() => onDeleteEvent(e.id)}
-                    style={{ ...s.iconBtn, marginLeft: 8, display: 'inline-flex' }}
+                    className="icon-btn ml-2 inline-flex min-h-0 min-w-0 items-center justify-center text-accent"
                   >
                     <Trash2 size={11} />
                   </button>
@@ -148,154 +165,128 @@ export function CalendarView({
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Edit meals + burns for the selected day */}
       {selectedDay && (
-        <div style={{ ...s.card, marginTop: 10 }}>
-          <div style={s.cardLabel}>Ateriat ({dayMeals.length})</div>
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Ateriat ({dayMeals.length})</div>
           {dayMeals.map((m) => (
             <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />
           ))}
           {!showMealForm ? (
-            <button
-              onClick={() => setShowMealForm(true)}
-              style={{ ...s.addBtn, marginTop: dayMeals.length > 0 ? 12 : 8 }}
-            >
-              <Plus size={14} />
-              Lisää ateria
-            </button>
+            addBtn('Lisää ateria', () => setShowMealForm(true), dayMeals.length > 0 ? 'mt-3' : 'mt-2')
           ) : (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <label style={s.inputLabel}>kcal</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={mealForm.kcal}
-                    onChange={(e) => setMealForm({ ...mealForm, kcal: e.target.value })}
-                    style={s.input}
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label style={s.inputLabel}>Proteiini g</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={mealForm.protein}
-                    onChange={(e) => setMealForm({ ...mealForm, protein: e.target.value })}
-                    style={s.input}
-                  />
-                </div>
+            <div className="mt-3 flex flex-col gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
+                <Field
+                  label="kcal"
+                  type="number"
+                  inputMode="numeric"
+                  value={mealForm.kcal}
+                  onChange={(e) => setMealForm({ ...mealForm, kcal: e.target.value })}
+                  autoFocus
+                />
+                <Field
+                  label="Proteiini g"
+                  type="number"
+                  inputMode="decimal"
+                  value={mealForm.protein}
+                  onChange={(e) => setMealForm({ ...mealForm, protein: e.target.value })}
+                />
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={handleAddMeal} style={s.primaryBtn}>Tallenna</button>
-                <button
+              <div className="flex gap-2">
+                <Button variant="primary" onClick={handleAddMeal}>Tallenna</Button>
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowMealForm(false)
                     setMealForm({ kcal: '', protein: '' })
                   }}
-                  style={s.ghostBtn}
                 >
                   Peru
-                </button>
+                </Button>
               </div>
             </div>
           )}
 
-          <div style={{ ...s.cardLabel, marginTop: 18 }}>Treenikulutus ({dayBurns.length})</div>
+          <div className={`${cardLabel} mt-[18px]`}>Treenikulutus ({dayBurns.length})</div>
           {dayBurns.map((b) => (
             <div
               key={b.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 0',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}
+              className="flex items-center justify-between gap-2 border-b border-white/[0.05] py-2.5"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Flame size={14} color="#6a9ad4" />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#ebebeb', fontVariantNumeric: 'tabular-nums' }}>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Flame size={14} className="flex-shrink-0 text-protein" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold tabular-nums text-text">
                     +{b.kcal.toLocaleString('fi-FI')}
-                    <span style={{ fontSize: 11, color: '#555', marginLeft: 4 }}>kcal</span>
+                    <span className="ml-1 text-[11px] text-[#555]">kcal</span>
                   </div>
                   {b.note && (
-                    <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>{b.note}</div>
+                    <div className="mt-px truncate text-[11px] text-[#666]">{b.note}</div>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => onDeleteBurn(b.id)}
                 aria-label="Poista treenikulutus"
-                style={{ ...s.iconBtn, color: '#3a3a3a' }}
+                className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#3a3a3a]"
               >
                 <X size={14} />
               </button>
             </div>
           ))}
           {!showBurnForm ? (
-            <button
-              onClick={() => setShowBurnForm(true)}
-              style={{ ...s.addBtn, marginTop: dayBurns.length > 0 ? 12 : 8 }}
-            >
-              <Plus size={14} />
-              Lisää treenikulutus
-            </button>
+            addBtn('Lisää treenikulutus', () => setShowBurnForm(true), dayBurns.length > 0 ? 'mt-3' : 'mt-2')
           ) : (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={s.inputLabel}>kcal</label>
-              <input
+            <div className="mt-3 flex flex-col gap-1.5">
+              <Field
+                label="kcal"
                 type="number"
                 inputMode="numeric"
                 value={burnForm.kcal}
                 onChange={(e) => setBurnForm({ ...burnForm, kcal: e.target.value })}
-                style={s.input}
                 autoFocus
               />
-              <label style={s.inputLabel}>Muistiinpano (valinnainen)</label>
-              <input
+              <Field
+                label="Muistiinpano (valinnainen)"
                 type="text"
                 value={burnForm.note}
                 onChange={(e) => setBurnForm({ ...burnForm, note: e.target.value })}
-                style={s.input}
                 placeholder="esim. juoksu"
               />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={handleAddBurn} style={s.primaryBtn}>Tallenna</button>
-                <button
+              <div className="flex gap-2">
+                <Button variant="primary" onClick={handleAddBurn}>Tallenna</Button>
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowBurnForm(false)
                     setBurnForm({ kcal: '', note: '' })
                   }}
-                  style={s.ghostBtn}
                 >
                   Peru
-                </button>
+                </Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 12 }}>
-        <button onClick={() => setModalType('event')} style={s.actionBtn}>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Button variant="action" onClick={() => setModalType('event')}>
           <PartyPopper size={14} />
           Juhla
-        </button>
-        <button onClick={() => setModalType('extra')} style={s.actionBtn}>
+        </Button>
+        <Button variant="action" onClick={() => setModalType('extra')}>
           <Dumbbell size={14} />
           Treeni
-        </button>
-        <button onClick={() => setModalType('adjustment')} style={s.actionBtn}>
+        </Button>
+        <Button variant="action" onClick={() => setModalType('adjustment')}>
           <Sliders size={14} />
           Säätö
-        </button>
+        </Button>
       </div>
 
       <UpcomingList

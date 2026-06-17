@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { getSettings, updateSettings } from '../lib/wealth/settings'
 import { formatMoney } from '../lib/wealth/format'
-import { C, card, errorBanner, input, labelText, okBanner, primaryBtn } from '../lib/wealth/ui'
+import { Card, Button } from '../components/ui'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK']
+
+const fieldLabel = 'mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const inputCls =
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-sm text-text [color-scheme:dark]'
+const errorBanner =
+  'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
+const okBanner =
+  'mt-3 rounded-input border border-accent/40 bg-accent/[0.08] px-3 py-2 text-[11px] text-accent'
 
 interface Props {
   onBack: () => void
@@ -53,78 +61,68 @@ export function WealthSettingsView({ onBack }: Props) {
   }
 
   return (
-    <main style={{ padding: '20px 16px 40px', maxWidth: 520, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+    <main className="mx-auto max-w-[520px] px-4 pb-10 pt-5">
+      <div className="mb-3.5 flex items-center gap-2">
         <button
           onClick={onBack}
           aria-label="Takaisin"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            background: 'transparent',
-            border: `1px solid ${C.border}`,
-            color: C.text,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            minHeight: 0,
-            minWidth: 0,
-          }}
+          className="inline-flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full border border-border bg-transparent p-0 text-text"
         >
           <ChevronLeft size={18} />
         </button>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
+        <h1 className="font-display text-[22px] font-bold tracking-[-0.01em] text-text">
           Wealth settings
         </h1>
       </div>
-      <p style={{ margin: '0 0 14px', fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+      <p className="mb-3.5 text-xs leading-relaxed text-muted">
         Wealth goal mirrors as a threshold line on the dashboard chart.
       </p>
 
       {loading ? (
-        <div style={{ color: C.muted }}>Loading…</div>
+        <div className="text-muted">Loading…</div>
       ) : (
-        <form onSubmit={onSave} style={card}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={labelText}>Wealth goal ({currency})</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="e.g. 500000"
-              style={input}
-            />
-            {goal !== '' && Number.isFinite(Number(goal)) && (
-              <span style={labelText}>Shown as: {formatMoney(Number(goal), currency)}</span>
-            )}
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 14 }}>
-            <span style={labelText}>Currency</span>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              style={{ ...input, cursor: 'pointer' }}
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          {error && <p style={errorBanner}>{error}</p>}
-          {saved && <p style={okBanner}>Saved.</p>}
-          <div style={{ marginTop: 14 }}>
-            <button type="submit" disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.5 : 1 }}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
+        <Card variant="glass">
+          <form onSubmit={onSave}>
+            <label className="block">
+              <span className={fieldLabel}>Wealth goal ({currency})</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                placeholder="e.g. 500000"
+                className={inputCls}
+              />
+              {goal !== '' && Number.isFinite(Number(goal)) && (
+                <span className="mt-1 block text-[11px] text-muted">
+                  Shown as: {formatMoney(Number(goal), currency)}
+                </span>
+              )}
+            </label>
+            <label className="mt-3.5 block">
+              <span className={fieldLabel}>Currency</span>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className={`${inputCls} cursor-pointer`}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {error && <p className={errorBanner}>{error}</p>}
+            {saved && <p className={okBanner}>Saved.</p>}
+            <div className="mt-3.5 flex">
+              <Button type="submit" variant="primary" disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
     </main>
   )

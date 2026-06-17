@@ -5,9 +5,10 @@
 // Same geometry as scripts/gen-icons.mjs so the inline mark and the PWA
 // icon match pixel-for-pixel.
 
-const GOLD = '#d4b85a'
-const GOLD_DIM = '#a08938'
-const BG = '#0a0a0a'
+// Aurora-retinted brand mark — sky→blue "eclipse" over ink.
+const GOLD = '#7dd3fc'
+const GOLD_DIM = '#3b82f6'
+const BG = '#05060c'
 
 interface Props {
   size?: number

@@ -14,10 +14,10 @@ interface Props {
 }
 
 const PERIOD_COLORS: Record<string, string> = {
-  cut: '#d4b85a',
-  maintenance: '#6a9ad4',
-  refill: '#c98ad4',
-  bulk: '#8acb88',
+  cut: '#22d3ee',
+  maintenance: '#60a5fa',
+  refill: '#a78bfa',
+  bulk: '#34d399',
 }
 
 export function GoalChart({
@@ -86,7 +86,7 @@ export function GoalChart({
         y1: yPos(p.startWeight),
         x2: xPos(p.endDate),
         y2: yPos(p.targetWeight),
-        color: PERIOD_COLORS[p.type] ?? '#d4b85a',
+        color: PERIOD_COLORS[p.type] ?? '#22d3ee',
         active: p.status === 'active',
         endLabel:
           p.status === 'achieved'
@@ -102,7 +102,7 @@ export function GoalChart({
       y1: yPos(startWeight),
       x2: pad.left + innerW,
       y2: yPos(targetWeight),
-      color: '#d4b85a',
+      color: '#22d3ee',
       active: true,
       endLabel: `${targetWeight.toFixed(1)}`,
       endLabelKg: targetWeight,
@@ -130,18 +130,21 @@ export function GoalChart({
   // Y-axis labels
   const yLabels = [maxKg, (maxKg + minKg) / 2, minKg]
 
+  // Axis / label font — var() so it picks up the theme token
+  const monoFont = "ui-monospace, 'SF Mono', monospace"
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {/* Y-axis labels */}
       {yLabels.map((kg, i) => (
         <text
           key={i}
           x={pad.left - 5}
           y={yPos(kg) + 3}
-          fill="#444"
+          fill="var(--color-muted)"
           fontSize="8.5"
           textAnchor="end"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           {kg.toFixed(1)}
         </text>
@@ -198,7 +201,7 @@ export function GoalChart({
 
       {/* Actual trend line (solid gold) */}
       {trendPath && (
-        <path d={trendPath} fill="none" stroke="#d4b85a" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d={trendPath} fill="none" stroke="#22d3ee" strokeWidth="2.2" strokeLinejoin="round" />
       )}
 
       {/* Latest trend dot */}
@@ -207,7 +210,7 @@ export function GoalChart({
           cx={xPos(inRange[inRange.length - 1].date)}
           cy={yPos(inRange[inRange.length - 1].trend)}
           r="3.5"
-          fill="#d4b85a"
+          fill="#22d3ee"
         />
       )}
 
@@ -215,19 +218,19 @@ export function GoalChart({
       <text
         x={pad.left}
         y={H - 4}
-        fill="#444"
+        fill="var(--color-muted)"
         fontSize="8.5"
-        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontFamily={monoFont}
       >
         {chartStart.slice(5)}
       </text>
       <text
         x={W - pad.right}
         y={H - 4}
-        fill="#444"
+        fill="var(--color-muted)"
         fontSize="8.5"
         textAnchor="end"
-        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontFamily={monoFont}
       >
         {chartEnd.slice(5)}
       </text>
@@ -238,17 +241,17 @@ export function GoalChart({
           fill="rgba(255,255,255,0.25)"
           fontSize="8"
           textAnchor="middle"
-          fontFamily="ui-monospace, 'SF Mono', monospace"
+          fontFamily={monoFont}
         >
           tänään
         </text>
       )}
 
       {/* Legend */}
-      <line x1={W - 90} y1={pad.top + 4} x2={W - 78} y2={pad.top + 4} stroke="#d4b85a" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.55" />
-      <text x={W - 75} y={pad.top + 7} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">tavoitelinja</text>
-      <line x1={W - 90} y1={pad.top + 14} x2={W - 78} y2={pad.top + 14} stroke="#d4b85a" strokeWidth="2" />
-      <text x={W - 75} y={pad.top + 17} fill="#555" fontSize="8" fontFamily="ui-monospace, 'SF Mono', monospace">trendi</text>
+      <line x1={W - 90} y1={pad.top + 4} x2={W - 78} y2={pad.top + 4} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.55" />
+      <text x={W - 75} y={pad.top + 7} fill="#555" fontSize="8" fontFamily={monoFont}>tavoitelinja</text>
+      <line x1={W - 90} y1={pad.top + 14} x2={W - 78} y2={pad.top + 14} stroke="#22d3ee" strokeWidth="2" />
+      <text x={W - 75} y={pad.top + 17} fill="#555" fontSize="8" fontFamily={monoFont}>trendi</text>
     </svg>
   )
 }

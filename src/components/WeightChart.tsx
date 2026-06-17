@@ -40,40 +40,56 @@ export function WeightChart({ trendData, settings }: Props) {
   const showTarget = settings.targetWeight >= minY && settings.targetWeight <= maxY
   const last = trendData[trendData.length - 1]
 
+  // Dynamic color refs via CSS custom properties (set in @theme)
+  const accentColor = 'var(--color-accent)'
+  const gridColor = 'rgba(255,255,255,0.06)'
+  const dotColor = '#444'
+  const labelColor = 'var(--color-muted)'
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', marginTop: 8 }}>
-      <text x={pad.left - 6} y={pad.top + 4} fill="#555" fontSize="9" textAnchor="end" fontFamily="ui-monospace">
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="mt-2 h-auto w-full"
+    >
+      {/* Y-axis labels */}
+      <text x={pad.left - 6} y={pad.top + 4} fill={labelColor} fontSize="9" textAnchor="end" fontFamily="ui-monospace">
         {maxY.toFixed(1)}
       </text>
-      <text x={pad.left - 6} y={h - pad.bottom + 2} fill="#555" fontSize="9" textAnchor="end" fontFamily="ui-monospace">
+      <text x={pad.left - 6} y={h - pad.bottom + 2} fill={labelColor} fontSize="9" textAnchor="end" fontFamily="ui-monospace">
         {minY.toFixed(1)}
       </text>
-      <line x1={pad.left} y1={pad.top} x2={w - pad.right} y2={pad.top} stroke="#1a1a1a" strokeWidth="1" />
-      <line x1={pad.left} y1={h - pad.bottom} x2={w - pad.right} y2={h - pad.bottom} stroke="#1a1a1a" strokeWidth="1" />
 
+      {/* Grid lines */}
+      <line x1={pad.left} y1={pad.top} x2={w - pad.right} y2={pad.top} stroke={gridColor} strokeWidth="1" />
+      <line x1={pad.left} y1={h - pad.bottom} x2={w - pad.right} y2={h - pad.bottom} stroke={gridColor} strokeWidth="1" />
+
+      {/* Target weight line */}
       {showTarget && (
         <>
           <line
             x1={pad.left} y1={targetY} x2={w - pad.right} y2={targetY}
-            stroke="#d4b85a" strokeWidth="1" strokeDasharray="3,3" opacity="0.5"
+            stroke={accentColor} strokeWidth="1" strokeDasharray="3,3" opacity="0.5"
           />
-          <text x={w - pad.right} y={targetY - 3} fill="#d4b85a" fontSize="9" textAnchor="end" fontFamily="ui-monospace">
+          <text x={w - pad.right} y={targetY - 3} fill={accentColor} fontSize="9" textAnchor="end" fontFamily="ui-monospace">
             tavoite {settings.targetWeight}
           </text>
         </>
       )}
 
+      {/* Raw weight dots */}
       {trendData.map((d, i) => (
-        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="2" fill="#444" />
+        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="2" fill={dotColor} />
       ))}
 
-      <path d={trendPath} fill="none" stroke="#d4b85a" strokeWidth="2" />
-      <circle cx={xPos(last.date)} cy={yPos(last.trend)} r="3" fill="#d4b85a" />
+      {/* Trend line */}
+      <path d={trendPath} fill="none" stroke={accentColor} strokeWidth="2" />
+      <circle cx={xPos(last.date)} cy={yPos(last.trend)} r="3" fill={accentColor} />
 
-      <text x={pad.left} y={h - 4} fill="#555" fontSize="9" fontFamily="ui-monospace">
+      {/* X-axis date labels */}
+      <text x={pad.left} y={h - 4} fill={labelColor} fontSize="9" fontFamily="ui-monospace">
         {formatDateShort(trendData[0].date)}
       </text>
-      <text x={w - pad.right} y={h - 4} fill="#555" fontSize="9" textAnchor="end" fontFamily="ui-monospace">
+      <text x={w - pad.right} y={h - 4} fill={labelColor} fontSize="9" textAnchor="end" fontFamily="ui-monospace">
         {formatDateShort(last.date)}
       </text>
     </svg>

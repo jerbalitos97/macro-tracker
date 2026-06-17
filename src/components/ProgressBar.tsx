@@ -8,7 +8,7 @@ interface Props {
 
 export function ProgressBar({
   value,
-  color = '#d4b85a',
+  color = '#22d3ee',
   height = 6,
   gradient = true,
   animate = true,

@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Crown, Flame, CalendarCheck } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO, toISO } from '../lib/dates'
-import { s } from '../styles/tokens'
+
+import { Card } from '../components/ui'
+
+const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-text'
+const dateMain = 'font-display text-[22px] font-bold tracking-[-0.025em] text-text'
+const dateSub = 'mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted'
 
 interface Props {
   habits: Habit[]
@@ -152,35 +157,26 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
     } else setMonth((m) => m + 1)
   }
 
-  const accent = selectedHabit?.color ?? '#d4b85a'
+  const accent = selectedHabit?.color ?? '#22d3ee'
 
   return (
-    <div style={s.content}>
+    <div className="px-4 pb-2 pt-4">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <button onClick={onClose} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Takaisin">
+      <div className="mb-3.5 flex items-center gap-2">
+        <button onClick={onClose} className={iconBtn} aria-label="Takaisin">
           <ChevronLeft size={22} />
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={s.dateMain}>Tilastot</div>
-          <div style={s.dateSub}>{selectedHabit ? selectedHabit.name : 'Yhteenveto kaikista'}</div>
+        <div className="min-w-0 flex-1">
+          <div className={dateMain}>Tilastot</div>
+          <div className={dateSub}>{selectedHabit ? selectedHabit.name : 'Yhteenveto kaikista'}</div>
         </div>
       </div>
 
       {/* Habit filter chips */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          overflowX: 'auto',
-          paddingBottom: 4,
-          marginBottom: 14,
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
+      <div className="mb-3.5 flex gap-1.5 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
         <FilterChip
           label="Kaikki"
-          color="#d4b85a"
+          color="#22d3ee"
           active={selectedId === null}
           onClick={() => setSelectedId(null)}
         />
@@ -196,47 +192,29 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
       </div>
 
       {/* Month nav */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <button onClick={prevMonth} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Edellinen kuukausi">
+      <div className="mb-2.5 flex items-center justify-between">
+        <button onClick={prevMonth} className={iconBtn} aria-label="Edellinen kuukausi">
           <ChevronLeft size={18} />
         </button>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#fff',
-            textTransform: 'capitalize',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
+        <div className="text-[13px] font-bold capitalize tabular-nums text-white">
           {MONTH_NAMES[month]} {year}
         </div>
-        <button onClick={nextMonth} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Seuraava kuukausi">
+        <button onClick={nextMonth} className={iconBtn} aria-label="Seuraava kuukausi">
           <ChevronRight size={18} />
         </button>
       </div>
 
       {/* Day headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+      <div className="mb-1 grid grid-cols-7 gap-1">
         {DAY_HEADERS.map((d) => (
-          <div
-            key={d}
-            style={{
-              textAlign: 'center',
-              fontSize: 9,
-              color: '#555',
-              letterSpacing: '0.08em',
-              padding: '4px 0',
-              fontFamily: "ui-monospace, 'SF Mono', monospace",
-            }}
-          >
+          <div key={d} className="py-1 text-center font-mono text-[9px] tracking-[0.08em] text-[#555]">
             {d}
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      <div className="grid grid-cols-7 gap-1">
         {monthCells.map((c) => {
           const r = completionForDate(c.date)
           const isToday = c.date === today
@@ -253,20 +231,14 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
           return (
             <div
               key={c.date}
+              className="relative flex aspect-square flex-col items-center justify-center rounded-full"
               style={{
-                aspectRatio: '1',
-                borderRadius: '50%',
                 border: isToday
                   ? `1.5px solid ${accent}`
                   : c.inMonth
                     ? '1px solid rgba(255,255,255,0.05)'
                     : '1px solid transparent',
                 backgroundColor: c.inMonth ? fillColor : 'transparent',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
                 opacity: c.inMonth ? (isPast ? 1 : 0.5) : 0.18,
               }}
             >
@@ -275,17 +247,11 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
                   size={9}
                   color={accent}
                   fill={accent}
-                  style={{ position: 'absolute', top: -3, right: -2 }}
+                  className="absolute -top-[3px] -right-0.5"
                 />
               )}
               <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: perfect ? 700 : 500,
-                  color: r.ratio > 0.5 ? '#fff' : c.inMonth ? '#ebebeb' : '#444',
-                  fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 1,
-                }}
+                className={`text-xs leading-none tabular-nums ${perfect ? 'font-bold' : 'font-medium'} ${r.ratio > 0.5 ? 'text-white' : c.inMonth ? 'text-[#ebebeb]' : 'text-[#444]'}`}
               >
                 {dayNum}
               </div>
@@ -295,7 +261,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
       </div>
 
       {/* Monthly stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 20 }}>
+      <div className="mt-5 grid grid-cols-3 gap-2">
         <StatTile
           icon={<CalendarCheck size={14} color={accent} />}
           value={`${stats.rate.toFixed(0)} %`}
@@ -335,33 +301,13 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
+      className={`flex min-h-0 min-w-0 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs ${active ? 'text-white' : 'text-white/55'}`}
       style={{
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 12px',
-        borderRadius: 16,
         backgroundColor: active ? `${color}22` : 'rgba(255,255,255,0.04)',
         border: active ? `1px solid ${color}66` : '1px solid rgba(255,255,255,0.08)',
-        color: active ? '#fff' : 'rgba(255,255,255,0.55)',
-        fontSize: 12,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        minHeight: 'auto',
-        minWidth: 'auto',
       }}
     >
-      <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          backgroundColor: color,
-          flexShrink: 0,
-        }}
-      />
+      <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
       {label}
     </button>
   )
@@ -379,39 +325,17 @@ function StatTile({
   accent: string
 }) {
   return (
-    <div
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.05)',
-        borderRadius: 12,
-        padding: '10px 8px',
-        textAlign: 'center',
-      }}
-    >
-      <div style={{ marginBottom: 4 }}>{icon}</div>
+    <Card variant="glass" className="p-2.5 text-center">
+      <div className="mb-1 flex justify-center">{icon}</div>
       <div
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          color: accent,
-          fontVariantNumeric: 'tabular-nums',
-          letterSpacing: '-0.01em',
-        }}
+        className="font-display text-base font-bold tabular-nums tracking-[-0.01em]"
+        style={{ color: accent }}
       >
         {value}
       </div>
-      <div
-        style={{
-          fontSize: 9,
-          color: 'rgba(255,255,255,0.45)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          marginTop: 2,
-          fontFamily: "ui-monospace, 'SF Mono', monospace",
-        }}
-      >
+      <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white/45">
         {label}
       </div>
-    </div>
+    </Card>
   )
 }

@@ -1,7 +1,8 @@
 import { PartyPopper, Dumbbell, Trash2 } from 'lucide-react'
 import type { SpecialEvent, ExtraWorkout } from '../types'
 import { formatDateShort } from '../lib/dates'
-import { s } from '../styles/tokens'
+
+const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
 interface Props {
   events: SpecialEvent[]
@@ -24,21 +25,24 @@ export function UpcomingList({ events, extras, todayISO, onDeleteEvent, onDelete
   if (upcoming.length === 0) return null
 
   return (
-    <div style={{ marginTop: 20 }}>
-      <div style={s.sectionLabel}>Tulossa ({upcoming.length})</div>
+    <div className="mt-5">
+      <div className={sectionLabel}>Tulossa ({upcoming.length})</div>
       {upcoming.map((u) => (
-        <div key={`${u.type}-${u.id}`} style={s.mealRow}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          key={`${u.type}-${u.id}`}
+          className="flex items-center justify-between border-b border-white/[0.05] py-[11px]"
+        >
+          <div className="flex min-w-0 items-center gap-2">
             {u.type === 'event' ? (
-              <PartyPopper size={12} color="#e87a6a" />
+              <PartyPopper size={12} className="flex-shrink-0 text-danger" />
             ) : (
-              <Dumbbell size={12} color="#6a9ad4" />
+              <Dumbbell size={12} className="flex-shrink-0 text-protein" />
             )}
-            <div>
-              <div style={{ fontSize: 13 }}>
+            <div className="min-w-0">
+              <div className="truncate text-[13px] text-text">
                 {u.type === 'event' ? u.name : `Treeni (${u.kcal} kcal)`}
               </div>
-              <div style={{ fontSize: 10, color: '#555' }}>
+              <div className="truncate text-[10px] text-muted">
                 {formatDateShort(u.date)}
                 {u.type === 'event' &&
                   ` · +${u.excessKcal} kcal · buffer ${u.bufferDays} pv`}
@@ -49,7 +53,7 @@ export function UpcomingList({ events, extras, todayISO, onDeleteEvent, onDelete
             onClick={() =>
               u.type === 'event' ? onDeleteEvent(u.id) : onDeleteExtra(u.id)
             }
-            style={s.iconBtn}
+            className="icon-btn flex items-center justify-center rounded-md p-1.5 text-muted"
           >
             <Trash2 size={12} />
           </button>

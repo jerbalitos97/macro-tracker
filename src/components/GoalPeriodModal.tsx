@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Target } from 'lucide-react'
 import type { GoalPeriod, PeriodType } from '../types'
 import { toISO } from '../lib/dates'
-import { useBodyScrollLock } from '../lib/useBodyScrollLock'
-import { s } from '../styles/tokens'
+import { Sheet, Field, Chip, Button } from './ui'
 
 type FormState = {
   type: PeriodType
@@ -45,7 +44,6 @@ export function GoalPeriodModal({
   onSave,
   onClose,
 }: Props) {
-  useBodyScrollLock()
   const today = toISO(new Date())
   const [form, setForm] = useState<FormState>({
     type: initial?.type ?? 'cut',
@@ -67,155 +65,121 @@ export function GoalPeriodModal({
 
   const isRefill = form.type === 'refill'
 
-  const compactInput: React.CSSProperties = { ...s.input, padding: '10px 12px', fontSize: 14, marginTop: 4, marginBottom: 6 }
-  const compactToggle: React.CSSProperties = { ...s.toggleBtn, padding: '8px 4px' }
-
   return (
-    <div style={s.modalBg} onClick={onClose}>
-      <div style={s.modal} className="modal-enter" onClick={(e) => e.stopPropagation()}>
-        <div
-          style={{
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            margin: '-4px auto 12px',
-          }}
-        />
-
-        <div style={s.modalTitle}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={
+        <>
           <Target size={14} />
           {initial ? 'Muokkaa tavoitejaksoa' : 'Uusi tavoitejakso'}
-        </div>
-
-        <label style={s.inputLabel}>Tyyppi</label>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 4, marginBottom: 4 }}>
-          {(['cut', 'maintenance', 'refill', 'bulk'] as PeriodType[]).map((t) => {
-            const active = form.type === t
-            return (
-              <button
-                key={t}
-                onClick={() => setForm({ ...form, type: t })}
-                style={{ ...compactToggle, ...(active ? s.toggleBtnActive : {}) }}
-              >
-                {TYPE_LABEL[t]}
-              </button>
-            )
-          })}
-        </div>
-        <p style={{ margin: '0 0 12px', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-          {TYPE_HINT[form.type]}
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={s.inputLabel}>Alkaa</label>
-            <input
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              style={compactInput}
-            />
-          </div>
-          <div>
-            <label style={s.inputLabel}>Päättyy</label>
-            <input
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              style={compactInput}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={s.inputLabel}>Aloituspaino (kg)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={form.startWeight}
-              onChange={(e) => setForm({ ...form, startWeight: Number(e.target.value) })}
-              style={compactInput}
-              inputMode="decimal"
-            />
-          </div>
-          <div>
-            <label style={s.inputLabel}>Tavoitepaino (kg)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={form.targetWeight}
-              onChange={(e) => setForm({ ...form, targetWeight: Number(e.target.value) })}
-              style={compactInput}
-              inputMode="decimal"
-            />
-          </div>
-        </div>
-
-        {isRefill && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={s.inputLabel}>Ikkuna (vk)</label>
-              <input
-                type="number"
-                min={1}
-                max={8}
-                value={form.refillWindowWeeks}
-                onChange={(e) =>
-                  setForm({ ...form, refillWindowWeeks: Math.max(1, Number(e.target.value)) })
-                }
-                style={compactInput}
-                inputMode="numeric"
-              />
-            </div>
-            <div>
-              <label style={s.inputLabel}>Odotettu nousu (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.expectedRefillKg}
-                onChange={(e) => setForm({ ...form, expectedRefillKg: Number(e.target.value) })}
-                style={compactInput}
-                inputMode="decimal"
-              />
-            </div>
-          </div>
-        )}
-
-        <label style={s.inputLabel}>Tunniste (valinnainen)</label>
-        <input
-          type="text"
-          value={form.label}
-          onChange={(e) => setForm({ ...form, label: e.target.value })}
-          style={compactInput}
-          placeholder="esim. Kesäcut 2026"
-        />
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button
-            disabled={!valid}
-            onClick={() =>
-              onSave({
-                type: form.type,
-                startDate: form.startDate,
-                endDate: form.endDate,
-                startWeight: form.startWeight,
-                targetWeight: form.targetWeight,
-                refillWindowWeeks: isRefill ? form.refillWindowWeeks : undefined,
-                expectedRefillKg: isRefill ? form.expectedRefillKg : undefined,
-                label: form.label || undefined,
-              })
-            }
-            style={{ ...s.primaryBtn, opacity: valid ? 1 : 0.4 }}
+        </>
+      }
+    >
+      <span className="mt-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted">Tyyppi</span>
+      <div className="mb-1 mt-1 grid grid-cols-4 gap-1">
+        {(['cut', 'maintenance', 'refill', 'bulk'] as PeriodType[]).map((t) => (
+          <Chip
+            key={t}
+            active={form.type === t}
+            onClick={() => setForm({ ...form, type: t })}
+            className="justify-center rounded-input px-1 py-2"
           >
-            Tallenna
-          </button>
-          <button onClick={onClose} style={s.ghostBtn}>
-            Peru
-          </button>
-        </div>
+            {TYPE_LABEL[t]}
+          </Chip>
+        ))}
       </div>
-    </div>
+      <p className="m-0 mb-3 text-[11px] leading-normal text-white/45">{TYPE_HINT[form.type]}</p>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <Field
+          label="Alkaa"
+          type="date"
+          value={form.startDate}
+          onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+        />
+        <Field
+          label="Päättyy"
+          type="date"
+          value={form.endDate}
+          onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <Field
+          label="Aloituspaino (kg)"
+          type="number"
+          step="0.1"
+          inputMode="decimal"
+          value={form.startWeight}
+          onChange={(e) => setForm({ ...form, startWeight: Number(e.target.value) })}
+        />
+        <Field
+          label="Tavoitepaino (kg)"
+          type="number"
+          step="0.1"
+          inputMode="decimal"
+          value={form.targetWeight}
+          onChange={(e) => setForm({ ...form, targetWeight: Number(e.target.value) })}
+        />
+      </div>
+
+      {isRefill && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field
+            label="Ikkuna (vk)"
+            type="number"
+            min={1}
+            max={8}
+            inputMode="numeric"
+            value={form.refillWindowWeeks}
+            onChange={(e) =>
+              setForm({ ...form, refillWindowWeeks: Math.max(1, Number(e.target.value)) })
+            }
+          />
+          <Field
+            label="Odotettu nousu (kg)"
+            type="number"
+            step="0.1"
+            inputMode="decimal"
+            value={form.expectedRefillKg}
+            onChange={(e) => setForm({ ...form, expectedRefillKg: Number(e.target.value) })}
+          />
+        </div>
+      )}
+
+      <Field
+        label="Tunniste (valinnainen)"
+        type="text"
+        value={form.label}
+        onChange={(e) => setForm({ ...form, label: e.target.value })}
+        placeholder="esim. Kesäcut 2026"
+      />
+
+      <div className="mt-3.5 flex gap-2">
+        <Button
+          variant="primary"
+          disabled={!valid}
+          onClick={() =>
+            onSave({
+              type: form.type,
+              startDate: form.startDate,
+              endDate: form.endDate,
+              startWeight: form.startWeight,
+              targetWeight: form.targetWeight,
+              refillWindowWeeks: isRefill ? form.refillWindowWeeks : undefined,
+              expectedRefillKg: isRefill ? form.expectedRefillKg : undefined,
+              label: form.label || undefined,
+            })
+          }
+        >
+          Tallenna
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          Peru
+        </Button>
+      </div>
+    </Sheet>
   )
 }

@@ -8,48 +8,17 @@ interface Props {
 
 export function MealRow({ meal, onDelete }: Props) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '11px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="flex w-full items-center justify-between border-b border-white/[0.05] py-[11px]">
+      <div className="flex min-w-0 items-center gap-3">
         {/* Left accent stripe */}
-        <div
-          style={{
-            width: 3,
-            height: 28,
-            borderRadius: 2,
-            backgroundColor: 'rgba(212,184,90,0.35)',
-            flexShrink: 0,
-          }}
-        />
-        <div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 650,
-              color: '#ebebeb',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.01em',
-            }}
-          >
+        <div className="h-7 w-[3px] flex-shrink-0 rounded-sm bg-accent/35" />
+        <div className="min-w-0">
+          <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
             {meal.kcal.toLocaleString('fi-FI')}
-            <span style={{ fontSize: 11, color: '#555', fontWeight: 400, marginLeft: 4 }}>kcal</span>
+            <span className="ml-1 text-[11px] font-normal text-[#555]">kcal</span>
           </div>
           {meal.protein > 0 && (
-            <div
-              style={{
-                fontSize: 11,
-                color: '#6a9ad4',
-                marginTop: 1,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+            <div className="mt-px text-[11px] tabular-nums text-protein">
               {meal.protein.toFixed(1)} g P
             </div>
           )}
@@ -57,25 +26,9 @@ export function MealRow({ meal, onDelete }: Props) {
       </div>
 
       <button
-        className="icon-btn"
+        className="icon-btn flex items-center justify-center rounded-md bg-transparent border-none p-2 text-[#3a3a3a] transition-colors hover:text-danger"
         onClick={() => onDelete(meal.id)}
         aria-label="Poista ateria"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: '#3a3a3a',
-          cursor: 'pointer',
-          padding: 8,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 8,
-          minHeight: 'auto',
-          minWidth: 'auto',
-          transition: 'color 0.15s ease',
-        }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#e87a6a')}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#3a3a3a')}
       >
         <X size={14} />
       </button>

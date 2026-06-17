@@ -12,12 +12,12 @@ interface Tool {
 }
 
 const TOOLS: Tool[] = [
-  { label: 'Habit Tracking',    Icon: ListChecks,     color: '#c98ad4', target: 'habits' },
-  { label: 'Fitness Tracking',  Icon: Activity,       color: '#d4b85a', target: 'today' },
-  { label: 'Wealth',            Icon: Wallet,         color: '#8acb88', target: 'wealth' },
-  { label: 'Workout',           Icon: Dumbbell,       color: '#6a9ad4', target: null,    short: 'Workout' },
-  { label: 'Grocery',           Icon: ShoppingBasket, color: '#e87a6a', target: null,    short: 'Grocery' },
-  { label: 'Jarvis',            Icon: Sparkles,       color: '#9d8ad4', target: null,    short: 'Jarvis' },
+  { label: 'Habit Tracking',    Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
+  { label: 'Fitness Tracking',  Icon: Activity,       color: '#22d3ee', target: 'today' },
+  { label: 'Wealth',            Icon: Wallet,         color: '#34d399', target: 'wealth' },
+  { label: 'Workout',           Icon: Dumbbell,       color: '#60a5fa', target: null,    short: 'Workout' },
+  { label: 'Grocery',           Icon: ShoppingBasket, color: '#f87171', target: null,    short: 'Grocery' },
+  { label: 'Jarvis',            Icon: Sparkles,       color: '#a78bfa', target: null,    short: 'Jarvis' },
 ]
 
 interface Props {
@@ -26,51 +26,25 @@ interface Props {
 
 export function HomeView({ setView }: Props) {
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        padding: 'calc(env(safe-area-inset-top) + 36px) 20px calc(env(safe-area-inset-bottom) + 32px)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 32,
-      }}
-    >
+    <div className="flex min-h-dvh flex-col gap-8 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+36px)]">
       {/* Header — inline Mimir mark + name */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div className="flex items-center gap-3.5">
         <MimirMark size={44} />
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              color: 'rgba(255,255,255,0.45)',
-              letterSpacing: '0.32em',
-              fontFamily: "ui-monospace, 'SF Mono', monospace",
-              marginBottom: 4,
-            }}
-          >
-            MIMIR
-          </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.015em', color: '#fff' }}>
-            Työkalut
-          </h1>
+          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-white/45">MIMIR</div>
+          <h1 className="font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">Työkalut</h1>
         </div>
       </div>
 
       {/* Tool grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 14,
-        }}
-      >
+      <div className="grid grid-cols-2 gap-4">
         {TOOLS.map((tool) => (
           <ToolTile key={tool.label} tool={tool} setView={setView} />
         ))}
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>
+      <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
         Pidä pohjassa ja vedä järjestääksesi · asennettavissa PWA:na
       </div>
     </div>
@@ -86,68 +60,32 @@ function ToolTile({ tool, setView }: { tool: Tool; setView: (v: View) => void })
     <button
       onClick={handle}
       disabled={!enabled}
+      className="active:scale-[0.97] relative flex aspect-[1/1.08] min-h-0 min-w-0 flex-col items-start justify-between overflow-hidden rounded-tile border p-5 transition-transform duration-150 [backdrop-filter:blur(16px)_saturate(160%)] [-webkit-backdrop-filter:blur(16px)_saturate(160%)] disabled:cursor-not-allowed"
       style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-        padding: '24px 12px 16px',
-        borderRadius: 18,
         backgroundColor: enabled ? `${tool.color}14` : 'rgba(255,255,255,0.03)',
-        border: enabled ? `1px solid ${tool.color}33` : '1px solid rgba(255,255,255,0.05)',
-        cursor: enabled ? 'pointer' : 'not-allowed',
-        color: 'inherit',
-        fontFamily: 'inherit',
-        minHeight: 'auto',
-        minWidth: 'auto',
-        opacity: enabled ? 1 : 0.55,
-        transition: 'transform 0.18s ease, background-color 0.2s ease',
-        overflow: 'hidden',
+        borderColor: enabled ? `${tool.color}38` : 'rgba(255,255,255,0.08)',
+        boxShadow: enabled
+          ? '0 18px 50px -28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.10)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       <div
+        className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px]"
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: 14,
-          backgroundColor: enabled ? `${tool.color}22` : 'rgba(255,255,255,0.04)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: enabled ? tool.color : 'rgba(255,255,255,0.4)',
+          background: enabled
+            ? `linear-gradient(135deg, ${tool.color}66, ${tool.color}1f)`
+            : 'rgba(255,255,255,0.04)',
+          color: enabled ? tool.color : '#5a5c6a',
+          boxShadow: enabled ? `0 0 20px ${tool.color}40` : 'none',
         }}
       >
-        <tool.Icon size={26} strokeWidth={1.8} />
+        <tool.Icon size={26} strokeWidth={2} />
       </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: enabled ? '#fff' : 'rgba(255,255,255,0.5)',
-          letterSpacing: '-0.005em',
-          textAlign: 'center',
-        }}
-      >
+      <div className={`font-display text-[17px] font-semibold tracking-[-0.01em] ${enabled ? 'text-white' : 'text-fg-ghost'}`}>
         {tool.label}
       </div>
       {!enabled && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            fontSize: 8,
-            color: 'rgba(255,255,255,0.5)',
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            padding: '2px 6px',
-            borderRadius: 4,
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontFamily: "ui-monospace, 'SF Mono', monospace",
-            fontWeight: 600,
-          }}
-        >
+        <div className="absolute right-4 top-4 rounded-lg bg-white/[0.06] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">
           Tulossa
         </div>
       )}

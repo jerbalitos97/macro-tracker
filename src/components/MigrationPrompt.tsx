@@ -6,58 +6,29 @@ interface Props {
 
 export function MigrationPrompt({ onMigrate, onSkip, migrating }: Props) {
   return (
-    <div
-      className="banner-enter"
-      style={{
-        backgroundColor: 'rgba(212,184,90,0.08)',
-        borderBottom: '1px solid rgba(212,184,90,0.18)',
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 12,
-      }}
-    >
-      <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>☁️</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p
-          style={{
-            margin: '0 0 8px',
-            fontSize: 12,
-            color: 'rgba(255,255,255,0.7)',
-            lineHeight: 1.45,
-          }}
-        >
+    <div className="banner-enter flex items-start gap-3 border-b border-accent/[0.18] bg-accent/[0.08] px-4 py-3">
+      <span className="mt-px flex-shrink-0 text-[16px]">☁️</span>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 mb-2 text-[12px] leading-[1.45] text-white/70">
           Löydettiin paikallista dataa. Haluatko siirtää sen pilvipalveluun?
         </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={onMigrate}
             disabled={migrating}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              border: 'none',
-              backgroundColor: migrating ? 'rgba(255,255,255,0.06)' : '#d4b85a',
-              color: migrating ? 'rgba(255,255,255,0.2)' : '#000',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: migrating ? 'not-allowed' : 'pointer',
-            }}
+            className={[
+              'cursor-pointer rounded-[8px] border-none px-3.5 py-1.5 text-[12px] font-bold',
+              migrating
+                ? 'bg-white/[0.06] text-white/20 cursor-not-allowed'
+                : 'bg-accent text-bg',
+            ].join(' ')}
           >
             {migrating ? 'Siirretään…' : 'Siirrä pilveen'}
           </button>
           <button
             onClick={onSkip}
             disabled={migrating}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.1)',
-              backgroundColor: 'transparent',
-              color: 'rgba(255,255,255,0.35)',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
+            className="cursor-pointer rounded-[8px] border border-white/[0.1] bg-transparent px-3.5 py-1.5 text-[12px] text-white/35"
           >
             Ohita
           </button>

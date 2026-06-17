@@ -1,12 +1,14 @@
 import type { ComputedDay } from '../types'
 import { toISO, fromISO, getWeekdayNum } from '../lib/dates'
-import { s } from '../styles/tokens'
 
 interface Props {
   days: ComputedDay[]
   selectedDate: string
   setSelectedDate: (d: string) => void
 }
+
+const dayCellBase =
+  'relative flex aspect-square flex-col items-center justify-center rounded-lg border tabular-nums transition-colors'
 
 export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
   const todayISO = toISO(new Date())
@@ -35,41 +37,41 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
 
   return (
     <div>
-      <div style={s.weekHeader}>
+      <div className="mb-[3px] grid grid-cols-7 gap-0.5">
         {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
-          <div key={d} style={s.weekHeaderCell}>{d}</div>
+          <div key={d} className="py-1 text-center text-[9px] uppercase tracking-[0.1em] text-[#444]">{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (
-        <div key={wi} style={s.weekRow}>
+        <div key={wi} className="mb-0.5 grid grid-cols-7 gap-0.5">
           {week.map((day, di) => {
-            if (!day) return <div key={di} style={s.dayCell} />
+            if (!day) return <div key={di} className="aspect-square rounded-lg border border-transparent" />
             const isSelected = day.date === selectedDate
             const isToday = day.date === todayISO
             const hasEvent = day.events.length > 0
             const hasExtra = day.extraKcal > 0
             const hasBuffer = day.preBufferReduction > 0
+            const stateCls = isSelected
+              ? 'border-accent/60 bg-accent/[0.08] text-accent'
+              : isToday
+                ? 'border-white/[0.05] bg-[#0f0f0f] font-bold text-text'
+                : 'border-white/[0.05] bg-[#0f0f0f] text-[#777]'
             return (
               <button
                 key={di}
                 onClick={() => setSelectedDate(day.date)}
-                style={{
-                  ...s.dayCell,
-                  ...s.dayCellBtn,
-                  ...(isSelected ? s.dayCellSelected : {}),
-                  ...(isToday && !isSelected ? s.dayCellToday : {}),
-                }}
+                className={`${dayCellBase} ${stateCls}`}
               >
-                <div style={s.dayNum}>{fromISO(day.date).getDate()}</div>
-                <div style={s.dayDots}>
+                <div className="text-xs leading-none">{fromISO(day.date).getDate()}</div>
+                <div className="mt-[3px] flex h-1 items-center gap-0.5">
                   {hasEvent && (
-                    <span style={{ ...s.dot, backgroundColor: '#e87a6a' }} />
+                    <span className="inline-block h-[3px] w-[3px] rounded-full bg-danger" />
                   )}
                   {hasExtra && (
-                    <span style={{ ...s.dot, backgroundColor: '#6a9ad4' }} />
+                    <span className="inline-block h-[3px] w-[3px] rounded-full bg-protein" />
                   )}
                   {hasBuffer && !hasEvent && (
-                    <span style={{ ...s.dot, backgroundColor: '#d4b85a' }} />
+                    <span className="inline-block h-[3px] w-[3px] rounded-full bg-accent" />
                   )}
                 </div>
               </button>

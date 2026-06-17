@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { ChevronLeft, ListChecks } from 'lucide-react'
+import { ListChecks } from 'lucide-react'
 import type { Habit, HabitGoalPeriod, HabitGoalUnit } from '../types'
-import { s } from '../styles/tokens'
+import { Sheet, Field, Button } from './ui'
 
 const COLOR_SWATCHES = [
-  '#d4b85a', // gold
-  '#6a9ad4', // blue
-  '#8acb88', // green
-  '#e87a6a', // red
-  '#c98ad4', // purple
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#34d399', // green
+  '#f87171', // red
+  '#a78bfa', // purple
   '#d49a6a', // orange
   '#6ad4c8', // teal
   '#aaaaaa', // grey
@@ -28,6 +28,11 @@ interface Props {
   onSave: (input: FormState) => void
   onClose: () => void
 }
+
+const fieldLabel = 'mt-0.5 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const toggleBase = 'rounded-input border px-1 py-[7px] text-center text-[11px] font-mono cursor-pointer transition-colors'
+const toggleOff = 'border-white/[0.08] bg-black/30 text-muted'
+const toggleOn = 'border-accent/35 bg-accent/[0.1] text-accent'
 
 export function HabitFormModal({ initial, onSave, onClose }: Props) {
   const [form, setForm] = useState<FormState>({
@@ -51,162 +56,120 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
     })
   }
 
-  // Compact field styles so the whole form fits in the bottom sheet
-  // without internal scrolling on iPhone-sized screens.
-  const compactInput: React.CSSProperties = { ...s.input, padding: '10px 12px', fontSize: 14, marginTop: 4, marginBottom: 6 }
-  const compactLabel: React.CSSProperties = { ...s.inputLabel, marginTop: 2 }
-  const compactToggle: React.CSSProperties = { ...s.toggleBtn, padding: '7px 4px' }
-
   return (
-    <div style={s.content}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <button onClick={onClose} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Takaisin">
-          <ChevronLeft size={22} />
-        </button>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#d4b85a',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-          }}
-        >
+    <Sheet
+      open
+      onClose={onClose}
+      title={
+        <>
           <ListChecks size={14} />
           {initial ? 'Muokkaa tapaa' : 'Uusi tapa'}
+        </>
+      }
+    >
+      <Field
+        label="Nimi"
+        type="text"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        placeholder="esim. Juo 2 l vettä"
+        autoFocus
+      />
+
+      <Field
+        label="Kuvaus (valinnainen)"
+        type="text"
+        value={form.description}
+        onChange={(e) => setForm({ ...form, description: e.target.value })}
+        placeholder="esim. nesteytys"
+      />
+
+      <label className={fieldLabel}>Väri</label>
+      <div className="mb-2.5 mt-1 grid grid-cols-8 gap-2">
+        {COLOR_SWATCHES.map((c) => {
+          const active = form.color === c
+          return (
+            <button
+              key={c}
+              onClick={() => setForm({ ...form, color: c })}
+              className={`aspect-square min-h-0 min-w-0 w-full rounded-full p-0 ${active ? 'border-2 border-white' : 'border-2 border-transparent'}`}
+              style={{ backgroundColor: c }}
+              aria-label={`Väri ${c}`}
+            />
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <div>
+          <label className={fieldLabel}>Jakso</label>
+          <div className="mt-1 grid grid-cols-2 gap-1">
+            {([
+              ['day', 'Päivä'],
+              ['week', 'Viikko'],
+            ] as const).map(([id, label]) => {
+              const active = form.goalPeriod === id
+              return (
+                <button
+                  key={id}
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      goalPeriod: id,
+                      goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
+                    })
+                  }
+                  className={`${toggleBase} ${active ? toggleOn : toggleOff}`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <label className={fieldLabel}>Tyyppi</label>
+          <div className="mt-1 grid grid-cols-2 gap-1">
+            {([
+              ['count', 'Määrä'],
+              ['binary', 'Tehty'],
+            ] as const).map(([id, label]) => {
+              const active = form.goalUnit === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => setForm({ ...form, goalUnit: id })}
+                  className={`${toggleBase} ${active ? toggleOn : toggleOff}`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-        <label style={compactLabel}>Nimi</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          style={compactInput}
-          placeholder="esim. Juo 2 l vettä"
-          autoFocus
-        />
-
-        <label style={compactLabel}>Kuvaus (valinnainen)</label>
-        <input
-          type="text"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          style={compactInput}
-          placeholder="esim. nesteytys"
-        />
-
-        <label style={compactLabel}>Väri</label>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(8, 1fr)',
-            gap: 8,
-            marginTop: 4,
-            marginBottom: 10,
-          }}
-        >
-          {COLOR_SWATCHES.map((c) => {
-            const active = form.color === c
-            return (
-              <button
-                key={c}
-                onClick={() => setForm({ ...form, color: c })}
-                style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  borderRadius: '50%',
-                  backgroundColor: c,
-                  border: active ? '2px solid #fff' : '2px solid transparent',
-                  cursor: 'pointer',
-                  padding: 0,
-                  minWidth: 0,
-                  minHeight: 0,
-                }}
-                aria-label={`Väri ${c}`}
-              />
-            )
-          })}
+      {form.goalUnit === 'count' && (
+        <div className="mt-2.5">
+          <Field
+            label={`Tavoite (${form.goalPeriod === 'week' ? 'kpl/vk' : 'kpl/pv'})`}
+            type="number"
+            min={1}
+            value={form.goalValue}
+            onChange={(e) => setForm({ ...form, goalValue: Math.max(1, Number(e.target.value)) })}
+            inputMode="numeric"
+          />
         </div>
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={compactLabel}>Jakso</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 4 }}>
-              {([
-                ['day', 'Päivä'],
-                ['week', 'Viikko'],
-              ] as const).map(([id, label]) => {
-                const active = form.goalPeriod === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        goalPeriod: id,
-                        goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
-                      })
-                    }
-                    style={{ ...compactToggle, ...(active ? s.toggleBtnActive : {}) }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div>
-            <label style={compactLabel}>Tyyppi</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 4 }}>
-              {([
-                ['count', 'Määrä'],
-                ['binary', 'Tehty'],
-              ] as const).map(([id, label]) => {
-                const active = form.goalUnit === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setForm({ ...form, goalUnit: id })}
-                    style={{ ...compactToggle, ...(active ? s.toggleBtnActive : {}) }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {form.goalUnit === 'count' && (
-          <div style={{ marginTop: 10 }}>
-            <label style={compactLabel}>Tavoite ({form.goalPeriod === 'week' ? 'kpl/vk' : 'kpl/pv'})</label>
-            <input
-              type="number"
-              min={1}
-              value={form.goalValue}
-              onChange={(e) => setForm({ ...form, goalValue: Math.max(1, Number(e.target.value)) })}
-              style={compactInput}
-              inputMode="numeric"
-            />
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button
-            onClick={handleSave}
-            disabled={!valid}
-            style={{ ...s.primaryBtn, opacity: valid ? 1 : 0.4, cursor: valid ? 'pointer' : 'not-allowed' }}
-          >
-            Tallenna
-          </button>
-          <button onClick={onClose} style={s.ghostBtn}>
-            Peru
-          </button>
-        </div>
-    </div>
+      <div className="mt-3.5 flex gap-2">
+        <Button variant="primary" onClick={handleSave} disabled={!valid}>
+          Tallenna
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          Peru
+        </Button>
+      </div>
+    </Sheet>
   )
 }

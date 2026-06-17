@@ -1,6 +1,75 @@
+@import "tailwindcss";
+
+/* ─── Design tokens (single source of truth) ─────────────────────────────────────
+   Mapped to Tailwind utilities: bg-surface, text-accent, border-border,
+   rounded-card, font-mono, etc. Consolidates the old s-object (tokens.ts)
+   and the wealth C-palette (lib/wealth/ui.ts). */
+@theme {
+  /* ── Aurora Glass surfaces ── */
+  --color-bg:        #05060c;   /* screen base (ink) */
+  --color-ink-2:     #0a0b12;
+  --color-ink-3:     #2a2c3a;
+  --color-surface:   #0a0b12;
+  --color-modal:     #0c0d15;
+
+  /* ── Aurora accents ── (cyan primary, replaces gold) */
+  --color-accent:    #22d3ee;
+  --color-cyan:      #22d3ee;
+  --color-sky:       #7dd3fc;
+  --color-blue:      #3b82f6;
+  --color-violet:    #a78bfa;
+  --color-pink:      #ec4899;
+
+  /* Semantic (retuned to Aurora) */
+  --color-protein:   #60a5fa;
+  --color-danger:    #f87171;
+  --color-goal:      #a78bfa;
+
+  /* ── Text ramp ── */
+  --color-text:      #ffffff;
+  --color-fg:        #ffffff;
+  --color-muted:     #9a9cac;
+  --color-fg-muted:  #9a9cac;
+  --color-fg-dim:    #8a8c9c;
+  --color-fg-faint:  #7c7e8e;
+  --color-fg-ghost:  #5a5c6a;
+
+  /* ── Per-habit semantic colors ── */
+  --color-habit-neutral: #cbd0dc;
+  --color-habit-red:     #f87171;
+  --color-habit-orange:  #fb923c;
+  --color-habit-purple:  #a78bfa;
+  --color-habit-green:   #34d399;
+  --color-habit-blue:    #60a5fa;
+
+  --color-border:    rgb(255 255 255 / 0.10);
+  --color-border-hi: rgb(34 211 238 / 0.35);
+
+  /* ── Radii ── */
+  --radius-card:  28px;   /* hero / budget card */
+  --radius-panel: 24px;   /* secondary cards */
+  --radius-row:   20px;   /* list rows */
+  --radius-tile:  26px;   /* tool grid tiles */
+  --radius-glass: 24px;   /* legacy alias */
+  --radius-sheet: 24px;
+  --radius-input: 14px;
+
+  /* ── Glow / glass shadows ── */
+  --shadow-glass:     inset 0 1px 0 rgb(255 255 255 / 0.18), 0 20px 40px -20px rgb(0 0 0 / 0.6);
+  --shadow-glow-cyan: 0 0 16px rgb(34 211 238 / 0.6);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Aurora Glass type system:
+     - font-sans / font-display → Sora (headings, big metric numbers)
+     - font-mono → JetBrains Mono (ALL data, labels, units, nav, counters) */
+  --font-sans:    'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
 /* ─── CSS Custom Properties ──────────────────────────────────────────────────── */
 :root {
-  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
   --spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth:    cubic-bezier(0.45, 0, 0.55, 1);
 
@@ -9,17 +78,27 @@
   --dur-slow: 360ms;
 }
 
-/* ─── Reset ──────────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ─── Reset ──────────────────────────────────────────────────────────────────────
+   Must live in @layer base. Unlayered, it would outrank Tailwind's utilities
+   (cascade layers beat specificity) and zero out every p-*/m-* utility app-wide. */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html, body {
   height: 100%;
-  background-color: #0a0a0a;
-  color: #ebebeb;
+  /* Aurora Glass: solid ink base. The drifting aurora blobs are a real DOM
+     layer (AuroraBackground) so glass cards' backdrop-blur can sample them. */
+  background-color: #05060c;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
   /* Side safe-area insets only. Top is handled by sticky NavBar so it stays
      out from under the Dynamic Island on scroll. Bottom is handled by the
@@ -35,6 +114,15 @@ html.scroll-locked, body.scroll-locked {
 }
 
 #root { height: 100%; }
+
+/* ─── Aurora gradient-clipped text (big numbers / headings) ────────────────────── */
+.text-aurora {
+  background-image: linear-gradient(135deg, #7dd3fc, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 26px rgba(125, 211, 252, 0.28));
+}
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
 * { -webkit-overflow-scrolling: touch; }
@@ -91,6 +179,28 @@ input[type="number"] { -moz-appearance: textfield; }
 input[type="date"], select { color-scheme: dark; }
 
 /* ═══════════════════════════════ ANIMATIONS ════════════════════════════════════ */
+
+/* ─── Aurora ambient drift (background blobs) ──────────────────────────────────── */
+@keyframes auroraDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(6%, -4%) scale(1.12); }
+}
+@keyframes auroraDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1.05); }
+  50%      { transform: translate(-7%, 5%) scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.animate-aurora-1 { animation: auroraDrift  16s ease-in-out infinite; }
+.animate-aurora-2 { animation: auroraDrift2 18s ease-in-out infinite; }
+.animate-glow-pulse { animation: glowPulse 4s ease-in-out infinite; }
+
+/* Decorative motion only — respect reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora-1, .animate-aurora-2, .animate-glow-pulse { animation: none; }
+}
 
 /* View entrance — opacity only. A persistent `transform` on the view
    container (even translateY(0)) makes it the containing block for

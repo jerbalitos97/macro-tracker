@@ -13,7 +13,11 @@ import {
 } from '../lib/wealth/projection'
 import { formatMoney, formatPercent } from '../lib/wealth/format'
 import type { Asset, AssetValue, Settings } from '../lib/wealth/types'
-import { C, card, errorBanner, tinyLabel } from '../lib/wealth/ui'
+import { Card } from '../components/ui'
+
+const tinyLabel = 'text-[10px] font-medium uppercase tracking-[0.12em] text-muted font-mono'
+const errorBanner =
+  'rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
 
 const ASSET_COLORS = [
   '#22d3ee', '#a78bfa', '#f472b6', '#fb923c',
@@ -96,30 +100,24 @@ export function WealthView({ onOpenSettings }: Props) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0' }}>
+      <div className="flex items-center justify-center py-16">
         <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: `2px solid ${C.border}`,
-            borderTopColor: C.accent,
-            animation: 'spin 1s linear infinite',
-          }}
+          className="h-9 w-9 rounded-full border-2 border-border"
+          style={{ borderTopColor: '#22d3ee', animation: 'spin 1s linear infinite' }}
         />
       </div>
     )
   }
 
   return (
-    <main style={{ padding: '20px 16px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <main className="flex flex-col gap-4 px-4 pb-10 pt-5">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="flex items-center justify-between">
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
+          <h1 className="font-display text-[22px] font-bold tracking-[-0.01em] text-text">
             Wealth
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 11, color: C.muted }}>
+          <p className="mt-1 text-[11px] text-muted">
             Portfolio + goals
           </p>
         </div>
@@ -127,70 +125,51 @@ export function WealthView({ onOpenSettings }: Props) {
           type="button"
           onClick={onOpenSettings}
           aria-label="Wealth settings"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            background: 'transparent',
-            border: `1px solid ${C.border}`,
-            color: C.muted,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            minHeight: 0,
-            minWidth: 0,
-          }}
+          className="inline-flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted"
         >
           <SettingsIcon size={16} />
         </button>
       </div>
 
       {/* Stat cards */}
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={card}>
-          <div style={tinyLabel}>Portfolio total</div>
-          <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+      <section className="grid grid-cols-2 gap-2.5">
+        <Card variant="glass">
+          <div className={tinyLabel}>Portfolio total</div>
+          <div className="mt-1 font-display text-[24px] font-bold tabular-nums tracking-[-0.02em] text-text">
             {formatMoney(portfolioValue, settings.currency)}
           </div>
           {assets.length > 0 && (
-            <div style={{ marginTop: 4, fontSize: 12, color: overallChange >= 0 ? C.accent : C.danger }}>
+            <div className={`mt-1 text-xs ${overallChange >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
               {formatPercent(overallChange)} since start
             </div>
           )}
-        </div>
-        <div style={card}>
-          <div style={{ ...tinyLabel, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        </Card>
+        <Card variant="glass">
+          <div className={`${tinyLabel} flex items-baseline justify-between`}>
             <span>Wealth goal</span>
-            {goalProgress !== null && <span style={{ color: C.goal }}>{goalProgress.toFixed(1)}%</span>}
+            {goalProgress !== null && <span className="text-goal">{goalProgress.toFixed(1)}%</span>}
           </div>
           {settings.wealthGoal !== null ? (
             <>
-              <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+              <div className="mt-1 font-display text-[24px] font-bold tabular-nums tracking-[-0.02em] text-text">
                 {formatMoney(settings.wealthGoal, settings.currency)}
               </div>
-              <div style={{ marginTop: 10, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="mt-2.5 h-1.5 rounded-[3px] bg-white/[0.06]">
                 <div
-                  style={{
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: C.goal,
-                    width: `${Math.min(100, Math.max(0, goalProgress ?? 0))}%`,
-                    transition: 'width 0.45s ease',
-                  }}
+                  className="h-1.5 rounded-[3px] bg-goal transition-[width] duration-[450ms] ease-out"
+                  style={{ width: `${Math.min(100, Math.max(0, goalProgress ?? 0))}%` }}
                 />
               </div>
             </>
           ) : (
-            <div style={{ marginTop: 6, fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+            <div className="mt-1.5 text-xs leading-relaxed text-muted">
               Not set — add one in Settings to see it as a chart threshold.
             </div>
           )}
-        </div>
+        </Card>
       </section>
 
-      {error && <p style={errorBanner}>{error}</p>}
+      {error && <p className={errorBanner}>{error}</p>}
 
       <PortfolioChart
         data={chartData}
@@ -203,7 +182,7 @@ export function WealthView({ onOpenSettings }: Props) {
       />
 
       {/* Toggle chips row */}
-      <section style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      <section className="flex w-full flex-wrap items-center gap-1.5">
         <ToggleChip active={showPortfolio} onClick={() => setShowPortfolio((v) => !v)} swatch="#10b981">
           Portfolio
         </ToggleChip>
@@ -217,7 +196,7 @@ export function WealthView({ onOpenSettings }: Props) {
             {a.name}
           </ToggleChip>
         ))}
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+        <span className="ml-auto inline-flex items-center gap-1.5">
           <ToggleChip active={showProjection} onClick={() => setShowProjection((v) => !v)} swatch="#6366f1">
             Projection
           </ToggleChip>
@@ -225,17 +204,7 @@ export function WealthView({ onOpenSettings }: Props) {
             <select
               value={projectionYears}
               onChange={(e) => setProjectionYears(Number(e.target.value))}
-              style={{
-                borderRadius: 999,
-                border: `1px solid ${C.border}`,
-                backgroundColor: C.surface,
-                color: C.text,
-                fontSize: 11,
-                padding: '4px 8px',
-                fontFamily: 'inherit',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
+              className="cursor-pointer rounded-full border border-border bg-surface px-2 py-1 text-[11px] text-text [color-scheme:dark]"
             >
               {TIMEFRAMES.map((t) => (
                 <option key={t.years} value={t.years}>
@@ -248,8 +217,8 @@ export function WealthView({ onOpenSettings }: Props) {
       </section>
 
       {/* Assets list */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={tinyLabel}>Assets</div>
+      <section className="flex flex-col gap-2.5">
+        <div className={tinyLabel}>Assets</div>
         {assets.map((a, i) => {
           const sortedOwn = values
             .filter((v) => v.assetId === a.id)

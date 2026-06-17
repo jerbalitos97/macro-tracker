@@ -35,7 +35,14 @@ import { HistoryView } from './views/HistoryView'
 import { GoalView } from './views/GoalView'
 import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
-import { s } from './styles/tokens'
+import { LazyMotion, domMax, m, AnimatePresence } from 'motion/react'
+
+const viewMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const },
+}
 
 const DEFAULT_SETTINGS: Settings = {
   startDate: toISO(new Date()),
@@ -311,15 +318,13 @@ export default function App() {
   // ── Loading screens ───────────────────────────────────────────
   if (authLoading || !loaded) {
     return (
-      <div style={s.loading}>
-        <div style={{ display: 'flex', gap: 7 }}>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-bg">
+        <div className="flex gap-[7px]">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#d4b85a' }} />
+            <div key={i} className="pulse-dot h-2 w-2 rounded-full bg-accent" />
           ))}
         </div>
-        <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Ladataan
-        </div>
+        <div className="text-[11px] uppercase tracking-[0.12em] text-[#333]">Ladataan</div>
       </div>
     )
   }
@@ -331,29 +336,17 @@ export default function App() {
 
   // ── Main app ──────────────────────────────────────────────────
   return (
-    <div style={s.app}>
+    <LazyMotion features={domMax}>
+    <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(96px+env(safe-area-inset-bottom))]">
       {/* Storage error banner */}
       {saveError && (
-        <div
-          className="banner-enter"
-          style={{
-            backgroundColor: 'rgba(232,122,106,0.10)',
-            borderBottom: '1px solid rgba(232,122,106,0.25)',
-            padding: '10px 16px',
-            fontSize: 12,
-            color: '#e87a6a',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
+        <div className="banner-enter flex items-center justify-between gap-3 border-b border-danger/25 bg-danger/10 px-4 py-2.5 text-xs text-danger">
           <span>
             {saveError === 'quota'
               ? '⚠ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
               : '⚠ Tallennus epäonnistui – tarkista selainasetusten tallennuslupa.'}
           </span>
-          <button onClick={() => setSaveError(null)} style={{ ...s.iconBtn, fontSize: 16, color: '#e87a6a', lineHeight: 1 }}>×</button>
+          <button onClick={() => setSaveError(null)} className="flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-base leading-none text-danger">×</button>
         </div>
       )}
 
@@ -380,36 +373,37 @@ export default function App() {
 
       {/* Nav with sync badge — hidden on the launcher (home) view */}
       {view !== 'home' && (
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <NavBar view={view} setView={setView} />
           {user && syncStatus !== 'idle' && (
-            <div style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 6px)', right: 10, zIndex: 20 }}>
+            <div className="absolute right-2.5 top-[calc(env(safe-area-inset-top)+6px)] z-20">
               <SyncBadge status={syncStatus} />
             </div>
           )}
         </div>
       )}
 
+      <AnimatePresence mode="wait">
       {view === 'home' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <HomeView setView={setView} />
-        </div>
+        </m.div>
       )}
 
       {view === 'wealth' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <WealthView onOpenSettings={() => setView('wealth-settings')} />
-        </div>
+        </m.div>
       )}
 
       {view === 'wealth-settings' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <WealthSettingsView onBack={() => setView('wealth')} />
-        </div>
+        </m.div>
       )}
 
       {view === 'habits' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <HabitsView
             habits={habits}
             entries={habitEntries}
@@ -476,11 +470,11 @@ export default function App() {
               syncHabitEntry(user.id, entry)
             }}
           />
-        </div>
+        </m.div>
       )}
 
       {view === 'today' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <TodayView
             day={computed.days.find((d) => d.date === todayISO)}
             meals={meals.filter((m) => m.date === todayISO)}
@@ -517,11 +511,11 @@ export default function App() {
               if (user) syncAdjustment(user.id, a)
             }}
           />
-        </div>
+        </m.div>
       )}
 
       {view === 'calendar' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <CalendarView
             computed={computed}
             selectedDate={selectedDate}
@@ -583,11 +577,11 @@ export default function App() {
               if (user) syncDeleteBurn(user.id, id)
             }}
           />
-        </div>
+        </m.div>
       )}
 
       {view === 'weight' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <WeightView
             weights={weights}
             onAddWeight={(w) => {
@@ -616,23 +610,23 @@ export default function App() {
             settings={settings}
             meals={meals}
           />
-        </div>
+        </m.div>
       )}
 
       {view === 'history' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <HistoryView computed={computed} settings={settings} weights={weights} />
-        </div>
+        </m.div>
       )}
 
       {view === 'goal' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <GoalView settings={settings} weights={weights} computed={computed} />
-        </div>
+        </m.div>
       )}
 
       {view === 'settings' && (
-        <div className="view-enter">
+        <m.div key={view} {...viewMotion}>
           <SettingsView
             settings={settings}
             setSettings={setSettings}
@@ -642,8 +636,10 @@ export default function App() {
             onImport={handleImport}
             user={user}
           />
-        </div>
+        </m.div>
       )}
+      </AnimatePresence>
     </div>
+    </LazyMotion>
   )
 }

@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { ChevronLeft, MoreHorizontal, Plus, Minus, Check, Pencil, Archive } from 'lucide-react'
+import { MoreHorizontal, Plus, Minus, Check, Pencil, Archive } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO } from '../lib/dates'
-import { useBodyScrollLock } from '../lib/useBodyScrollLock'
 import { HabitProgressRing } from './HabitProgressRing'
-import { s } from '../styles/tokens'
+import { Sheet } from './ui'
 
 interface Props {
   habit: Habit
@@ -18,6 +17,11 @@ interface Props {
   onClose: () => void
 }
 
+const counterBtn =
+  'flex h-12 w-12 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] p-0 text-text'
+const menuItem =
+  'flex w-full min-h-0 items-center gap-2 rounded-md px-3 py-2.5 text-left text-[13px] text-[#ebebeb]'
+
 export function HabitDetailModal({
   habit,
   entries,
@@ -29,7 +33,6 @@ export function HabitDetailModal({
   onArchive,
   onClose,
 }: Props) {
-  useBodyScrollLock()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const goal = habit.goalValue
@@ -49,82 +52,35 @@ export function HabitDetailModal({
     fromISO(iso).toLocaleDateString('fi-FI', { weekday: 'narrow' }).toUpperCase()
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: '#0a0a0a',
-        zIndex: 200,
-        overflowY: 'auto',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
-        animation: 'viewFadeIn 0.22s var(--ease-out) both',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 16px 6px',
-        }}
-      >
-        <button onClick={onClose} style={{ ...s.iconBtn, color: '#fff' }} aria-label="Takaisin">
-          <ChevronLeft size={22} />
-        </button>
-        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: '#fff',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              padding: '0 8px',
-            }}
-          >
+    <Sheet open onClose={onClose}>
+      {/* Title row + overflow menu */}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-display text-[15px] font-bold tracking-[-0.01em] text-text">
             {habit.name}
           </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+          <div className="mt-0.5 text-[10px] text-white/40">
             {habit.goalPeriod === 'day' ? 'Päivätavoite' : 'Viikkotavoite'}
           </div>
         </div>
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            style={{ ...s.iconBtn, color: '#fff' }}
+            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-text"
             aria-label="Lisätoiminnot"
           >
             <MoreHorizontal size={20} />
           </button>
           {menuOpen && (
             <>
-              <div
-                onClick={() => setMenuOpen(false)}
-                style={{ position: 'fixed', inset: 0, zIndex: 1 }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 38,
-                  right: 0,
-                  backgroundColor: '#181818',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 10,
-                  padding: 4,
-                  minWidth: 160,
-                  zIndex: 2,
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                }}
-              >
+              <div onClick={() => setMenuOpen(false)} className="fixed inset-0 z-[1]" />
+              <div className="absolute right-0 top-[38px] z-[2] min-w-[160px] rounded-glass border border-white/10 bg-modal p-1 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                 <button
                   onClick={() => {
                     setMenuOpen(false)
                     onEdit()
                   }}
-                  style={menuItem}
+                  className={menuItem}
                 >
                   <Pencil size={13} />
                   Muokkaa
@@ -134,7 +90,7 @@ export function HabitDetailModal({
                     setMenuOpen(false)
                     onArchive()
                   }}
-                  style={{ ...menuItem, color: '#e87a6a' }}
+                  className={`${menuItem} text-danger`}
                 >
                   <Archive size={13} />
                   Arkistoi
@@ -146,91 +102,37 @@ export function HabitDetailModal({
       </div>
 
       {/* Progress ring */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '24px 16px 16px',
-        }}
-      >
-        <div style={{ position: 'relative', width: 200, height: 200 }}>
+      <div className="flex flex-col items-center px-4 pb-4 pt-2">
+        <div className="relative h-[200px] w-[200px]">
           <HabitProgressRing value={todayValue} goal={goal} color={habit.color} size={200} strokeWidth={14} />
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {reached && <Check size={28} color={habit.color} style={{ marginBottom: 4 }} />}
-            <div
-              style={{
-                fontSize: 38,
-                fontWeight: 800,
-                color: '#fff',
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-              }}
-            >
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {reached && <Check size={28} color={habit.color} className="mb-1" />}
+            <div className="font-display text-[38px] font-extrabold leading-none tracking-[-0.02em] tabular-nums text-text">
               {todayValue}
-              <span style={{ color: '#555', fontSize: 22, fontWeight: 600 }}> / {goal}</span>
+              <span className="text-[22px] font-semibold text-[#555]"> / {goal}</span>
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                color: 'rgba(255,255,255,0.4)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                marginTop: 8,
-              }}
-            >
+            <div className="mt-2 text-[10px] uppercase tracking-[0.1em] text-white/40">
               {Math.round(pct * 100)} %
             </div>
           </div>
         </div>
 
         {habit.description && (
-          <p
-            style={{
-              margin: '14px 0 0',
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.5)',
-              textAlign: 'center',
-              maxWidth: 320,
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="mt-3.5 max-w-[320px] text-center text-xs leading-normal text-white/50">
             {habit.description}
           </p>
         )}
       </div>
 
       {/* Counter controls */}
-      <div style={{ padding: '16px 16px' }}>
+      <div className="px-4 py-4">
         {isBinary ? (
           <button
             onClick={() => onSetBinary(!reached)}
+            className="flex w-full items-center justify-center gap-2 rounded-input p-4 text-sm font-bold tracking-[0.02em]"
             style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: 14,
-              border: 'none',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: '0.02em',
-              cursor: 'pointer',
               backgroundColor: reached ? habit.color : 'rgba(255,255,255,0.06)',
-              color: reached ? '#0a0a0a' : '#ebebeb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
+              color: reached ? '#05060c' : '#ebebeb',
             }}
           >
             {reached ? (
@@ -243,35 +145,24 @@ export function HabitDetailModal({
             )}
           </button>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
+          <div className="flex items-center justify-center gap-[18px]">
             <button
               onClick={() => onIncrement(-1)}
               disabled={todayValue <= 0}
-              style={{ ...counterBtn, opacity: todayValue <= 0 ? 0.3 : 1 }}
+              className={`${counterBtn} ${todayValue <= 0 ? 'opacity-30' : ''}`}
               aria-label="Vähennä"
             >
               <Minus size={20} />
             </button>
             <button
               onClick={() => onIncrement(+1)}
-              style={{
-                ...s.primaryBtn,
-                flex: 0,
-                padding: '14px 28px',
-                backgroundColor: habit.color,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
+              className="flex min-h-0 items-center gap-2 rounded-input px-7 py-3.5 text-[13px] font-bold tracking-[0.03em] text-bg"
+              style={{ backgroundColor: habit.color }}
             >
               <Plus size={16} />
               Lisää
             </button>
-            <button
-              onClick={() => onIncrement(+1)}
-              style={counterBtn}
-              aria-label="Kasvata"
-            >
+            <button onClick={() => onIncrement(+1)} className={counterBtn} aria-label="Kasvata">
               <Plus size={20} />
             </button>
           </div>
@@ -279,55 +170,25 @@ export function HabitDetailModal({
       </div>
 
       {/* 7-day strip */}
-      <div style={{ padding: '8px 16px 24px' }}>
-        <div
-          style={{
-            fontSize: 10,
-            color: 'rgba(255,255,255,0.35)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            marginBottom: 8,
-            fontFamily: "ui-monospace, 'SF Mono', monospace",
-          }}
-        >
+      <div className="px-4 pb-2 pt-2">
+        <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/35">
           Viimeiset 7 päivää
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+        <div className="grid grid-cols-7 gap-1.5">
           {days.map((d) => (
             <div
               key={d.date}
+              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[10px] border"
               style={{
-                aspectRatio: '1',
-                borderRadius: 10,
-                border: d.date === todayISO ? `1px solid ${habit.color}` : '1px solid rgba(255,255,255,0.07)',
+                borderColor: d.date === todayISO ? habit.color : 'rgba(255,255,255,0.07)',
                 backgroundColor: d.reached ? `${habit.color}22` : 'rgba(255,255,255,0.03)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
               }}
             >
-              <div
-                style={{
-                  fontSize: 9,
-                  color: 'rgba(255,255,255,0.4)',
-                  fontFamily: "ui-monospace, 'SF Mono', monospace",
-                  textTransform: 'uppercase',
-                }}
-              >
-                {dayLetter(d.date)}
-              </div>
+              <div className="font-mono text-[9px] uppercase text-white/40">{dayLetter(d.date)}</div>
               {d.reached ? (
                 <Check size={14} color={habit.color} />
               ) : (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: d.value > 0 ? '#fff' : 'rgba(255,255,255,0.3)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
+                <div className={`text-[11px] tabular-nums ${d.value > 0 ? 'text-text' : 'text-white/30'}`}>
                   {d.value}
                 </div>
               )}
@@ -335,39 +196,6 @@ export function HabitDetailModal({
           ))}
         </div>
       </div>
-    </div>
+    </Sheet>
   )
-}
-
-const menuItem: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  width: '100%',
-  padding: '10px 12px',
-  background: 'transparent',
-  border: 'none',
-  color: '#ebebeb',
-  fontSize: 13,
-  fontFamily: 'inherit',
-  textAlign: 'left',
-  cursor: 'pointer',
-  borderRadius: 6,
-  minHeight: 'auto',
-}
-
-const counterBtn: React.CSSProperties = {
-  width: 48,
-  height: 48,
-  borderRadius: 24,
-  backgroundColor: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#fff',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  padding: 0,
-  minWidth: 0,
-  minHeight: 0,
 }
