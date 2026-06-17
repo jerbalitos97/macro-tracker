@@ -127,9 +127,9 @@ export function HabitsView({
         <button
           onClick={() => setShowCreate(true)}
           aria-label="Lisää tapa"
-          className="flex h-10 w-10 min-h-0 min-w-0 items-center justify-center rounded-full bg-accent p-0 text-bg"
+          className="active:scale-95 flex h-[52px] w-[52px] min-h-0 min-w-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet p-0 text-bg shadow-[0_0_24px_rgba(34,211,238,0.55)] transition-transform duration-150"
         >
-          <Plus size={20} strokeWidth={2.4} />
+          <Plus size={24} strokeWidth={2.2} />
         </button>
       </div>
 
@@ -164,9 +164,9 @@ export function HabitsView({
             const isToday = d === todayISO
             const isFuture = d > todayISO
             const dayNum = fromISO(d).getDate()
-            const fillOpacity = c.total === 0 ? 0 : c.ratio === 0 ? 0 : Math.max(0.18, c.ratio * 0.7)
-            const fillBg = c.ratio > 0
-              ? `rgba(212, 184, 90, ${fillOpacity})`
+            const fillOpacity = c.total === 0 ? 0 : c.ratio === 0 ? 0 : Math.max(0.15, c.ratio * 0.6)
+            const fillBg = !isSelected && c.ratio > 0
+              ? `rgba(167, 139, 250, ${fillOpacity})`
               : 'transparent'
             return (
               <button
@@ -185,23 +185,26 @@ export function HabitsView({
                   className="relative flex h-8 w-8 items-center justify-center rounded-full"
                   style={{
                     border: isSelected
-                      ? '1.5px solid #d4b85a'
+                      ? 'none'
                       : isToday
-                        ? '1px solid rgba(212,184,90,0.4)'
+                        ? '1px solid rgba(34,211,238,0.45)'
                         : '1px solid rgba(255,255,255,0.08)',
-                    backgroundColor: fillBg,
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
+                      : fillBg,
+                    boxShadow: isSelected ? '0 0 16px rgba(34,211,238,0.55)' : 'none',
                   }}
                 >
                   {c.perfect && (
                     <Crown
                       size={9}
-                      color="#d4b85a"
-                      fill="#d4b85a"
+                      color="#7dd3fc"
+                      fill="#7dd3fc"
                       className="absolute -top-[3px] -right-0.5"
                     />
                   )}
                   <span
-                    className={`text-xs leading-none tabular-nums ${isSelected || isToday ? 'font-bold' : 'font-medium'} ${isSelected ? 'text-white' : isToday ? 'text-accent' : 'text-[#ebebeb]'}`}
+                    className={`text-xs leading-none tabular-nums ${isSelected || isToday ? 'font-bold' : 'font-medium'} ${isSelected ? 'text-bg' : isToday ? 'text-accent' : 'text-[#ebebeb]'}`}
                   >
                     {dayNum}
                   </span>
@@ -240,9 +243,18 @@ export function HabitsView({
                 key={habit.id}
                 onClick={() => setDetailId(habit.id)}
                 role="button"
-                className="relative cursor-pointer overflow-hidden rounded-glass border border-white/[0.1] bg-white/[0.06] [backdrop-filter:blur(26px)_saturate(180%)] [-webkit-backdrop-filter:blur(26px)_saturate(180%)] shadow-[0_28px_70px_-24px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)]"
-                style={{ borderLeft: `3px solid ${habit.color}` }}
+                className="relative cursor-pointer overflow-hidden rounded-row border [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]"
+                style={{
+                  backgroundColor: `${habit.color}12`,
+                  borderColor: `${habit.color}33`,
+                }}
               >
+                {/* Glowing color rail */}
+                <div
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 w-1"
+                  style={{ background: habit.color, boxShadow: `0 0 12px ${habit.color}` }}
+                />
                 <div className="px-3.5 pb-3 pt-3.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -268,7 +280,7 @@ export function HabitsView({
                           style={{
                             border: reached ? 'none' : `1px solid ${habit.color}66`,
                             backgroundColor: reached ? habit.color : 'transparent',
-                            color: reached ? '#0a0a0a' : habit.color,
+                            color: reached ? '#05060c' : habit.color,
                           }}
                         >
                           {reached ? <Check size={18} strokeWidth={2.4} /> : null}
@@ -289,7 +301,7 @@ export function HabitsView({
                             className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full p-0"
                             style={{
                               backgroundColor: reached ? habit.color : `${habit.color}22`,
-                              color: reached ? '#0a0a0a' : habit.color,
+                              color: reached ? '#05060c' : habit.color,
                             }}
                           >
                             {reached ? <Check size={16} strokeWidth={2.4} /> : <PlusIcon size={16} strokeWidth={2.2} />}

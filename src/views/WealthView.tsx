@@ -103,7 +103,7 @@ export function WealthView({ onOpenSettings }: Props) {
       <div className="flex items-center justify-center py-16">
         <div
           className="h-9 w-9 rounded-full border-2 border-border"
-          style={{ borderTopColor: '#d4b85a', animation: 'spin 1s linear infinite' }}
+          style={{ borderTopColor: '#22d3ee', animation: 'spin 1s linear infinite' }}
         />
       </div>
     )
@@ -139,7 +139,7 @@ export function WealthView({ onOpenSettings }: Props) {
             {formatMoney(portfolioValue, settings.currency)}
           </div>
           {assets.length > 0 && (
-            <div className={`mt-1 text-xs ${overallChange >= 0 ? 'text-[#8acb88]' : 'text-danger'}`}>
+            <div className={`mt-1 text-xs ${overallChange >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
               {formatPercent(overallChange)} since start
             </div>
           )}

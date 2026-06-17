@@ -75,7 +75,7 @@ export function DayBreakdown({ day }: Props) {
             const planned = day.dailyDeficitBase
             const diff = actual - planned
             const deficitColor =
-              diff >= 100 ? 'text-[#8acb88]' : diff <= -100 ? 'text-danger' : 'text-accent'
+              diff >= 100 ? 'text-[#34d399]' : diff <= -100 ? 'text-danger' : 'text-accent'
             return (
               <>
                 <div className={row}>

@@ -356,7 +356,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       Positiivinen luku tarkoittaa että paino on{' '}
                       <strong className="text-danger">yli linjan</strong> (jäljessä
                       aikataulusta). Negatiivinen luku ={' '}
-                      <strong style={{ color: '#8acb88' }}>alle linjan</strong> (edellä).
+                      <strong style={{ color: '#34d399' }}>alle linjan</strong> (edellä).
                     </p>
                     <p className="m-0 text-white/45">
                       Toleranssit: ±0,3 kg = oikealla radalla · 0,3–1,0 kg = hieman
@@ -675,8 +675,8 @@ const BANNER_STYLE: Record<Recommendation, BannerStyle> = {
   'tighten-significantly': {
     emoji: '🔴',
     title: 'Selkeästi jäljessä',
-    bg: 'rgba(232,122,106,0.06)',
-    border: 'rgba(232,122,106,0.2)',
+    bg: 'rgba(248,113,113,0.06)',
+    border: 'rgba(248,113,113,0.2)',
   },
   'loosen': {
     emoji: '💚',
@@ -716,7 +716,7 @@ function TrendStatusBanner({
     ok: { bg: 'rgba(100,200,120,0.06)', border: 'rgba(100,200,120,0.2)', emoji: '✅' },
     info: { bg: 'rgba(106,154,212,0.06)', border: 'rgba(106,154,212,0.2)', emoji: '💡' },
     warn: { bg: 'rgba(232,184,90,0.06)', border: 'rgba(232,184,90,0.2)', emoji: '⚠️' },
-    danger: { bg: 'rgba(232,122,106,0.06)', border: 'rgba(232,122,106,0.2)', emoji: '🔴' },
+    danger: { bg: 'rgba(248,113,113,0.06)', border: 'rgba(248,113,113,0.2)', emoji: '🔴' },
   }
   const c = palette[result.tone]
   return (
@@ -928,8 +928,8 @@ function ProjectedDateCard({
     <div
       className="rounded-card border px-4 py-3.5"
       style={{
-        backgroundColor: onTime ? 'rgba(100,200,120,0.05)' : 'rgba(232,122,106,0.05)',
-        borderColor: onTime ? 'rgba(100,200,120,0.15)' : 'rgba(232,122,106,0.15)',
+        backgroundColor: onTime ? 'rgba(100,200,120,0.05)' : 'rgba(248,113,113,0.05)',
+        borderColor: onTime ? 'rgba(100,200,120,0.15)' : 'rgba(248,113,113,0.15)',
       }}
     >
       <p className="m-0 mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-white/30">
@@ -938,7 +938,7 @@ function ProjectedDateCard({
       <p className="m-0 mb-1 text-[17px] font-bold text-text">
         {formatDateFi(projectedDate)}
       </p>
-      <p className="m-0 text-[12px]" style={{ color: onTime ? 'rgba(100,200,120,0.8)' : 'rgba(232,122,106,0.8)' }}>
+      <p className="m-0 text-[12px]" style={{ color: onTime ? 'rgba(100,200,120,0.8)' : 'rgba(248,113,113,0.8)' }}>
         {onTime
           ? `${daysDiff} pv ennen tavoitetta`
           : `${daysDiff} pv tavoitepäivän jälkeen`}
@@ -967,9 +967,9 @@ function SuggestionCard({
     ? dailyDeficitBase + recovery.extraPerDay
     : Math.max(0, dailyDeficitBase - recovery.extraPerDay)
 
-  const accent = recovery.achievable ? '#d4b85a' : '#e87a6a'
-  const bg = recovery.achievable ? 'rgba(212,184,90,0.06)' : 'rgba(232,122,106,0.06)'
-  const border = recovery.achievable ? 'rgba(212,184,90,0.2)' : 'rgba(232,122,106,0.25)'
+  const accent = recovery.achievable ? '#22d3ee' : '#f87171'
+  const bg = recovery.achievable ? 'rgba(34,211,238,0.06)' : 'rgba(248,113,113,0.06)'
+  const border = recovery.achievable ? 'rgba(34,211,238,0.2)' : 'rgba(248,113,113,0.25)'
 
   return (
     <div

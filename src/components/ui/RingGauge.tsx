@@ -19,9 +19,9 @@ const CIRC = 2 * Math.PI * R // 326.7
 export function RingGauge({
   fraction,
   gradientId,
-  from = '#7fe3d4',
-  to = '#5b8def',
-  track = 'rgba(255,255,255,0.09)',
+  from = '#7dd3fc',
+  to = '#a78bfa',
+  track = 'rgba(255,255,255,0.08)',
   glow,
   size = 156,
   children,

@@ -16,10 +16,10 @@ const PERIOD_TYPE_LABEL: Record<PeriodType, string> = {
   bulk: 'Bulk',
 }
 const PERIOD_TYPE_COLOR: Record<PeriodType, string> = {
-  cut: '#d4b85a',
-  maintenance: '#6a9ad4',
-  refill: '#c98ad4',
-  bulk: '#8acb88',
+  cut: '#22d3ee',
+  maintenance: '#60a5fa',
+  refill: '#a78bfa',
+  bulk: '#34d399',
 }
 
 interface Props {

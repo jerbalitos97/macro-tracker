@@ -127,13 +127,13 @@ export function TodayView({
         <RingGauge
           fraction={isOver ? 1 : pctConsumed}
           gradientId="budgetRing"
-          from={isOver ? '#e87a6a' : '#7fe3d4'}
-          to={isOver ? '#e8946a' : '#5b8def'}
-          glow={isOver ? 'rgba(232,122,106,0.5)' : 'rgba(127,227,212,0.5)'}
+          from={isOver ? '#f87171' : '#7dd3fc'}
+          to={isOver ? '#fb923c' : '#a78bfa'}
+          glow={isOver ? 'rgba(248,113,113,0.5)' : 'rgba(34,211,238,0.5)'}
           size={168}
         >
           <span
-            className={`font-display text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isOver ? 'text-danger' : 'text-text'}`}
+            className={`font-display text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isOver ? 'text-danger' : 'text-aurora'}`}
           >
             {remaining >= 0 ? '+' : ''}{Math.round(remaining).toLocaleString('fi-FI')}
           </span>
@@ -242,7 +242,7 @@ export function TodayView({
         <div className={cardLabel}>Proteiini</div>
         <div className="flex items-end justify-between">
           <div>
-            <span className="font-display text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein">{Math.round(day.protein)}</span>
+            <span className="font-display text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein [filter:drop-shadow(0_0_18px_rgba(96,165,250,0.45))]">{Math.round(day.protein)}</span>
             <span className="text-xs text-muted"> / {proteinTarget} g</span>
           </div>
           <div className={`text-[11px] ${proteinRemaining <= 0 ? 'text-[#6ab46a]' : 'text-muted'}`}>
@@ -251,7 +251,7 @@ export function TodayView({
               : '✓ tavoite täynnä'}
           </div>
         </div>
-        <ProgressBar value={day.protein / proteinTarget} color="#6a9ad4" height={6} />
+        <ProgressBar value={day.protein / proteinTarget} color="#60a5fa" height={6} />
       </Card>
 
       {/* ── Meals list ──────────────────────────────────────────────── */}
@@ -393,7 +393,7 @@ export function TodayView({
         <div className="flex items-end justify-between">
           <div>
             <div className="font-display text-[26px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
-              {Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}
+              <span className="text-aurora">{Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}</span>
               <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
             </div>
             <div className="mt-0.5 text-[11px] text-[#444]">
@@ -405,7 +405,7 @@ export function TodayView({
             <span className="text-xs font-normal text-[#666]">%</span>
           </div>
         </div>
-        <ProgressBar value={deficitPct} color="#d4b85a" height={4} />
+        <ProgressBar value={deficitPct} color="#22d3ee" height={4} />
       </Card>
     </div>
   )

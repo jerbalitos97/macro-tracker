@@ -209,7 +209,7 @@ export function WeightView({
           </div>
           <ProgressBar
             value={(settings.startWeight - trend.currentTrend) / (settings.startWeight - settings.targetWeight)}
-            color="#d4b85a"
+            color="#22d3ee"
             height={6}
           />
         </Card>
@@ -237,11 +237,11 @@ export function WeightView({
                       className={`flex-shrink-0 rounded-sm ${inAvg ? 'w-1 h-7' : 'w-[3px] h-7'}`}
                       style={{
                         backgroundColor: w.excludeFromTrend
-                          ? 'rgba(232,122,106,0.35)'
+                          ? 'rgba(248,113,113,0.35)'
                           : inAvg
                             ? 'var(--color-accent)'
                             : 'rgba(255,255,255,0.10)',
-                        boxShadow: inAvg ? '0 0 6px rgba(212,184,90,0.45)' : 'none',
+                        boxShadow: inAvg ? '0 0 6px rgba(34,211,238,0.45)' : 'none',
                       }}
                     />
                     <div>

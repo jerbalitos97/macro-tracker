@@ -75,7 +75,7 @@ export default function PortfolioChart({
             <YAxis stroke="#444" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} width={56} />
             <Tooltip
               contentStyle={{
-                background: '#181818',
+                background: '#0a0b12',
                 border: `1px solid ${CHART_BORDER}`,
                 borderRadius: 8,
                 color: CHART_TEXT,
@@ -90,11 +90,11 @@ export default function PortfolioChart({
             {wealthGoal !== null && (
               <ReferenceLine
                 y={wealthGoal}
-                stroke="#f59e0b"
+                stroke="#a78bfa"
                 strokeDasharray="4 4"
                 label={{
                   value: `Goal ${formatMoney(wealthGoal, currency)}`,
-                  fill: '#f59e0b',
+                  fill: '#a78bfa',
                   fontSize: 11,
                   position: 'insideTopRight',
                 }}

@@ -126,7 +126,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
             {(overallPct * 100).toFixed(1)}%
           </span>
         </div>
-        <ProgressBar value={overallPct} color="#d4b85a" height={6} />
+        <ProgressBar value={overallPct} color="#22d3ee" height={6} />
         <div className="mt-2 flex justify-between text-[10px] text-[#444]">
           <span>{doneDays.length} pv tehty</span>
           <span>{daysLeft} pv jäljellä</span>

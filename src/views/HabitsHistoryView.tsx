@@ -157,7 +157,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
     } else setMonth((m) => m + 1)
   }
 
-  const accent = selectedHabit?.color ?? '#d4b85a'
+  const accent = selectedHabit?.color ?? '#22d3ee'
 
   return (
     <div className="px-4 pb-2 pt-4">
@@ -176,7 +176,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
       <div className="mb-3.5 flex gap-1.5 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
         <FilterChip
           label="Kaikki"
-          color="#d4b85a"
+          color="#22d3ee"
           active={selectedId === null}
           onClick={() => setSelectedId(null)}
         />

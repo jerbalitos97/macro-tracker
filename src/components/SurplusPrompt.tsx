@@ -57,7 +57,7 @@ export function SurplusPrompt({
 
         <p className="m-0 mb-3.5 text-[13px] leading-[1.55] text-white/75">
           {dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)} vajetta kertyi{' '}
-          <strong className="text-[#8acb88]">
+          <strong className="text-[#34d399]">
             {surplus.toLocaleString('fi-FI')} kcal
           </strong>{' '}
           yli suunnitellun. Voit antaa tämän ylimäärän bonuksena tuleville päiville.

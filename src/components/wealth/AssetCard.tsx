@@ -163,7 +163,7 @@ export default function AssetCard({
             {currentValue !== null ? formatMoney(currentValue, currency) : '—'}
           </div>
           {change !== null && (
-            <div className={`mt-0.5 text-[11px] ${change >= 0 ? 'text-[#8acb88]' : 'text-danger'}`}>
+            <div className={`mt-0.5 text-[11px] ${change >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
               {formatPercent(change)} since start
             </div>
           )}

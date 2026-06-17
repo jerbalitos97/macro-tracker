@@ -4,11 +4,11 @@ import type { Habit, HabitGoalPeriod, HabitGoalUnit } from '../types'
 import { Sheet, Field, Button } from './ui'
 
 const COLOR_SWATCHES = [
-  '#d4b85a', // gold
-  '#6a9ad4', // blue
-  '#8acb88', // green
-  '#e87a6a', // red
-  '#c98ad4', // purple
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#34d399', // green
+  '#f87171', // red
+  '#a78bfa', // purple
   '#d49a6a', // orange
   '#6ad4c8', // teal
   '#aaaaaa', // grey

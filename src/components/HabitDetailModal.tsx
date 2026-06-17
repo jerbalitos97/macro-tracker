@@ -132,7 +132,7 @@ export function HabitDetailModal({
             className="flex w-full items-center justify-center gap-2 rounded-input p-4 text-sm font-bold tracking-[0.02em]"
             style={{
               backgroundColor: reached ? habit.color : 'rgba(255,255,255,0.06)',
-              color: reached ? '#0a0a0a' : '#ebebeb',
+              color: reached ? '#05060c' : '#ebebeb',
             }}
           >
             {reached ? (

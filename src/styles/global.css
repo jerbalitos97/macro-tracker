@@ -5,36 +5,66 @@
    rounded-card, font-mono, etc. Consolidates the old s-object (tokens.ts)
    and the wealth C-palette (lib/wealth/ui.ts). */
 @theme {
-  --color-bg:        #0a0a0a;
-  --color-surface:   #131313;
-  --color-modal:     #181818;
-  --color-accent:    #d4b85a;
-  --color-protein:   #6a9ad4;
-  --color-danger:    #e87a6a;
-  --color-goal:      #f59e0b;
-  --color-text:      #eef1f6;
-  --color-muted:     #6a6f7a;
+  /* ── Aurora Glass surfaces ── */
+  --color-bg:        #05060c;   /* screen base (ink) */
+  --color-ink-2:     #0a0b12;
+  --color-ink-3:     #2a2c3a;
+  --color-surface:   #0a0b12;
+  --color-modal:     #0c0d15;
 
-  /* Oura Glass accents */
-  --color-teal:      #7fe3d4;
-  --color-indigo:    #5b8def;
+  /* ── Aurora accents ── (cyan primary, replaces gold) */
+  --color-accent:    #22d3ee;
+  --color-cyan:      #22d3ee;
+  --color-sky:       #7dd3fc;
+  --color-blue:      #3b82f6;
+  --color-violet:    #a78bfa;
+  --color-pink:      #ec4899;
 
-  --color-border:    rgb(255 255 255 / 0.07);
-  --color-border-hi: rgb(212 184 90 / 0.35);
+  /* Semantic (retuned to Aurora) */
+  --color-protein:   #60a5fa;
+  --color-danger:    #f87171;
+  --color-goal:      #a78bfa;
 
-  --radius-card:  12px;
-  --radius-glass: 24px;
-  --radius-sheet: 20px;
-  --radius-input: 8px;
+  /* ── Text ramp ── */
+  --color-text:      #ffffff;
+  --color-fg:        #ffffff;
+  --color-muted:     #9a9cac;
+  --color-fg-muted:  #9a9cac;
+  --color-fg-dim:    #8a8c9c;
+  --color-fg-faint:  #7c7e8e;
+  --color-fg-ghost:  #5a5c6a;
+
+  /* ── Per-habit semantic colors ── */
+  --color-habit-neutral: #cbd0dc;
+  --color-habit-red:     #f87171;
+  --color-habit-orange:  #fb923c;
+  --color-habit-purple:  #a78bfa;
+  --color-habit-green:   #34d399;
+  --color-habit-blue:    #60a5fa;
+
+  --color-border:    rgb(255 255 255 / 0.10);
+  --color-border-hi: rgb(34 211 238 / 0.35);
+
+  /* ── Radii ── */
+  --radius-card:  28px;   /* hero / budget card */
+  --radius-panel: 24px;   /* secondary cards */
+  --radius-row:   20px;   /* list rows */
+  --radius-tile:  26px;   /* tool grid tiles */
+  --radius-glass: 24px;   /* legacy alias */
+  --radius-sheet: 24px;
+  --radius-input: 14px;
+
+  /* ── Glow / glass shadows ── */
+  --shadow-glass:     inset 0 1px 0 rgb(255 255 255 / 0.18), 0 20px 40px -20px rgb(0 0 0 / 0.6);
+  --shadow-glow-cyan: 0 0 16px rgb(34 211 238 / 0.6);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Three-role type system (matches the approved Glass brandbook):
-     - font-sans (default body) → Inter, the loaded webfont
-     - font-display (big numbers / headers) → SF Pro Display on Apple, Inter elsewhere
-     - font-mono (small uppercase labels) → JetBrains Mono, the loaded webfont */
-  --font-sans:    'Inter', -apple-system, system-ui, sans-serif;
-  --font-display: -apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  /* Aurora Glass type system:
+     - font-sans / font-display → Sora (headings, big metric numbers)
+     - font-mono → JetBrains Mono (ALL data, labels, units, nav, counters) */
+  --font-sans:    'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
   --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
@@ -57,13 +87,10 @@
 
 html, body {
   height: 100%;
-  background-color: #06070a;
-  /* Oura-style gradient-mesh glow — teal top-right, indigo bottom-left. */
-  background-image:
-    radial-gradient(120% 90% at 88% -8%,  rgba(127, 227, 212, 0.07), transparent 55%),
-    radial-gradient(110% 80% at -5% 108%, rgba(91, 141, 239, 0.09), transparent 55%);
-  background-attachment: fixed;
-  color: #eef1f6;
+  /* Aurora Glass: solid ink base. The drifting aurora blobs are a real DOM
+     layer (AuroraBackground) so glass cards' backdrop-blur can sample them. */
+  background-color: #05060c;
+  color: #ffffff;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -83,6 +110,15 @@ html.scroll-locked, body.scroll-locked {
 }
 
 #root { height: 100%; }
+
+/* ─── Aurora gradient-clipped text (big numbers / headings) ────────────────────── */
+.text-aurora {
+  background-image: linear-gradient(135deg, #7dd3fc, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 26px rgba(125, 211, 252, 0.28));
+}
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
 * { -webkit-overflow-scrolling: touch; }
@@ -139,6 +175,28 @@ input[type="number"] { -moz-appearance: textfield; }
 input[type="date"], select { color-scheme: dark; }
 
 /* ═══════════════════════════════ ANIMATIONS ════════════════════════════════════ */
+
+/* ─── Aurora ambient drift (background blobs) ──────────────────────────────────── */
+@keyframes auroraDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(6%, -4%) scale(1.12); }
+}
+@keyframes auroraDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1.05); }
+  50%      { transform: translate(-7%, 5%) scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.animate-aurora-1 { animation: auroraDrift  16s ease-in-out infinite; }
+.animate-aurora-2 { animation: auroraDrift2 18s ease-in-out infinite; }
+.animate-glow-pulse { animation: glowPulse 4s ease-in-out infinite; }
+
+/* Decorative motion only — respect reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora-1, .animate-aurora-2, .animate-glow-pulse { animation: none; }
+}
 
 /* View entrance — opacity only. A persistent `transform` on the view
    container (even translateY(0)) makes it the containing block for

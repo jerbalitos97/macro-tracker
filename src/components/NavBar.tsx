@@ -63,7 +63,7 @@ export function NavBar({ view, setView }: Props) {
   return (
     <nav
       role="tablist"
-      className="sticky top-0 z-10 flex border-b border-white/[0.06] bg-[rgba(10,10,10,0.88)] pt-[env(safe-area-inset-top)] [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+      className="sticky top-0 z-10 flex border-b border-white/[0.06] bg-[rgba(5,6,12,0.82)] pt-[env(safe-area-inset-top)] [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
     >
       {/* Sliding indicator bar */}
       <div
@@ -74,8 +74,8 @@ export function NavBar({ view, setView }: Props) {
           left: 0,
           width: `${100 / tabs.length}%`,
           height: 2,
-          background: 'linear-gradient(90deg, transparent 8%, #d4b85a 50%, transparent 92%)',
-          boxShadow: '0 0 10px rgba(212,184,90,0.55)',
+          background: 'linear-gradient(90deg, transparent 6%, #22d3ee 35%, #a78bfa 65%, transparent 94%)',
+          boxShadow: '0 0 12px rgba(34,211,238,0.6)',
           transform: `translateX(${activeIdx * 100}%)`,
           transition: 'transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
           pointerEvents: 'none',
