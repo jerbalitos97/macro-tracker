@@ -29,8 +29,13 @@
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --font-mono:    ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  /* Three-role type system (matches the approved Glass brandbook):
+     - font-sans (default body) → Inter, the loaded webfont
+     - font-display (big numbers / headers) → SF Pro Display on Apple, Inter elsewhere
+     - font-mono (small uppercase labels) → JetBrains Mono, the loaded webfont */
+  --font-sans:    'Inter', -apple-system, system-ui, sans-serif;
   --font-display: -apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
 /* ─── CSS Custom Properties ──────────────────────────────────────────────────── */
@@ -59,7 +64,9 @@ html, body {
     radial-gradient(110% 80% at -5% 108%, rgba(91, 141, 239, 0.09), transparent 55%);
   background-attachment: fixed;
   color: #eef1f6;
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
   -webkit-text-size-adjust: 100%;
   /* Side safe-area insets only. Top is handled by sticky NavBar so it stays

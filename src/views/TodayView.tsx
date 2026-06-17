@@ -276,16 +276,16 @@ export function TodayView({
           <div className={sectionLabel}>Treenikulutus ({burns.length})</div>
           <div className="list-stagger">
             {burns.map((b) => (
-              <div key={b.id} className="flex items-center justify-between border-b border-white/[0.05] py-[11px]">
-                <div className="flex items-center gap-2.5">
+              <div key={b.id} className="flex items-center justify-between gap-2 border-b border-white/[0.05] py-[11px]">
+                <div className="flex min-w-0 items-center gap-2.5">
                   <div className="h-7 w-[3px] flex-shrink-0 rounded-sm bg-protein/40" />
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-protein">
                       −{b.kcal.toLocaleString('fi-FI')}
                       <span className="ml-1 text-[11px] font-normal text-[#4a6a94]">kcal</span>
                     </div>
                     {b.note && (
-                      <div className="mt-px text-[11px] text-[#444]">{b.note}</div>
+                      <div className="mt-px truncate text-[11px] text-[#444]">{b.note}</div>
                     )}
                   </div>
                 </div>

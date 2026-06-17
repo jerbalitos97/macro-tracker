@@ -4,9 +4,9 @@ interface Props {
   day: ComputedDay
 }
 
-const row = 'flex justify-between py-[5px] text-xs'
-const label = 'text-muted'
-const val = 'tabular-nums text-text'
+const row = 'flex items-baseline justify-between gap-2 py-[5px] text-xs'
+const label = 'min-w-0 truncate text-muted'
+const val = 'flex-shrink-0 tabular-nums text-text'
 
 export function DayBreakdown({ day }: Props) {
   return (

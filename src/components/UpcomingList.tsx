@@ -39,10 +39,10 @@ export function UpcomingList({ events, extras, todayISO, onDeleteEvent, onDelete
               <Dumbbell size={12} className="flex-shrink-0 text-protein" />
             )}
             <div className="min-w-0">
-              <div className="text-[13px] text-text">
+              <div className="truncate text-[13px] text-text">
                 {u.type === 'event' ? u.name : `Treeni (${u.kcal} kcal)`}
               </div>
-              <div className="text-[10px] text-muted">
+              <div className="truncate text-[10px] text-muted">
                 {formatDateShort(u.date)}
                 {u.type === 'event' &&
                   ` · +${u.excessKcal} kcal · buffer ${u.bufferDays} pv`}

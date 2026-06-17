@@ -215,17 +215,17 @@ export function CalendarView({
           {dayBurns.map((b) => (
             <div
               key={b.id}
-              className="flex items-center justify-between border-b border-white/[0.05] py-2.5"
+              className="flex items-center justify-between gap-2 border-b border-white/[0.05] py-2.5"
             >
-              <div className="flex items-center gap-2.5">
-                <Flame size={14} className="text-protein" />
-                <div>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Flame size={14} className="flex-shrink-0 text-protein" />
+                <div className="min-w-0">
                   <div className="text-sm font-semibold tabular-nums text-text">
                     +{b.kcal.toLocaleString('fi-FI')}
                     <span className="ml-1 text-[11px] text-[#555]">kcal</span>
                   </div>
                   {b.note && (
-                    <div className="mt-px text-[11px] text-[#666]">{b.note}</div>
+                    <div className="mt-px truncate text-[11px] text-[#666]">{b.note}</div>
                   )}
                 </div>
               </div>
