@@ -80,7 +80,8 @@
 
 /* ─── Reset ──────────────────────────────────────────────────────────────────────
    Must live in @layer base. Unlayered, it would outrank Tailwind's utilities
-   (cascade layers beat specificity) and zero out every p-*/m-* utility app-wide. */
+   (cascade layers beat specificity) and zero out every padding/margin utility
+   app-wide. */
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;

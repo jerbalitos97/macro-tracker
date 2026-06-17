@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target, Wallet } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target, Wallet, Dumbbell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type View =
@@ -12,6 +12,7 @@ type View =
   | 'settings'
   | 'wealth'
   | 'wealth-settings'
+  | 'workout'
 
 interface Tab {
   id: View
@@ -43,9 +44,15 @@ const WEALTH_TABS: Tab[] = [
   { id: 'wealth-settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
 
+const WORKOUT_TABS: Tab[] = [
+  { id: 'home',    label: 'Koti',    Icon: LayoutGrid },
+  { id: 'workout', label: 'Workout', Icon: Dumbbell },
+]
+
 function tabsForView(v: View): Tab[] {
   if (v === 'habits') return HABIT_TABS
   if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
+  if (v === 'workout') return WORKOUT_TABS
   return FITNESS_TABS
 }
 

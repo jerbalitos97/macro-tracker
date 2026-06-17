@@ -28,6 +28,7 @@ import { LoginView } from './views/LoginView'
 import { HomeView } from './views/HomeView'
 import { WealthView } from './views/WealthView'
 import { WealthSettingsView } from './views/WealthSettingsView'
+import { WorkoutView } from './views/WorkoutView'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
@@ -399,6 +400,12 @@ export default function App() {
       {view === 'wealth-settings' && (
         <m.div key={view} {...viewMotion}>
           <WealthSettingsView onBack={() => setView('wealth')} />
+        </m.div>
+      )}
+
+      {view === 'workout' && (
+        <m.div key={view} {...viewMotion}>
+          <WorkoutView />
         </m.div>
       )}
 
