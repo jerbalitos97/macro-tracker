@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Check, Share2, Trash2, ShoppingBasket, Undo2, Tag } from 'lucide-react'
 import { Card, Button, Sheet } from '../components/ui'
 import {
-  CATEGORY_LABEL, STORE_LABEL, STORE_ORDER,
+  CATEGORY_LABEL, STORE_LABEL, STORE_ORDER, normalizeCategory,
 } from '../lib/groceryCategories'
 import type { CategoryKey, StoreKey } from '../lib/groceryCategories'
 import {
@@ -74,7 +74,7 @@ export function GroceryView() {
   // To-take grouped by category, in this store's walking order.
   const sections = useMemo(() => {
     return STORE_ORDER[store]
-      .map((cat) => ({ cat, items: todo.filter((i) => i.category === cat) }))
+      .map((cat) => ({ cat, items: todo.filter((i) => normalizeCategory(i.category) === cat) }))
       .filter((s) => s.items.length > 0)
   }, [todo, store])
 
@@ -313,7 +313,7 @@ export function GroceryView() {
                 key={cat}
                 onClick={() => { void setCategory(menuItem.id, cat); void refresh(); setMenuItem(null) }}
                 className={`rounded-input border px-3 py-2 text-left text-[12px] ${
-                  menuItem.category === cat ? 'border-cyan/40 bg-cyan/[0.1] text-cyan' : 'border-white/10 bg-white/[0.04] text-fg-muted'
+                  normalizeCategory(menuItem.category) === cat ? 'border-cyan/40 bg-cyan/[0.1] text-cyan' : 'border-white/10 bg-white/[0.04] text-fg-muted'
                 }`}
               >
                 {CATEGORY_LABEL[cat]}
