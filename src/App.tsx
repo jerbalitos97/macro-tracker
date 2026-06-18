@@ -333,19 +333,24 @@ export default function App() {
     )
   }
 
+  // ── Shared grocery link (?g=…) → LOCKED grocery-only mode ──────────
+  // Anyone opening a shared list sees ONLY that list: no top nav, no Koti, no
+  // access to any other view or the owner's data. Runs before the login gate
+  // and regardless of whether the opener is signed in — no account needed
+  // (the Supabase anon role can read/write the shared list). GroceryView loads
+  // the shared list (not the opener's own) because ?g= is present.
+  if (sharedListIdFromUrl()) {
+    return (
+      <LazyMotion features={domMax}>
+        <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(40px+env(safe-area-inset-bottom))]">
+          <GroceryView />
+        </div>
+      </LazyMotion>
+    )
+  }
+
   // ── Login screen (only when Supabase is configured and user is not signed in) ─
   if (authEnabled && !user) {
-    // Exception: a shared grocery link opens the list for guests (no account) —
-    // the Supabase anon role can read/write the shared list.
-    if (sharedListIdFromUrl()) {
-      return (
-        <LazyMotion features={domMax}>
-          <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(40px+env(safe-area-inset-bottom))]">
-            <GroceryView />
-          </div>
-        </LazyMotion>
-      )
-    }
     return <LoginView />
   }
 
