@@ -1,7 +1,7 @@
 import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
-import { MimirMark } from '../components/MimirMark'
+import { AppMark } from '../components/AppMark'
 
 interface Tool {
   label: string
@@ -17,7 +17,7 @@ const TOOLS: Tool[] = [
   { label: 'Wealth',            Icon: Wallet,         color: '#34d399', target: 'wealth' },
   { label: 'Workout',           Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
   { label: 'Grocery',           Icon: ShoppingBasket, color: '#f87171', target: null,    short: 'Grocery' },
-  { label: 'Jarvis',            Icon: Sparkles,       color: '#a78bfa', target: null,    short: 'Jarvis' },
+  { label: 'Talk to Friday',    Icon: Sparkles,       color: '#a78bfa', target: null,    short: 'Friday' },
 ]
 
 interface Props {
@@ -27,11 +27,11 @@ interface Props {
 export function HomeView({ setView }: Props) {
   return (
     <div className="flex min-h-dvh flex-col gap-8 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+36px)]">
-      {/* Header — inline Mimir mark + name */}
+      {/* Header — app mark + name */}
       <div className="flex items-center gap-3.5">
-        <MimirMark size={44} />
+        <AppMark size={44} />
         <div>
-          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-white/45">MIMIR</div>
+          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-white/45">FRIDAY</div>
           <h1 className="font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">Työkalut</h1>
         </div>
       </div>
