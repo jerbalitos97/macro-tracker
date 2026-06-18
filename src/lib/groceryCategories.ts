@@ -1,25 +1,31 @@
 // Grocery auto-categorisation + per-store section ordering.
 //
-// The 8 fixed sections come from the user's spec. The per-store ORDER mirrors
-// the typical walking route through each Finnish chain, derived from their
-// online-store taxonomies (s-kaupat.fi, k-ruoka.fi, lidl.fi). Items always
-// classify into the same 8 buckets by name; only the section order changes
-// with the store. Categories are approximations of real layouts — editable
-// per item in the UI.
+// Sections mirror the REAL chain departments (not a fixed 8), and each store's
+// ORDER follows that chain's online-shop taxonomy:
+//   - S-kaupat   (s-kaupat.fi)
+//   - K-Ruoka    (k-ruoka.fi)
+//   - Lidl       (lidl.fi)
+// Items classify by name into these departments; the section order changes
+// with the selected store. Editable per item in the UI.
 
 export type CategoryKey =
-  | 'hedelmat' | 'lihat' | 'maitotuotteet' | 'juomat'
-  | 'herkut' | 'mausteet' | 'kuivaaineet' | 'muut'
+  | 'hedelmat' | 'leipa' | 'liha' | 'kala' | 'valmis' | 'maito'
+  | 'kuiva' | 'sailyke' | 'mausteet' | 'pakaste' | 'makeiset' | 'juomat' | 'muut'
 
 export const CATEGORY_LABEL: Record<CategoryKey, string> = {
-  hedelmat:     'Hedelmät ja vihannekset',
-  lihat:        'Lihat',
-  maitotuotteet:'Maitotuotteet',
-  juomat:       'Juomat',
-  herkut:       'Herkut',
-  mausteet:     'Mausteet',
-  kuivaaineet:  'Kuiva-aineet',
-  muut:         'Muut',
+  hedelmat: 'Hedelmät ja vihannekset',
+  leipa:    'Leivät ja leivonnaiset',
+  liha:     'Liha ja kasviproteiinit',
+  kala:     'Kala ja merenelävät',
+  valmis:   'Valmisruoka',
+  maito:    'Maito, juusto ja munat',
+  kuiva:    'Kuivatuotteet ja leivonta',
+  sailyke:  'Säilykkeet ja ateria-ainekset',
+  mausteet: 'Öljyt, mausteet ja kastikkeet',
+  pakaste:  'Pakasteet',
+  makeiset: 'Makeiset ja naposteltavat',
+  juomat:   'Juomat',
+  muut:     'Muut',
 }
 
 export type StoreKey = 's' | 'k' | 'lidl'
@@ -30,72 +36,108 @@ export const STORE_LABEL: Record<StoreKey, string> = {
   lidl: 'Lidl',
 }
 
-// Order = the sequence you walk the sections in that chain (entrance → checkout).
+// Section order = the chain's own webshop taxonomy order.
 export const STORE_ORDER: Record<StoreKey, CategoryKey[]> = {
-  // S: produce → bakery/dry → meat → dairy → spices → drinks → sweets
-  s:    ['hedelmat', 'kuivaaineet', 'lihat', 'maitotuotteet', 'mausteet', 'juomat', 'herkut', 'muut'],
-  // K: produce → meat → dairy → dry → spices → drinks → sweets
-  k:    ['hedelmat', 'lihat', 'maitotuotteet', 'kuivaaineet', 'mausteet', 'juomat', 'herkut', 'muut'],
-  // Lidl: produce → dry/bakery → meat → dairy → drinks → sweets → spices
-  lidl: ['hedelmat', 'kuivaaineet', 'lihat', 'maitotuotteet', 'juomat', 'herkut', 'mausteet', 'muut'],
+  // s-kaupat.fi
+  s: ['hedelmat', 'leipa', 'liha', 'kala', 'valmis', 'maito', 'pakaste', 'kuiva', 'sailyke', 'mausteet', 'juomat', 'makeiset', 'muut'],
+  // k-ruoka.fi
+  k: ['hedelmat', 'leipa', 'liha', 'kala', 'valmis', 'maito', 'kuiva', 'sailyke', 'mausteet', 'pakaste', 'makeiset', 'juomat', 'muut'],
+  // lidl.fi
+  lidl: ['hedelmat', 'leipa', 'liha', 'kala', 'maito', 'valmis', 'pakaste', 'kuiva', 'sailyke', 'mausteet', 'makeiset', 'juomat', 'muut'],
 }
 
-// Keyword → category. Evaluated in PRIORITY order (first hit wins), so more
-// "override-y" categories (sweets, spices, dairy) are checked before broad
-// ones (meat, drinks, produce) to avoid mis-hits like maitosuklaa→Herkut,
-// kananmuna→Maitotuotteet, omenamehu→Juomat.
+// Map the original 8-category keys onto the new departments so items saved
+// before this change still render under the right section.
+const LEGACY_ALIAS: Record<string, CategoryKey> = {
+  hedelmat: 'hedelmat',
+  lihat: 'liha',
+  maitotuotteet: 'maito',
+  juomat: 'juomat',
+  herkut: 'makeiset',
+  mausteet: 'mausteet',
+  kuivaaineet: 'kuiva',
+  muut: 'muut',
+}
+
+export function normalizeCategory(c: string): CategoryKey {
+  if (c in CATEGORY_LABEL) return c as CategoryKey
+  if (c in LEGACY_ALIAS) return LEGACY_ALIAS[c]
+  return 'muut'
+}
+
+// Keyword → department, evaluated in PRIORITY order (first hit wins). Override-y
+// departments come first so e.g. maitosuklaa→Makeiset, kalamata-oliivit→Mausteet,
+// tomaattimurska→Säilykkeet, kananmuna→Maito (not Liha).
 const PRIORITY: CategoryKey[] = [
-  'herkut', 'mausteet', 'maitotuotteet', 'lihat', 'juomat', 'hedelmat', 'kuivaaineet',
+  'makeiset', 'mausteet', 'sailyke', 'maito', 'kala', 'liha',
+  'juomat', 'leipa', 'pakaste', 'valmis', 'kuiva', 'hedelmat',
 ]
 
 const KEYWORDS: Record<Exclude<CategoryKey, 'muut'>, string[]> = {
-  herkut: [
-    'karkki', 'makeinen', 'namu', 'suklaa', 'patukka', 'sipsi', 'lastu', 'naksu',
-    'popcorn', 'keksi', 'pikkuleip', 'vohveli', 'jäätel', 'jätski', 'kakku', 'pulla',
-    'donitsi', 'munkki', 'lakritsi', 'salmiakki', 'snack', 'dipp', 'pähkin', 'maustepähkin',
+  makeiset: [
+    'karkki', 'makeinen', 'namu', 'suklaa', 'patukka', 'sipsi', 'lastu', 'naks',
+    'popcorn', 'keksi', 'pikkuleip', 'vohveli', 'jäätel', 'lakritsi', 'salmiakki',
+    'snack', 'pähkin',
   ],
   mausteet: [
-    'suola', 'pippuri', 'mauste', 'curry', 'paprikajauhe', 'chilijauhe', 'kurkuma',
-    'kaneli', 'korianteri', 'kumina', 'basilika', 'oregano', 'timjami', 'rosmariini',
-    'yrtti', 'persilja', 'tilli', 'sinappi', 'ketsuppi', 'ketchup', 'majoneesi', 'majo',
-    'kastike', 'soijakast', 'salsa', 'öljy', 'etikka', 'balsamico', 'liemikuutio', 'fondi',
-    'tomaattisose', 'tomaattimurska', 'tomaattipyree',
+    'öljy', 'oliivi', 'etikka', 'mauste', 'suola', 'pippuri', 'kastike', 'ketsuppi',
+    'ketchup', 'sinappi', 'majoneesi', 'majo', 'sriracha', 'soijakast', 'salsa',
+    'curry', 'paprikajauhe', 'chilijauhe', 'chilirouhe', 'kurkuma', 'kaneli',
+    'korianteri', 'oregano', 'basilika', 'timjami', 'rosmariini', 'cajun', 'fondi',
+    'liemikuutio', 'salaatinkast', 'balsamico', 'dippijauhe', 'dippi', 'pesto',
   ],
-  maitotuotteet: [
-    'maito', 'piimä', 'kerma', 'kermaviili', 'smetana', 'juusto', 'edam', 'emmental',
-    'gouda', 'mozzarella', 'feta', 'raejuusto', 'tuorejuusto', 'jogurtti', 'jugurtti',
-    'rahka', 'viili', 'voi ', 'margariini', 'levite', 'oltermanni', 'aura', 'kananmuna',
-    'muna', 'munat',
+  sailyke: [
+    'säilyke', 'tomaattimurska', 'tomaattisose', 'tomaattipyree', 'kikherne', 'linssi',
+    'keitto', 'kookosmaito', 'maissisäilyke', 'tonnikalasäilyke',
   ],
-  lihat: [
-    'jauheliha', 'nauta', 'possu', 'sika', 'porsas', 'kana', 'broiler', 'kalkkuna',
-    'makkara', 'nakki', 'pekoni', 'kinkku', 'leike', 'pihvi', 'filee', 'fileet',
-    'lihapull', 'liha', 'kassler', 'lammas', 'poro', 'lohi', 'kirjolohi', 'seiti',
-    'tonnikala', 'silli', 'katkarapu', 'kala', 'tofu', 'nyhtö', 'härkis', 'härkäpapu',
+  maito: [
+    'maito', 'piimä', 'kerma', 'smetana', 'juusto', 'edam', 'emmental', 'gouda',
+    'mozzarella', 'feta', 'parmesan', 'raejuusto', 'tuorejuusto', 'jogurtti',
+    'jugurtti', 'rahka', 'viili', 'voi ', 'margariini', 'levite', 'oltermanni',
+    'kananmuna', 'muna', 'munat',
+  ],
+  kala: [
+    'kala', 'lohi', 'kirjolohi', 'seiti', 'tonnikala', 'silli', 'muikku', 'nieriä',
+    'makrilli', 'katkarapu', 'mäti', 'surimi', 'anjovis', 'simpukka',
+  ],
+  liha: [
+    'liha', 'jauheliha', 'jauhis', 'nauta', 'possu', 'sika', 'porsas', 'kana',
+    'broiler', 'kalkkuna', 'makkara', 'nakki', 'pekoni', 'kinkku', 'leike', 'pihvi',
+    'filee', 'kassler', 'lammas', 'poro', 'tofu', 'nyhtö', 'härkis', 'härkäpapu',
     'seitan', 'falafel', 'soijarouhe',
   ],
   juomat: [
     'mehu', 'limu', 'limsa', 'virvoitus', 'cola', 'kokis', 'pepsi', 'jaffa', 'vesi',
-    'kivennäis', 'vichy', 'kahvi', 'tee', 'kaakaojuoma', 'energiajuoma', 'smoothie',
+    'kivennäis', 'vichy', 'kahvi', 'tee ', 'kaakaojuoma', 'energiajuoma', 'smoothie',
     'olut', 'lager', 'siideri', 'lonkero', 'viini', 'kuohuviini', 'samppanja', 'juoma',
     'kombucha', 'gin', 'vodka', 'viski',
   ],
+  leipa: [
+    'leipä', 'sämpyl', 'näkkileip', 'ruisleip', 'paahtoleip', 'patonki', 'rieska',
+    'rinkeli', 'tortilla', 'pitaleip', 'ruispalat', 'korppu', 'croissant',
+  ],
+  pakaste: [
+    'pakaste', 'pakastemarja', 'pakastevihannes', 'ranskalaiset', 'nugget', 'kalapuikko',
+  ],
+  valmis: [
+    'valmisruoka', 'eines', 'pizza', 'lasagne', 'wokki', 'gratiini',
+  ],
+  kuiva: [
+    'riisi', 'pasta', 'spagetti', 'makaroni', 'nuudeli', 'couscous', 'bulgur', 'jauho',
+    'vehnä', 'sokeri', 'hiiva', 'leivinjauhe', 'ruokasooda', 'kaurahiutale', 'hiutale',
+    'mysli', 'muro', 'puuro', 'hillo', 'hunaja', 'manteli', 'rusina', 'taateli',
+    'kookos', 'siemen', 'vaniljasokeri', 'kaakaojauhe', 'leseet', 'pellava', 'chia',
+    'kvinoa', 'korppujauho',
+  ],
   hedelmat: [
     'omena', 'banaani', 'appelsiini', 'sitruuna', 'lime', 'mandariini', 'päärynä',
-    'rypäle', 'mango', 'ananas', 'kiivi', 'persikka', 'luumu', 'marja', 'mansikka',
+    'rypäle', 'mango', 'ananas', 'kiivi', 'persikka', 'luumu', 'marja', 'mansik',
     'mustikka', 'vadelma', 'puolukka', 'tomaatti', 'kurkku', 'paprika', 'peruna',
     'porkkana', 'sipuli', 'valkosipuli', 'salaatti', 'pinaatti', 'parsakaali',
     'kukkakaali', 'kaali', 'lanttu', 'nauris', 'bataatti', 'avokado', 'sieni',
     'retiisi', 'selleri', 'fenkoli', 'parsa', 'maissi', 'kesäkurpitsa', 'munakoiso',
-    'lehtikaali', 'rucola', 'vihannes', 'hedelmä', 'sitruuna', 'minttu', 'inkivääri',
-  ],
-  kuivaaineet: [
-    'riisi', 'pasta', 'spagetti', 'makaroni', 'nuudeli', 'couscous', 'bulgur', 'jauho',
-    'sokeri', 'hiiva', 'leivinjauhe', 'ruokasooda', 'kaurahiutale', 'hiutale', 'mysli',
-    'muro', 'puuro', 'näkkileip', 'leip', 'ruisleip', 'paahtoleip', 'sämpyl', 'knäkki',
-    'korppu', 'säilyke', 'papu', 'kikherne', 'linssi', 'hillo', 'hunaja', 'maapähkinävoi',
-    'kaakaojauhe', 'kvinoa', 'siemen', 'manteli', 'rusina', 'taateli', 'kookos',
-    'korppujauho', 'leseet', 'pellava', 'chia',
+    'lehtikaali', 'rucola', 'vihannes', 'hedelmä', 'tilli', 'ruohosipuli', 'minttu',
+    'inkivääri', 'chili',
   ],
 }
 
