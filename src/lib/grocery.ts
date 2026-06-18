@@ -25,6 +25,7 @@ export interface GroceryList {
   id: string
   name: string
   store: StoreKey
+  owner_id: string | null
   created_at: string
 }
 
@@ -47,17 +48,39 @@ function savedListId(): string | null {
   try { return localStorage.getItem(K_LIST) } catch { return null }
 }
 
-/** Owner: load the device's active list, or create one. */
-export async function getOrCreateList(): Promise<GroceryList | null> {
+/** Owner: load the account's list (same on every device/URL), or create one.
+ *  Falls back to a device-remembered list for anonymous use, claiming it for
+ *  the owner if logged in. */
+export async function getOrCreateList(ownerId?: string): Promise<GroceryList | null> {
   if (!supabase) return null
+
+  // Logged-in owner → their account list, regardless of device/URL.
+  if (ownerId) {
+    const { data } = await supabase
+      .from('grocery_lists').select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: true })
+      .limit(1).maybeSingle()
+    if (data) { rememberListId(data.id); return data as GroceryList }
+  }
+
+  // Otherwise fall back to a list remembered on this device.
   const existing = savedListId()
   if (existing) {
     const { data } = await supabase.from('grocery_lists').select('*').eq('id', existing).maybeSingle()
-    if (data) return data as GroceryList
+    if (data) {
+      // Claim an unowned device list for the logged-in owner so it follows them.
+      if (ownerId && !(data as GroceryList).owner_id) {
+        await supabase.from('grocery_lists').update({ owner_id: ownerId }).eq('id', existing)
+      }
+      return data as GroceryList
+    }
   }
+
+  // Create a fresh list (owned when logged in).
   const { data, error } = await supabase
     .from('grocery_lists')
-    .insert({ name: 'Ostoslista', store: 's' })
+    .insert({ name: 'Ostoslista', store: 's', owner_id: ownerId ?? null })
     .select()
     .single()
   if (error || !data) return null

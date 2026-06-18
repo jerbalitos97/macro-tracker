@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Check, Share2, Trash2, ShoppingBasket, Undo2, Tag } from 'lucide-react'
 import { Card, Button, Sheet } from '../components/ui'
+import { useAuth } from '../contexts/AuthContext'
 import {
   CATEGORY_LABEL, STORE_LABEL, STORE_ORDER, normalizeCategory,
 } from '../lib/groceryCategories'
@@ -23,6 +24,7 @@ function amountLabel(it: GroceryItem): string {
 }
 
 export function GroceryView() {
+  const { user } = useAuth()
   const [list, setList] = useState<GroceryList | null>(null)
   const [items, setItems] = useState<GroceryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +56,7 @@ export function GroceryView() {
     let unsub = () => {}
     ;(async () => {
       const shared = sharedListIdFromUrl()
-      const l = shared ? await getListById(shared) : await getOrCreateList()
+      const l = shared ? await getListById(shared) : await getOrCreateList(user?.id)
       if (l) {
         listIdRef.current = l.id
         setList(l)
