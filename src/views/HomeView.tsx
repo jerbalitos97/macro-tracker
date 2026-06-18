@@ -16,7 +16,7 @@ const TOOLS: Tool[] = [
   { label: 'Fitness Tracking',  Icon: Activity,       color: '#22d3ee', target: 'today' },
   { label: 'Wealth',            Icon: Wallet,         color: '#34d399', target: 'wealth' },
   { label: 'Workout',           Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
-  { label: 'Grocery',           Icon: ShoppingBasket, color: '#f87171', target: null,    short: 'Grocery' },
+  { label: 'Grocery',           Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
   { label: 'Talk to Friday',    Icon: Sparkles,       color: '#a78bfa', target: null,    short: 'Friday' },
 ]
 

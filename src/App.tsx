@@ -29,6 +29,8 @@ import { HomeView } from './views/HomeView'
 import { WealthView } from './views/WealthView'
 import { WealthSettingsView } from './views/WealthSettingsView'
 import { WorkoutView } from './views/WorkoutView'
+import { GroceryView } from './views/GroceryView'
+import { sharedListIdFromUrl } from './lib/grocery'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
@@ -71,7 +73,8 @@ const DEFAULT_SETTINGS: Settings = {
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled } = useAuth()
 
-  const [view, setView] = useState<View>('home')
+  // A ?g=<listId> share link deep-links straight into the Grocery tool.
+  const [view, setView] = useState<View>(() => (sharedListIdFromUrl() ? 'grocery' : 'home'))
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
@@ -332,6 +335,17 @@ export default function App() {
 
   // ── Login screen (only when Supabase is configured and user is not signed in) ─
   if (authEnabled && !user) {
+    // Exception: a shared grocery link opens the list for guests (no account) —
+    // the Supabase anon role can read/write the shared list.
+    if (sharedListIdFromUrl()) {
+      return (
+        <LazyMotion features={domMax}>
+          <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(40px+env(safe-area-inset-bottom))]">
+            <GroceryView />
+          </div>
+        </LazyMotion>
+      )
+    }
     return <LoginView />
   }
 
@@ -406,6 +420,12 @@ export default function App() {
       {view === 'workout' && (
         <m.div key={view} {...viewMotion}>
           <WorkoutView />
+        </m.div>
+      )}
+
+      {view === 'grocery' && (
+        <m.div key={view} {...viewMotion}>
+          <GroceryView />
         </m.div>
       )}
 
