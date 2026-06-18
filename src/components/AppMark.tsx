@@ -8,7 +8,7 @@ interface Props {
 export function AppMark({ size = 48 }: Props) {
   return (
     <img
-      src="/icons/icon-512.png"
+      src="/icons/friday-icon-512.png"
       alt="Friday"
       width={size}
       height={size}

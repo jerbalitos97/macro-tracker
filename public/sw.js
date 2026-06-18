@@ -1,5 +1,5 @@
 // Bump this string on every deploy to expire old caches.
-const CACHE = 'mimir-v1'
+const CACHE = 'friday-v2'
 
 const PRECACHE = [
   '/',

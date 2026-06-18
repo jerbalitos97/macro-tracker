@@ -1,34 +1,15 @@
 {
-  "name": "Friday — Your Life OS",
+  "name": "Friday",
   "short_name": "Friday",
-  "description": "Friday — your personal life OS.",
+  "description": "Your everyday AI — habits, calories, goals.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#05060c",
   "theme_color": "#05060c",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/favicon-32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    }
+    { "src": "/icons/friday-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/friday-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/friday-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
