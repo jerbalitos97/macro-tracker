@@ -1,11 +1,11 @@
 {
-  "name": "Mimir — Your Life OS",
-  "short_name": "Mimir",
-  "description": "Henkilökohtainen elämän datahub — Norse god of wisdom at the bottom of your well.",
+  "name": "Friday — Your Life OS",
+  "short_name": "Friday",
+  "description": "Friday — your personal life OS.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#05060c",
+  "theme_color": "#05060c",
   "orientation": "portrait",
   "icons": [
     {

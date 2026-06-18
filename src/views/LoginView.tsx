@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { MimirMark } from '../components/MimirMark'
+import { AppMark } from '../components/AppMark'
 import { Field, Button } from '../components/ui'
 
 export function LoginView() {
@@ -30,10 +30,10 @@ export function LoginView() {
       {/* ── Logo / heading ─────────────────────────────────────────────── */}
       <div className="mb-2 text-center">
         <div className="mb-3.5 flex justify-center">
-          <MimirMark size={64} />
+          <AppMark size={64} />
         </div>
         <h1 className="font-display m-0 mb-1 text-[22px] font-bold uppercase tracking-[0.18em] text-text">
-          Mimir
+          Friday
         </h1>
         <p className="m-0 text-[13px] leading-relaxed text-white/[0.38]">
           {mode === 'signin' ? 'Kirjaudu sisään synkronoidaksesi tiedot.' : 'Luo tili synkronoidaksesi tiedot.'}
