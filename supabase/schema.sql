@@ -208,3 +208,17 @@ create policy "workouts: own rows only"
   with check (auth.uid() = user_id);
 
 create index if not exists workouts_user_date on workouts (user_id, date);
+
+-- ── Warm-up routine (one editable routine per user) ─────────────
+create table if not exists warmups (
+  user_id    uuid primary key references auth.users on delete cascade,
+  moves      jsonb not null default '[]'::jsonb,  -- WarmupMove[]
+  updated_at text not null                        -- ISO timestamp (client format)
+);
+
+alter table warmups enable row level security;
+
+create policy "warmups: own row only"
+  on warmups for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
