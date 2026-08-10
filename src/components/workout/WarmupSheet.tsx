@@ -1,43 +1,56 @@
-import { useState } from 'react'
-import { Flame } from 'lucide-react'
-import { Sheet } from '../ui'
+import { useEffect, useState } from 'react'
+import { Flame, Pencil, Plus, Trash2, Check } from 'lucide-react'
+import { Sheet, Button } from '../ui'
+import { useAuth } from '../../contexts/AuthContext'
+import { uid } from '../../lib/workouts'
+import { getWarmup, saveWarmupLocal, pullWarmup, syncWarmupCloud } from '../../lib/warmup'
+import type { WarmupMove } from '../../lib/warmup'
 
-interface WarmupMove {
-  name: string
-  detail?: string
-  dose: string
-}
+const label = 'mb-1 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
+const input =
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-sm text-text [color-scheme:dark]'
 
-const MOVES: WarmupMove[] = [
-  {
-    name: 'Rotaatiokombo',
-    detail: 'polvillaan olkapääkierto + askelkyykky-kierrot + ATG-kyykkykierto — rintaranka, lonkat, takaketju, syvyys',
-    dose: '2×/puoli ×3',
-  },
-  {
-    name: 'Rannerutiini',
-    detail: 'quadruped rocks + sormet taakse painonsiirto + rystypito',
-    dose: '60–90s',
-  },
-  {
-    name: 'Lapakierto',
-    detail: 'scap push up + scap pull up / lapaveto',
-    dose: '8 + 8',
-  },
-  {
-    name: 'Kuminauha ulko- + sisäkierto',
-    dose: '10 + 10',
-  },
-  {
-    name: 'Ramppisarja',
-    detail: 'päivän 1. liike: 2 kevennettyä sarjaa progressio alas (tuck ennen straddlea, pogo hopit ennen depth jumppeja)',
-    dose: '2 sarjaa',
-  },
-]
-
-/** Floating warm-up button + routine sheet, shown on every workout screen. */
+/** Floating warm-up button + routine sheet, shown on every workout screen.
+ *  The routine is editable: moves can be added, changed and removed. */
 export function WarmupFab() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [moves, setMoves] = useState<WarmupMove[]>(() => getWarmup())
+  const [draft, setDraft] = useState<WarmupMove[]>([])
+
+  // Refresh from the cloud when logged in.
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    pullWarmup(user.id).then((ms) => { if (alive) setMoves(ms) })
+    return () => { alive = false }
+  }, [user])
+
+  const startEdit = () => {
+    setDraft(moves.map((m) => ({ ...m })))
+    setEditing(true)
+  }
+
+  const patch = (id: string, p: Partial<WarmupMove>) =>
+    setDraft((prev) => prev.map((m) => (m.id === id ? { ...m, ...p } : m)))
+
+  const saveEdit = () => {
+    const cleaned = draft
+      .filter((m) => m.name.trim().length > 0)
+      .map((m) => ({
+        ...m,
+        name: m.name.trim(),
+        dose: m.dose.trim(),
+        detail: m.detail?.trim() || undefined,
+      }))
+    setMoves(cleaned)
+    saveWarmupLocal(cleaned)
+    if (user) syncWarmupCloud(user.id, cleaned)
+    setEditing(false)
+  }
+
+  const close = () => { setOpen(false); setEditing(false) }
 
   return (
     <>
@@ -51,29 +64,96 @@ export function WarmupFab() {
 
       <Sheet
         open={open}
-        onClose={() => setOpen(false)}
-        title={<><Flame size={14} /> Lämppä · 5 liikettä, ei skipata</>}
+        onClose={close}
+        title={<><Flame size={14} /> Lämppä · {editing ? 'muokkaa rutiinia' : `${moves.length} liikettä, ei skipata`}</>}
       >
-        <p className="mb-4 text-[12px] leading-relaxed text-fg-muted">
-          Kiireessä pudotusjärjestys: 4 pois ensin — 2 ja 5 ei ikinä.
-        </p>
-        <ol className="flex flex-col gap-2.5">
-          {MOVES.map((mv, i) => (
-            <li key={mv.name} className="rounded-row border border-white/10 bg-white/[0.04] px-4 py-3">
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
-                <span className="font-display text-[14px] font-semibold text-text">{mv.name}</span>
-              </div>
-              {mv.detail && (
-                <p className="mt-1 text-[11px] leading-relaxed text-fg-muted">{mv.detail}</p>
-              )}
-              <div className="mt-1.5 font-mono text-[11px] text-accent">{mv.dose}</div>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-4 text-[11px] leading-relaxed text-fg-faint">
-          Korvaa erillisen aktivoinnin — ramppisarja on spesifein mahdollinen lämmittely.
-        </p>
+        {!editing ? (
+          <>
+            <p className="mb-4 text-[12px] leading-relaxed text-fg-muted">
+              Kiireessä pudotusjärjestys: 4 pois ensin — 2 ja 5 ei ikinä.
+            </p>
+            <ol className="flex flex-col gap-2.5">
+              {moves.map((mv, i) => (
+                <li key={mv.id} className="rounded-row border border-white/10 bg-white/[0.04] px-4 py-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
+                    <span className="font-display text-[14px] font-semibold text-text">{mv.name}</span>
+                  </div>
+                  {mv.detail && (
+                    <p className="mt-1 text-[11px] leading-relaxed text-fg-muted">{mv.detail}</p>
+                  )}
+                  <div className="mt-1.5 font-mono text-[11px] text-accent">{mv.dose}</div>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-[11px] leading-relaxed text-fg-faint">
+              Korvaa erillisen aktivoinnin — ramppisarja on spesifein mahdollinen lämmittely.
+            </p>
+            <button
+              onClick={startEdit}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] bg-transparent py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+            >
+              <Pencil size={13} /> Muokkaa rutiinia
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2.5">
+              {draft.map((mv, i) => (
+                <div key={mv.id} className="rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
+                    <input
+                      value={mv.name}
+                      onChange={(e) => patch(mv.id, { name: e.target.value })}
+                      placeholder="Liikkeen nimi"
+                      className={`${input} min-w-0 flex-1`}
+                    />
+                    <button
+                      onClick={() => setDraft((prev) => prev.filter((x) => x.id !== mv.id))}
+                      aria-label="Poista liike"
+                      className="icon-btn flex !min-h-0 !min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  <div className="mb-2">
+                    <label className={label}>Kuvaus (valinnainen)</label>
+                    <input
+                      value={mv.detail ?? ''}
+                      onChange={(e) => patch(mv.id, { detail: e.target.value })}
+                      placeholder="esim. quadruped rocks + rystypito"
+                      className={input}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Annostus</label>
+                    <input
+                      value={mv.dose}
+                      onChange={(e) => patch(mv.id, { dose: e.target.value })}
+                      placeholder="esim. 2×10 tai 60–90s"
+                      className={input}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setDraft((prev) => [...prev, { id: uid(), name: '', dose: '' }])}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+            >
+              <Plus size={14} /> Lisää liike
+            </button>
+
+            <div className="mt-4 flex gap-2">
+              <Button variant="ghost" onClick={() => setEditing(false)}>Peru</Button>
+              <Button variant="primary" onClick={saveEdit} disabled={!draft.some((m) => m.name.trim())}>
+                <Check size={16} /> Tallenna
+              </Button>
+            </div>
+          </>
+        )}
       </Sheet>
     </>
   )
