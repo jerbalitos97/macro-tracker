@@ -46,8 +46,9 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
     commit(sets.map((s, idx) => (idx === i ? { ...s, ...p } : s)))
 
   const addSet = () => {
-    const last = sets[sets.length - 1] ?? {}
-    commit([...sets, { ...last }])
+    const last = { ...(sets[sets.length - 1] ?? {}) }
+    delete last.done // a new set starts unchecked
+    commit([...sets, last])
   }
 
   const removeSet = (i: number) => commit(sets.filter((_, idx) => idx !== i))
@@ -62,17 +63,18 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
       )}
 
       {/* Column headers */}
-      <div className="mb-1.5 grid grid-cols-[24px_1fr_1fr_1fr_32px] items-center gap-2 px-0.5">
+      <div className="mb-1.5 grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5 px-0.5">
         <span className={colLabel}>#</span>
         <span className={`${colLabel} text-center`}>Toistot</span>
         <span className={`${colLabel} text-center`}>Paino kg</span>
         <span className={`${colLabel} text-center`}>Aika s</span>
+        <span className={`${colLabel} text-center`}>OK</span>
         <span />
       </div>
 
       <div className="flex flex-col gap-1.5">
         {sets.map((s, i) => (
-          <div key={i} className="grid grid-cols-[24px_1fr_1fr_1fr_32px] items-center gap-2">
+          <div key={i} className="grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5">
             <span className="text-center font-mono text-[12px] tabular-nums text-fg-faint">{i + 1}</span>
             <input inputMode="numeric" value={s.reps ?? ''} placeholder="–"
               onChange={(e) => patchSet(i, { reps: num(e.target.value) })} className={cell} />
@@ -80,6 +82,15 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
               onChange={(e) => patchSet(i, { weight: num(e.target.value) })} className={cell} />
             <input inputMode="numeric" value={s.duration ?? ''} placeholder="–"
               onChange={(e) => patchSet(i, { duration: num(e.target.value) })} className={cell} />
+            <button
+              onClick={() => patchSet(i, { done: !s.done })}
+              aria-label={s.done ? 'Merkitse sarja tekemättömäksi' : 'Merkitse sarja tehdyksi'}
+              className={`flex h-[30px] w-[30px] items-center justify-center rounded-full transition-colors ${
+                s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
+              }`}
+            >
+              <Check size={13} strokeWidth={3} />
+            </button>
             <button
               onClick={() => removeSet(i)}
               disabled={sets.length <= 1}
