@@ -45,6 +45,9 @@ export function WealthView({ onOpenSettings }: Props) {
   const [visibleAssetIds, setVisibleAssetIds] = useState<Set<string>>(new Set())
   const [showProjection, setShowProjection] = useState(false)
   const [projectionYears, setProjectionYears] = useState(5)
+  // What-if scenario: excluded assets are dropped from every portfolio and
+  // projection calculation, as if they didn't exist (or produced nothing).
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(async () => {
     setError(null)
@@ -64,11 +67,19 @@ export function WealthView({ onOpenSettings }: Props) {
     void refresh()
   }, [refresh])
 
-  const portfolioValue = useMemo(() => currentPortfolioValue(assets, values), [assets, values])
+  const includedAssets = useMemo(
+    () => assets.filter((a) => !excludedIds.has(a.id)),
+    [assets, excludedIds],
+  )
+
+  const portfolioValue = useMemo(
+    () => currentPortfolioValue(includedAssets, values),
+    [includedAssets, values],
+  )
 
   const initialPortfolioValue = useMemo(() => {
     const byAsset = new Map<string, AssetValue[]>()
-    for (const a of assets) byAsset.set(a.id, [])
+    for (const a of includedAssets) byAsset.set(a.id, [])
     for (const v of values) byAsset.get(v.assetId)?.push(v)
     let total = 0
     for (const arr of byAsset.values()) {
@@ -77,7 +88,7 @@ export function WealthView({ onOpenSettings }: Props) {
       total += sorted[0].value
     }
     return total
-  }, [assets, values])
+  }, [includedAssets, values])
 
   const overallChange =
     initialPortfolioValue > 0 ? ((portfolioValue - initialPortfolioValue) / initialPortfolioValue) * 100 : 0
@@ -85,12 +96,21 @@ export function WealthView({ onOpenSettings }: Props) {
     settings.wealthGoal && settings.wealthGoal > 0 ? (portfolioValue / settings.wealthGoal) * 100 : null
 
   const chartData = useMemo(
-    () => buildChartData({ assets, values, showProjection, projectionYears }),
-    [assets, values, showProjection, projectionYears],
+    () => buildChartData({ assets: includedAssets, values, showProjection, projectionYears }),
+    [includedAssets, values, showProjection, projectionYears],
   )
 
   function toggleAsset(id: string) {
     setVisibleAssetIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleExcluded(id: string) {
+    setExcludedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -141,6 +161,11 @@ export function WealthView({ onOpenSettings }: Props) {
           {assets.length > 0 && (
             <div className={`mt-1 text-xs ${overallChange >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
               {formatPercent(overallChange)} since start
+            </div>
+          )}
+          {excludedIds.size > 0 && (
+            <div className="mt-1 text-[11px] text-[#fbbf24]">
+              What-if: {excludedIds.size} asset{excludedIds.size > 1 ? 's' : ''} excluded
             </div>
           )}
         </Card>
@@ -214,6 +239,37 @@ export function WealthView({ onOpenSettings }: Props) {
             </select>
           )}
         </span>
+      </section>
+
+      {/* What-if scenario: exclude assets from all calculations */}
+      <section>
+        <div className={`${tinyLabel} mb-1.5`}>What-if · exclude from calculations</div>
+        <div className="flex w-full flex-wrap items-center gap-1.5">
+          {assets.map((a) => (
+            <ToggleChip
+              key={a.id}
+              active={excludedIds.has(a.id)}
+              onClick={() => toggleExcluded(a.id)}
+              swatch="#f87171"
+            >
+              {a.name}
+            </ToggleChip>
+          ))}
+          {excludedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setExcludedIds(new Set())}
+              className="ml-auto rounded-full border border-border bg-transparent px-2.5 py-1 text-[11px] !min-h-0 !min-w-0 text-muted"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+        {excludedIds.size > 0 && (
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[#fbbf24]">
+            Scenario active — excluded assets are left out of the portfolio total, chart and projection.
+          </p>
+        )}
       </section>
 
       {/* Assets list */}
