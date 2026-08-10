@@ -6,8 +6,10 @@ import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
 import { toISO, fromISO } from '../lib/dates'
+import { useAuth } from '../contexts/AuthContext'
 import {
   getTemplates, saveTemplate, deleteTemplate,
+  pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
   getDraft, saveDraft, clearDraft, newWorkout,
 } from '../lib/workouts'
@@ -26,6 +28,7 @@ const sectionLabel = 'mb-2 font-mono text-[10px] uppercase tracking-[0.14em] tex
 
 export function WorkoutView() {
   const todayISO = toISO(new Date())
+  const { user } = useAuth()
 
   const [screen, setScreen] = useState<Screen>('home')
   const [tab, setTab] = useState<Tab>('log')
@@ -38,6 +41,14 @@ export function WorkoutView() {
   const [viewing, setViewing] = useState<Workout | null>(null)
   const [editing, setEditing] = useState<WorkoutTemplate | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // Refresh templates from the cloud when logged in.
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    pullTemplates(user.id).then((ts) => { if (alive) setTemplates(ts) })
+    return () => { alive = false }
+  }, [user])
 
   // Autosave the in-progress draft on every change.
   useEffect(() => {
@@ -83,6 +94,7 @@ export function WorkoutView() {
   // ── Templates ────────────────────────────────────────────────────
   const handleSaveTemplate = (t: WorkoutTemplate) => {
     setTemplates(saveTemplate(t))
+    if (user) syncTemplateCloud(user.id, t)
     setEditing(null)
     setScreen('home')
     setTab('templates')
@@ -91,6 +103,7 @@ export function WorkoutView() {
   const handleDeleteTemplate = (id: string) => {
     if (!window.confirm('Poistetaanko pohja?')) return
     setTemplates(deleteTemplate(id))
+    if (user) deleteTemplateCloud(user.id, id)
   }
 
   // ── Sub-screens ──────────────────────────────────────────────────
