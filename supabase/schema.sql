@@ -173,6 +173,7 @@ create table if not exists workout_templates (
   id         text primary key,                    -- client UUID
   user_id    uuid not null references auth.users on delete cascade,
   name       text not null,
+  kind       text not null default 'strength',    -- 'strength' | 'mobility'
   exercises  jsonb not null default '[]'::jsonb,  -- TemplateExercise[]
   created_at text not null,                       -- ISO timestamp (client format)
   updated_at text not null

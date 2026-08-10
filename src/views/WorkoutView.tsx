@@ -232,7 +232,9 @@ export function WorkoutView() {
                     <Dumbbell size={16} className="flex-shrink-0 text-cyan" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-display text-[14px] font-semibold text-text">{t.name}</div>
-                      <div className="font-mono text-[10px] text-fg-faint">{t.exercises.length} liikettä</div>
+                      <div className="font-mono text-[10px] text-fg-faint">
+                        {t.exercises.length} liikettä{t.kind === 'mobility' ? ' · liikkuvuus' : ''}
+                      </div>
                     </div>
                     <Play size={15} className="flex-shrink-0 text-fg-muted" />
                   </button>
@@ -260,7 +262,9 @@ export function WorkoutView() {
                 <ClipboardList size={16} className="flex-shrink-0 text-violet" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-display text-[14px] font-semibold text-text">{t.name}</div>
-                  <div className="font-mono text-[10px] text-fg-faint">{t.exercises.length} liikettä</div>
+                  <div className="font-mono text-[10px] text-fg-faint">
+                    {t.exercises.length} liikettä{t.kind === 'mobility' ? ' · liikkuvuus' : ''}
+                  </div>
                 </div>
                 <ChevronRight size={16} className="flex-shrink-0 text-fg-faint" />
               </button>

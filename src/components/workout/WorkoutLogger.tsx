@@ -3,7 +3,8 @@ import { ChevronLeft, Plus, Check, GripVertical } from 'lucide-react'
 import { m, useDragControls } from 'motion/react'
 import { Sheet, Button } from '../ui'
 import { ExerciseSetSheet } from './ExerciseSetSheet'
-import type { Workout, LoggedExercise } from '../../lib/workouts'
+import { IntervalTimerSheet } from './IntervalTimerSheet'
+import type { Workout, LoggedExercise, IntervalConfig } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession } from '../../lib/workouts'
 
 interface Props {
@@ -17,6 +18,7 @@ function blockSummary(ex: LoggedExercise): string {
   const n = ex.sets.length
   const done = ex.sets.filter((s) => s.done).length
   if (done > 0) return `${done}/${n} tehty`
+  if (ex.interval) return `${n} × ${ex.interval.workSeconds}s/${ex.interval.restSeconds}s ×${ex.interval.rounds}`
   return `${n} ${n === 1 ? 'sarja' : 'sarjaa'}`
 }
 
@@ -202,8 +204,15 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
         </Button>
       </div>
 
-      {/* Per-exercise set entry */}
-      {open && (
+      {/* Per-exercise set entry: interval exercises get the clock, others the grid */}
+      {open && (open.interval ? (
+        <IntervalTimerSheet
+          exercise={open as LoggedExercise & { interval: IntervalConfig }}
+          onChange={updateExercise}
+          onRemoveExercise={() => removeExercise(open.id)}
+          onClose={() => setOpenId(null)}
+        />
+      ) : (
         <ExerciseSetSheet
           exercise={open}
           suggestion={lastEntryForExercise(open.name, workout.id)}
@@ -211,7 +220,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           onRemoveExercise={() => removeExercise(open.id)}
           onClose={() => setOpenId(null)}
         />
-      )}
+      ))}
 
       {/* Add-exercise name entry */}
       {adding && (
