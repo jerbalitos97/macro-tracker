@@ -1,5 +1,5 @@
 // Bump this string on every deploy to expire old caches.
-const CACHE = 'friday-v2'
+const CACHE = 'friday-v3'
 
 const PRECACHE = [
   '/',
