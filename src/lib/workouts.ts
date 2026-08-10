@@ -1,6 +1,6 @@
-// Workout logging tool. Templates sync to Supabase (workout_templates table)
-// with localStorage as the offline cache; completed-workout history and the
-// autosaved in-progress draft remain device-local.
+// Workout logging tool. Templates and completed-workout history sync to
+// Supabase (workout_templates / workouts tables) with localStorage as the
+// offline cache; the autosaved in-progress draft remains device-local.
 import { supabase } from './supabase'
 
 const K_TEMPLATES = 'mimir.workouts.templates:v1'
@@ -183,6 +183,77 @@ export function deleteWorkout(id: string): Workout[] {
   const next = getWorkouts().filter((x) => x.id !== id)
   write(K_HISTORY, next)
   return next
+}
+
+// ── History cloud sync ─────────────────────────────────────────────────────────
+
+interface WorkoutRow {
+  id: string
+  date: string
+  name: string
+  template_id: string | null
+  exercises: LoggedExercise[]
+  completed: boolean
+  created_at: string
+  updated_at: string
+}
+
+const fromWorkoutRow = (r: WorkoutRow): Workout => ({
+  id: r.id,
+  date: r.date,
+  name: r.name,
+  templateId: r.template_id ?? undefined,
+  exercises: Array.isArray(r.exercises) ? r.exercises : [],
+  completed: r.completed,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+})
+
+/** Fetch workout history from the cloud and refresh the local cache.
+ *  Local-only workouts (logged offline or before sync existed) are pushed up
+ *  instead of being dropped. Falls back to the local cache when offline. */
+export async function pullWorkouts(userId: string): Promise<Workout[]> {
+  if (!supabase) return getWorkouts()
+  const { data, error } = await supabase
+    .from('workouts')
+    .select('*')
+    .eq('user_id', userId)
+  if (error) {
+    console.warn('[workouts] pull history:', error.message)
+    return getWorkouts()
+  }
+  const cloud = (data ?? []).map((r) => fromWorkoutRow(r as WorkoutRow))
+  const cloudIds = new Set(cloud.map((w) => w.id))
+  const localOnly = getWorkouts().filter((w) => !cloudIds.has(w.id))
+  for (const w of localOnly) syncWorkoutCloud(userId, w)
+  write(K_HISTORY, [...cloud, ...localOnly])
+  return getWorkouts()
+}
+
+export function syncWorkoutCloud(userId: string, w: Workout): void {
+  supabase
+    ?.from('workouts')
+    .upsert({
+      id: w.id,
+      user_id: userId,
+      date: w.date,
+      name: w.name,
+      template_id: w.templateId ?? null,
+      exercises: w.exercises,
+      completed: w.completed,
+      created_at: w.createdAt,
+      updated_at: w.updatedAt,
+    })
+    .then(({ error }) => { if (error) console.warn('[workouts] history sync:', error.message) })
+}
+
+export function deleteWorkoutCloud(userId: string, id: string): void {
+  supabase
+    ?.from('workouts')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .then(({ error }) => { if (error) console.warn('[workouts] history delete:', error.message) })
 }
 
 // ── In-progress draft (autosaved) ──────────────────────────────────────────────

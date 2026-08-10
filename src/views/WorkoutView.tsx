@@ -12,6 +12,7 @@ import {
   getTemplates, saveTemplate, deleteTemplate,
   pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
+  pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
   getDraft, saveDraft, clearDraft, newWorkout,
 } from '../lib/workouts'
 import type { Workout, WorkoutTemplate } from '../lib/workouts'
@@ -43,11 +44,12 @@ export function WorkoutView() {
   const [editing, setEditing] = useState<WorkoutTemplate | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Refresh templates from the cloud when logged in.
+  // Refresh templates and history from the cloud when logged in.
   useEffect(() => {
     if (!user) return
     let alive = true
     pullTemplates(user.id).then((ts) => { if (alive) setTemplates(ts) })
+    pullWorkouts(user.id).then((ws) => { if (alive) setWorkouts(ws) })
     return () => { alive = false }
   }, [user])
 
@@ -85,6 +87,7 @@ export function WorkoutView() {
     if (!session) return
     const saved: Workout = { ...session, completed: true, updatedAt: new Date().toISOString() }
     setWorkouts(saveWorkout(saved))
+    if (user) syncWorkoutCloud(user.id, saved)
     clearDraft()
     setDraft(null)
     setSession(null)
@@ -132,7 +135,10 @@ export function WorkoutView() {
       <>
         <WorkoutSummary
           workout={viewing}
-          onDelete={(id) => setWorkouts(deleteWorkout(id))}
+          onDelete={(id) => {
+            setWorkouts(deleteWorkout(id))
+            if (user) deleteWorkoutCloud(user.id, id)
+          }}
           onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
         />
         <WarmupFab />
