@@ -70,14 +70,14 @@ function ExerciseTile({ exercise: ex, onOpen, onToggleDone, onMeasure, onDrop }:
       <button
         onClick={(e) => { e.stopPropagation(); onToggleDone() }}
         aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
-        className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+        className={`absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
           done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
         }`}
       >
         <Check size={13} strokeWidth={3} />
       </button>
 
-      <div>
+      <div className="pr-7">
         <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
           {ex.name}
         </div>

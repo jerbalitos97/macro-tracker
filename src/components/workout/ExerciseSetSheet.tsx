@@ -85,7 +85,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
             <button
               onClick={() => patchSet(i, { done: !s.done })}
               aria-label={s.done ? 'Merkitse sarja tekemättömäksi' : 'Merkitse sarja tehdyksi'}
-              className={`flex h-[30px] w-[30px] items-center justify-center rounded-full transition-colors ${
+              className={`flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
                 s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
               }`}
             >
@@ -95,7 +95,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
               onClick={() => removeSet(i)}
               disabled={sets.length <= 1}
               aria-label="Poista sarja"
-              className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger disabled:opacity-30"
+              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger disabled:opacity-30"
             >
               <X size={14} />
             </button>
