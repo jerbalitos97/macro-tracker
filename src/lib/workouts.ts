@@ -37,12 +37,28 @@ export interface SetEntry {
   reps?: number
   weight?: number    // kg
   duration?: number  // seconds
+  done?: boolean     // checked off in the logger
 }
 
 export interface LoggedExercise {
   id: string
   name: string
   sets: SetEntry[]
+}
+
+/** An exercise counts as done once every set has been checked off. */
+export function exerciseDone(ex: LoggedExercise): boolean {
+  return ex.sets.length > 0 && ex.sets.every((s) => s.done === true)
+}
+
+/** Copy sets from a previous session as prefill: values carry over, the
+ *  done flags do not — a new workout always starts unchecked. */
+export function copySetsForNewSession(sets: SetEntry[]): SetEntry[] {
+  return sets.map((s) => {
+    const c = { ...s }
+    delete c.done
+    return c
+  })
 }
 
 export interface Workout {
@@ -305,7 +321,7 @@ export function newWorkout(todayISO: string, template?: WorkoutTemplate): Workou
     const last = lastEntryForExercise(te.name)
     const sets =
       last && last.sets.length > 0
-        ? last.sets.map((s) => ({ ...s }))
+        ? copySetsForNewSession(last.sets)
         : Array.from({ length: Math.max(1, te.defaultSets) }, () => seedSet(te))
     return { id: uid(), name: te.name, sets }
   })
