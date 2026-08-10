@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight } from 'lucide-react'
 import { Card, Button } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
+import { WarmupFab } from '../components/workout/WarmupSheet'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
@@ -116,6 +117,7 @@ export function WorkoutView() {
           onFinish={finishWorkout}
           onExit={() => setScreen('home')}
         />
+        <WarmupFab />
         {success && <WorkoutSuccess onDone={() => { setSuccess(false); setScreen('summary') }} />}
       </>
     )
@@ -127,21 +129,27 @@ export function WorkoutView() {
 
   if (screen === 'summary' && viewing) {
     return (
-      <WorkoutSummary
-        workout={viewing}
-        onDelete={(id) => setWorkouts(deleteWorkout(id))}
-        onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
-      />
+      <>
+        <WorkoutSummary
+          workout={viewing}
+          onDelete={(id) => setWorkouts(deleteWorkout(id))}
+          onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
+        />
+        <WarmupFab />
+      </>
     )
   }
 
   if (screen === 'editTemplate') {
     return (
-      <TemplateEditor
-        initial={editing ?? undefined}
-        onSave={handleSaveTemplate}
-        onCancel={() => { setEditing(null); setScreen('home') }}
-      />
+      <>
+        <TemplateEditor
+          initial={editing ?? undefined}
+          onSave={handleSaveTemplate}
+          onCancel={() => { setEditing(null); setScreen('home') }}
+        />
+        <WarmupFab />
+      </>
     )
   }
 
@@ -293,6 +301,8 @@ export function WorkoutView() {
           )}
         </div>
       )}
+
+      <WarmupFab />
     </div>
   )
 }
