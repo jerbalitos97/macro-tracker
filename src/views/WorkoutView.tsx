@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Card, Button } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WarmupFab } from '../components/workout/WarmupSheet'
@@ -43,6 +43,16 @@ export function WorkoutView() {
   const [viewing, setViewing] = useState<Workout | null>(null)
   const [editing, setEditing] = useState<WorkoutTemplate | null>(null)
   const [success, setSuccess] = useState(false)
+  // Editing an already-completed workout: saves straight to history + cloud,
+  // never touches the in-progress draft.
+  const [pastEdit, setPastEdit] = useState(false)
+  const cloudSyncTimer = useRef<number | null>(null)
+
+  const [calMonth, setCalMonth] = useState(() => {
+    const d = new Date()
+    return { y: d.getFullYear(), m: d.getMonth() }
+  })
+  const [selectedDay, setSelectedDay] = useState<string>(todayISO)
 
   // Refresh templates and history from the cloud when logged in.
   useEffect(() => {
@@ -53,13 +63,22 @@ export function WorkoutView() {
     return () => { alive = false }
   }, [user])
 
-  // Autosave the in-progress draft on every change.
+  // Autosave on every change: drafts stay local until finished; past-workout
+  // edits persist to history immediately and to the cloud debounced.
   useEffect(() => {
-    if (screen === 'logging' && session) {
+    if (screen !== 'logging' || !session) return
+    if (pastEdit) {
+      setWorkouts(saveWorkout(session))
+      if (user) {
+        if (cloudSyncTimer.current) window.clearTimeout(cloudSyncTimer.current)
+        const snapshot = session
+        cloudSyncTimer.current = window.setTimeout(() => syncWorkoutCloud(user.id, snapshot), 800)
+      }
+    } else {
       saveDraft(session)
       setDraft(session)
     }
-  }, [session, screen])
+  }, [session, screen, pastEdit, user])
 
   // ── Session lifecycle ────────────────────────────────────────────
   const startWorkout = (template?: WorkoutTemplate) => {
@@ -88,11 +107,38 @@ export function WorkoutView() {
     const saved: Workout = { ...session, completed: true, updatedAt: new Date().toISOString() }
     setWorkouts(saveWorkout(saved))
     if (user) syncWorkoutCloud(user.id, saved)
+    if (pastEdit) {
+      setPastEdit(false)
+      setSession(null)
+      setViewing(saved)
+      setScreen('summary')
+      return
+    }
     clearDraft()
     setDraft(null)
     setSession(null)
     setViewing(saved)
     setSuccess(true)
+  }
+
+  const startEditPast = (w: Workout) => {
+    setSession(w)
+    setPastEdit(true)
+    setScreen('logging')
+  }
+
+  const exitLogging = () => {
+    if (pastEdit && session) {
+      const saved: Workout = { ...session, completed: true, updatedAt: new Date().toISOString() }
+      setWorkouts(saveWorkout(saved))
+      if (user) syncWorkoutCloud(user.id, saved)
+      setPastEdit(false)
+      setSession(null)
+      setViewing(saved)
+      setScreen('summary')
+      return
+    }
+    setScreen('home')
   }
 
   // ── Templates ────────────────────────────────────────────────────
@@ -118,7 +164,7 @@ export function WorkoutView() {
           workout={session}
           onChange={setSession}
           onFinish={finishWorkout}
-          onExit={() => setScreen('home')}
+          onExit={exitLogging}
         />
         <WarmupFab />
         {success && <WorkoutSuccess onDone={() => { setSuccess(false); setScreen('summary') }} />}
@@ -139,6 +185,7 @@ export function WorkoutView() {
             setWorkouts(deleteWorkout(id))
             if (user) deleteWorkoutCloud(user.id, id)
           }}
+          onEdit={() => startEditPast(viewing)}
           onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
         />
         <WarmupFab />
@@ -280,37 +327,113 @@ export function WorkoutView() {
         </div>
       )}
 
-      {tab === 'calendar' && (
-        <div className="flex flex-col gap-2.5">
-          {workouts.length === 0 ? (
-            <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-8 text-center text-[12px] leading-relaxed text-fg-faint">
-              Ei treenejä vielä. Aloita ensimmäinen Treeni-välilehdeltä.
-            </p>
-          ) : (
-            workouts.map((w) => (
+      {tab === 'calendar' && (() => {
+        const first = new Date(calMonth.y, calMonth.m, 1)
+        const daysInMonth = new Date(calMonth.y, calMonth.m + 1, 0).getDate()
+        const byDate = new Map<string, Workout[]>()
+        for (const w of workouts) {
+          const arr = byDate.get(w.date) ?? []
+          arr.push(w)
+          byDate.set(w.date, arr)
+        }
+        const cells: (string | null)[] = []
+        const mondayOffset = (first.getDay() + 6) % 7
+        for (let i = 0; i < mondayOffset; i++) cells.push(null)
+        for (let d = 1; d <= daysInMonth; d++) cells.push(toISO(new Date(calMonth.y, calMonth.m, d)))
+        const monthLabel = first.toLocaleDateString('fi-FI', { month: 'long', year: 'numeric' })
+        const dayWorkouts = byDate.get(selectedDay) ?? []
+        const shiftMonth = (delta: number) => {
+          const d = new Date(calMonth.y, calMonth.m + delta, 1)
+          setCalMonth({ y: d.getFullYear(), m: d.getMonth() })
+        }
+
+        return (
+          <div>
+            {/* Month header */}
+            <div className="mb-2 flex items-center justify-between">
               <button
-                key={w.id}
-                onClick={() => { setViewing(w); setScreen('summary') }}
-                className="active:scale-[0.99] flex items-center gap-3 rounded-row border border-white/10 bg-white/[0.05] px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
+                onClick={() => shiftMonth(-1)}
+                aria-label="Edellinen kuukausi"
+                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
               >
-                <div className="flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-xl bg-cyan/[0.12] font-mono text-cyan">
-                  <span className="text-[14px] font-bold leading-none tabular-nums">{fromISO(w.date).getDate()}</span>
-                  <span className="text-[7px] uppercase tracking-[0.1em]">
-                    {fromISO(w.date).toLocaleDateString('fi-FI', { month: 'short' }).replace('.', '')}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-display text-[14px] font-semibold text-text">{w.name}</div>
-                  <div className="font-mono text-[10px] text-fg-faint">
-                    {w.exercises.length} liikettä · {w.exercises.reduce((n, e) => n + e.sets.length, 0)} sarjaa
-                  </div>
-                </div>
-                <ChevronRight size={16} className="flex-shrink-0 text-fg-faint" />
+                <ChevronLeft size={18} />
               </button>
-            ))
-          )}
-        </div>
-      )}
+              <div className="font-display text-[15px] font-semibold capitalize text-text">{monthLabel}</div>
+              <button
+                onClick={() => shiftMonth(1)}
+                aria-label="Seuraava kuukausi"
+                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {/* Weekday labels */}
+            <div className="mb-1 grid grid-cols-7 gap-1">
+              {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
+                <div key={d} className="py-1 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-fg-dim">{d}</div>
+              ))}
+            </div>
+
+            {/* Day grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((date, i) => {
+                if (!date) return <div key={`e${i}`} className="aspect-square" />
+                const has = byDate.has(date)
+                const isSelected = date === selectedDay
+                const isToday = date === todayISO
+                return (
+                  <button
+                    key={date}
+                    onClick={() => setSelectedDay(date)}
+                    className={`relative flex aspect-square !min-h-0 !min-w-0 flex-col items-center justify-center rounded-xl border text-[13px] tabular-nums transition-colors ${
+                      isSelected
+                        ? 'border-cyan/50 bg-cyan/[0.12] font-bold text-cyan'
+                        : isToday
+                          ? 'border-white/20 bg-white/[0.06] font-bold text-text'
+                          : 'border-white/[0.06] bg-white/[0.03] text-fg-muted'
+                    }`}
+                  >
+                    {Number(date.slice(8, 10))}
+                    {has && <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-cyan" />}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Selected day's workouts */}
+            <div className="mt-4">
+              <div className={sectionLabel}>
+                {fromISO(selectedDay).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </div>
+              {dayWorkouts.length === 0 ? (
+                <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-5 text-center text-[12px] leading-relaxed text-fg-faint">
+                  Ei treenejä tänä päivänä.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {dayWorkouts.map((w) => (
+                    <button
+                      key={w.id}
+                      onClick={() => { setViewing(w); setScreen('summary') }}
+                      className="active:scale-[0.99] flex items-center gap-3 rounded-row border border-white/10 bg-white/[0.05] px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
+                    >
+                      <Dumbbell size={16} className="flex-shrink-0 text-cyan" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-display text-[14px] font-semibold text-text">{w.name}</div>
+                        <div className="font-mono text-[10px] text-fg-faint">
+                          {w.exercises.length} liikettä · {w.exercises.reduce((n, e) => n + e.sets.length, 0)} sarjaa
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="flex-shrink-0 text-fg-faint" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       <WarmupFab />
     </div>

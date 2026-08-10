@@ -1,4 +1,4 @@
-import { ChevronLeft, Trash2, Dumbbell } from 'lucide-react'
+import { ChevronLeft, Trash2, Dumbbell, Pencil } from 'lucide-react'
 import { Card } from '../ui'
 import { fromISO } from '../../lib/dates'
 import type { Workout, SetEntry } from '../../lib/workouts'
@@ -7,6 +7,7 @@ interface Props {
   workout: Workout
   onClose: () => void
   onDelete?: (id: string) => void
+  onEdit?: () => void
 }
 
 function fmtDuration(s: number): string {
@@ -28,7 +29,7 @@ function dateLabel(iso: string): string {
   return fromISO(iso).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-export function WorkoutSummary({ workout, onClose, onDelete }: Props) {
+export function WorkoutSummary({ workout, onClose, onDelete, onEdit }: Props) {
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0)
 
   return (
@@ -48,6 +49,15 @@ export function WorkoutSummary({ workout, onClose, onDelete }: Props) {
             {dateLabel(workout.date)}
           </div>
         </div>
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            aria-label="Muokkaa treeniä"
+            className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-fg-muted"
+          >
+            <Pencil size={15} />
+          </button>
+        )}
         {onDelete && (
           <button
             onClick={() => { if (window.confirm('Poistetaanko tämä treeni?')) { onDelete(workout.id); onClose() } }}
