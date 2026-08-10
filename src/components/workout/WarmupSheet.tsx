@@ -65,7 +65,20 @@ export function WarmupFab() {
       <Sheet
         open={open}
         onClose={close}
-        title={<><Flame size={14} /> Lämppä · {editing ? 'muokkaa rutiinia' : `${moves.length} liikettä, ei skipata`}</>}
+        title={
+          <>
+            <Flame size={14} /> Lämppä · {editing ? 'muokkaa rutiinia' : `${moves.length} liikettä, ei skipata`}
+            {!editing && (
+              <button
+                onClick={startEdit}
+                aria-label="Muokkaa rutiinia"
+                className="ml-auto flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-fg-muted"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+          </>
+        }
       >
         {!editing ? (
           <>
