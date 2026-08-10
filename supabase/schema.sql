@@ -167,3 +167,22 @@ create policy "habit_entries: own rows only"
 
 create index if not exists habit_entries_habit_date on habit_entries (habit_id, entry_date);
 create unique index if not exists habit_entries_uniq on habit_entries (habit_id, entry_date);
+
+-- ── Workout templates (reusable session plans) ──────────────────
+create table if not exists workout_templates (
+  id         text primary key,                    -- client UUID
+  user_id    uuid not null references auth.users on delete cascade,
+  name       text not null,
+  exercises  jsonb not null default '[]'::jsonb,  -- TemplateExercise[]
+  created_at text not null,                       -- ISO timestamp (client format)
+  updated_at text not null
+);
+
+alter table workout_templates enable row level security;
+
+create policy "workout_templates: own rows only"
+  on workout_templates for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists workout_templates_user on workout_templates (user_id);

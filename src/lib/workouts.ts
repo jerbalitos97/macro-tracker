@@ -1,6 +1,7 @@
-// Workout logging tool — device-local persistence (no cloud sync).
-// Three stores: reusable templates, completed-workout history, and a single
-// in-progress draft that is autosaved continuously until the workout is saved.
+// Workout logging tool. Templates sync to Supabase (workout_templates table)
+// with localStorage as the offline cache; completed-workout history and the
+// autosaved in-progress draft remain device-local.
+import { supabase } from './supabase'
 
 const K_TEMPLATES = 'mimir.workouts.templates:v1'
 const K_HISTORY   = 'mimir.workouts.history:v1'
@@ -98,6 +99,69 @@ export function deleteTemplate(id: string): WorkoutTemplate[] {
   const next = getTemplates().filter((x) => x.id !== id)
   write(K_TEMPLATES, next)
   return next
+}
+
+// ── Template cloud sync (mirrors the pattern in lib/habits.ts) ────────────────
+
+interface TemplateRow {
+  id: string
+  name: string
+  exercises: TemplateExercise[]
+  created_at: string
+  updated_at: string
+}
+
+const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
+  id: r.id,
+  name: r.name,
+  exercises: Array.isArray(r.exercises) ? r.exercises : [],
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+})
+
+/** Fetch templates from the cloud and refresh the local cache. Local-only
+ *  templates (created offline or before sync existed) are pushed up instead
+ *  of being dropped. Falls back to the local cache when offline. */
+export async function pullTemplates(userId: string): Promise<WorkoutTemplate[]> {
+  if (!supabase) return getTemplates()
+  const { data, error } = await supabase
+    .from('workout_templates')
+    .select('*')
+    .eq('user_id', userId)
+  if (error) {
+    console.warn('[workouts] pull templates:', error.message)
+    return getTemplates()
+  }
+  const cloud = (data ?? []).map((r) => fromTemplateRow(r as TemplateRow))
+  const cloudIds = new Set(cloud.map((t) => t.id))
+  const localOnly = getTemplates().filter((t) => !cloudIds.has(t.id))
+  for (const t of localOnly) syncTemplateCloud(userId, t)
+  const next = [...cloud, ...localOnly].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  write(K_TEMPLATES, next)
+  return next
+}
+
+export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
+  supabase
+    ?.from('workout_templates')
+    .upsert({
+      id: t.id,
+      user_id: userId,
+      name: t.name,
+      exercises: t.exercises,
+      created_at: t.createdAt,
+      updated_at: t.updatedAt,
+    })
+    .then(({ error }) => { if (error) console.warn('[workouts] template sync:', error.message) })
+}
+
+export function deleteTemplateCloud(userId: string, id: string): void {
+  supabase
+    ?.from('workout_templates')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .then(({ error }) => { if (error) console.warn('[workouts] template delete:', error.message) })
 }
 
 // ── History (completed workouts) ───────────────────────────────────────────────
