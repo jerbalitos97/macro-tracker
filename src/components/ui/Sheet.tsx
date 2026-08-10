@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AnimatePresence, m, useReducedMotion } from 'motion/react'
+import { AnimatePresence, m, useDragControls, useReducedMotion } from 'motion/react'
 import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 interface Props {
@@ -12,6 +12,10 @@ interface Props {
 export function Sheet({ open, onClose, title, children }: Props) {
   useBodyScrollLock(open)
   const reduce = useReducedMotion()
+  // Swipe-to-dismiss starts from the grab handle only — a drag listener on
+  // the whole sheet would set touch-action there and kill native scrolling
+  // of overflowing content on touch devices.
+  const dragControls = useDragControls()
 
   return (
     <AnimatePresence>
@@ -34,14 +38,22 @@ export function Sheet({ open, onClose, title, children }: Props) {
             exit={reduce ? { opacity: 0 } : { y: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 38 }}
             drag={reduce ? false : 'y'}
+            dragListener={false}
+            dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.4 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 120 || info.velocity.y > 600) onClose()
             }}
             onClick={(e) => e.stopPropagation()}
+            style={{ touchAction: 'pan-y' }}
           >
-            <div className="mx-auto mb-5 -mt-2 h-1 w-9 rounded-full bg-white/15" />
+            <div
+              onPointerDown={(e) => { if (!reduce) dragControls.start(e) }}
+              className="-mx-5 -mt-6 cursor-grab touch-none px-5 pb-3 pt-4 active:cursor-grabbing"
+            >
+              <div className="mx-auto h-1 w-9 rounded-full bg-white/15" />
+            </div>
             {title != null && (
               <div className="mb-[18px] flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.12em] text-accent">
                 {title}
