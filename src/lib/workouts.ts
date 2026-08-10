@@ -13,6 +13,17 @@ export interface RepRange {
   max: number
 }
 
+export type TemplateKind = 'strength' | 'mobility'
+
+/** Timed interval definition for mobility work: alternating contraction and
+ *  rest phases, repeated `rounds` times, optionally once per side (leg). */
+export interface IntervalConfig {
+  workSeconds: number
+  restSeconds: number
+  rounds: number
+  perSide: boolean
+}
+
 /** One exercise as defined in a template (the plan / defaults). */
 export interface TemplateExercise {
   id: string
@@ -21,11 +32,13 @@ export interface TemplateExercise {
   repRange?: RepRange
   defaultWeight?: number    // kg
   defaultDuration?: number  // seconds
+  interval?: IntervalConfig // mobility exercises only
 }
 
 export interface WorkoutTemplate {
   id: string
   name: string
+  kind?: TemplateKind       // default 'strength'
   exercises: TemplateExercise[]
   createdAt: string
   updatedAt: string
@@ -44,6 +57,7 @@ export interface LoggedExercise {
   id: string
   name: string
   sets: SetEntry[]
+  interval?: IntervalConfig // present when the exercise is clocked, not counted
 }
 
 /** An exercise counts as done once every set has been checked off. */
@@ -122,6 +136,7 @@ export function deleteTemplate(id: string): WorkoutTemplate[] {
 interface TemplateRow {
   id: string
   name: string
+  kind: string | null
   exercises: TemplateExercise[]
   created_at: string
   updated_at: string
@@ -130,6 +145,7 @@ interface TemplateRow {
 const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   id: r.id,
   name: r.name,
+  kind: r.kind === 'mobility' ? 'mobility' : 'strength',
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -164,6 +180,7 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       id: t.id,
       user_id: userId,
       name: t.name,
+      kind: t.kind ?? 'strength',
       exercises: t.exercises,
       created_at: t.createdAt,
       updated_at: t.updatedAt,
@@ -318,6 +335,16 @@ function seedSet(te?: TemplateExercise): SetEntry {
 export function newWorkout(todayISO: string, template?: WorkoutTemplate): Workout {
   const now = new Date().toISOString()
   const exercises: LoggedExercise[] = (template?.exercises ?? []).map((te) => {
+    // Interval (mobility) exercises are clocked, not counted — their sets are
+    // plain done-trackers seeded straight from the template's set count.
+    if (te.interval) {
+      return {
+        id: uid(),
+        name: te.name,
+        sets: Array.from({ length: Math.max(1, te.defaultSets) }, () => ({})),
+        interval: { ...te.interval },
+      }
+    }
     const last = lastEntryForExercise(te.name)
     const sets =
       last && last.sets.length > 0

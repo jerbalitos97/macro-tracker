@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Trash2, Check } from 'lucide-react'
+import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer } from 'lucide-react'
 import { Card, Button } from '../ui'
-import type { WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
+import type { WorkoutTemplate, TemplateExercise, TemplateKind, IntervalConfig } from '../../lib/workouts'
 import { uid } from '../../lib/workouts'
 
 interface Props {
@@ -14,7 +14,12 @@ const label = 'mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-
 const numInput =
   'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-center text-sm tabular-nums text-text [color-scheme:dark]'
 
-function blankExercise(): TemplateExercise {
+const DEFAULT_INTERVAL: IntervalConfig = { workSeconds: 10, restSeconds: 5, rounds: 3, perSide: true }
+
+function blankExercise(kind: TemplateKind): TemplateExercise {
+  if (kind === 'mobility') {
+    return { id: uid(), name: '', defaultSets: 3, interval: { ...DEFAULT_INTERVAL } }
+  }
   return { id: uid(), name: '', defaultSets: 3, repRange: { min: 8, max: 12 } }
 }
 
@@ -25,12 +30,30 @@ function toInt(v: string): number | undefined {
 
 export function TemplateEditor({ initial, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
+  const [kind, setKind] = useState<TemplateKind>(initial?.kind ?? 'strength')
   const [exercises, setExercises] = useState<TemplateExercise[]>(
-    initial?.exercises.length ? initial.exercises.map((e) => ({ ...e })) : [blankExercise()],
+    initial?.exercises.length ? initial.exercises.map((e) => ({ ...e })) : [blankExercise(initial?.kind ?? 'strength')],
   )
 
   const patch = (id: string, p: Partial<TemplateExercise>) =>
     setExercises((prev) => prev.map((e) => (e.id === id ? { ...e, ...p } : e)))
+
+  const patchInterval = (id: string, p: Partial<IntervalConfig>) =>
+    setExercises((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, interval: { ...(e.interval ?? DEFAULT_INTERVAL), ...p } } : e)),
+    )
+
+  const switchKind = (k: TemplateKind) => {
+    setKind(k)
+    // Give every exercise the fields the new kind needs.
+    setExercises((prev) =>
+      prev.map((e) =>
+        k === 'mobility'
+          ? { ...e, interval: e.interval ?? { ...DEFAULT_INTERVAL } }
+          : { ...e, interval: undefined },
+      ),
+    )
+  }
 
   const canSave = name.trim().length > 0 && exercises.some((e) => e.name.trim().length > 0)
 
@@ -39,10 +62,29 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
     const now = new Date().toISOString()
     const cleaned = exercises
       .filter((e) => e.name.trim().length > 0)
-      .map((e) => ({ ...e, name: e.name.trim(), defaultSets: Math.max(1, e.defaultSets || 1) }))
+      .map((e) => {
+        const base = { ...e, name: e.name.trim(), defaultSets: Math.max(1, e.defaultSets || 1) }
+        if (kind === 'mobility') {
+          const iv = e.interval ?? DEFAULT_INTERVAL
+          return {
+            ...base,
+            repRange: undefined,
+            defaultWeight: undefined,
+            defaultDuration: undefined,
+            interval: {
+              workSeconds: Math.max(1, iv.workSeconds || 1),
+              restSeconds: Math.max(0, iv.restSeconds || 0),
+              rounds: Math.max(1, iv.rounds || 1),
+              perSide: iv.perSide,
+            },
+          }
+        }
+        return { ...base, interval: undefined }
+      })
     onSave({
       id: initial?.id ?? uid(),
       name: name.trim(),
+      kind,
       exercises: cleaned,
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
@@ -75,6 +117,24 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
           autoFocus
           className="w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text [color-scheme:dark]"
         />
+
+        <label className={`${label} mt-3`}>Tyyppi</label>
+        <div className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
+          {([
+            { id: 'strength' as const, text: 'Voima', Icon: Dumbbell },
+            { id: 'mobility' as const, text: 'Liikkuvuus', Icon: Timer },
+          ]).map((k) => (
+            <button
+              key={k.id}
+              onClick={() => switchKind(k.id)}
+              className={`flex min-h-0 items-center justify-center gap-1.5 rounded-[14px] py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                kind === k.id ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'text-fg-muted'
+              }`}
+            >
+              <k.Icon size={13} /> {k.text}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {/* Exercises */}
@@ -100,59 +160,113 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
                 <Trash2 size={15} />
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className={label}>Sarjat</label>
-                <input
-                  inputMode="numeric"
-                  value={e.defaultSets}
-                  onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
-                  className={numInput}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className={label}>Toistot</label>
-                <div className="flex items-center gap-1">
+            {kind === 'mobility' ? (
+              <>
+                <div className="grid grid-cols-4 gap-2">
+                  <div>
+                    <label className={label}>Sarjat</label>
+                    <input
+                      inputMode="numeric"
+                      value={e.defaultSets}
+                      onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
+                      className={numInput}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Contr. s</label>
+                    <input
+                      inputMode="numeric"
+                      value={e.interval?.workSeconds ?? ''}
+                      onChange={(ev) => patchInterval(e.id, { workSeconds: toInt(ev.target.value) ?? 0 })}
+                      className={numInput}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Lepo s</label>
+                    <input
+                      inputMode="numeric"
+                      value={e.interval?.restSeconds ?? ''}
+                      onChange={(ev) => patchInterval(e.id, { restSeconds: toInt(ev.target.value) ?? 0 })}
+                      className={numInput}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Kierrot</label>
+                    <input
+                      inputMode="numeric"
+                      value={e.interval?.rounds ?? ''}
+                      onChange={(ev) => patchInterval(e.id, { rounds: toInt(ev.target.value) ?? 0 })}
+                      className={numInput}
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => patchInterval(e.id, { perSide: !(e.interval?.perSide ?? true) })}
+                  className={`mt-2 flex min-h-0 w-full items-center justify-center gap-1.5 rounded-input border py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                    e.interval?.perSide
+                      ? 'border-cyan/35 bg-cyan/[0.10] text-cyan'
+                      : 'border-white/10 bg-white/[0.03] text-fg-muted'
+                  }`}
+                >
+                  <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />
+                  Molemmille puolille (esim. per jalka)
+                </button>
+              </>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className={label}>Sarjat</label>
                   <input
                     inputMode="numeric"
-                    placeholder="–"
-                    value={e.repRange?.min ?? ''}
-                    onChange={(ev) =>
-                      patch(e.id, { repRange: { min: toInt(ev.target.value) ?? 0, max: e.repRange?.max ?? 0 } })
-                    }
+                    value={e.defaultSets}
+                    onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
                     className={numInput}
                   />
-                  <span className="text-fg-faint">–</span>
+                </div>
+                <div className="col-span-2">
+                  <label className={label}>Toistot</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      inputMode="numeric"
+                      placeholder="–"
+                      value={e.repRange?.min ?? ''}
+                      onChange={(ev) =>
+                        patch(e.id, { repRange: { min: toInt(ev.target.value) ?? 0, max: e.repRange?.max ?? 0 } })
+                      }
+                      className={numInput}
+                    />
+                    <span className="text-fg-faint">–</span>
+                    <input
+                      inputMode="numeric"
+                      placeholder="–"
+                      value={e.repRange?.max ?? ''}
+                      onChange={(ev) =>
+                        patch(e.id, { repRange: { min: e.repRange?.min ?? 0, max: toInt(ev.target.value) ?? 0 } })
+                      }
+                      className={numInput}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={label}>Paino</label>
                   <input
-                    inputMode="numeric"
-                    placeholder="–"
-                    value={e.repRange?.max ?? ''}
+                    inputMode="decimal"
+                    placeholder="kg"
+                    value={e.defaultWeight ?? ''}
                     onChange={(ev) =>
-                      patch(e.id, { repRange: { min: e.repRange?.min ?? 0, max: toInt(ev.target.value) ?? 0 } })
+                      patch(e.id, { defaultWeight: ev.target.value === '' ? undefined : Number(ev.target.value) })
                     }
                     className={numInput}
                   />
                 </div>
               </div>
-              <div>
-                <label className={label}>Paino</label>
-                <input
-                  inputMode="decimal"
-                  placeholder="kg"
-                  value={e.defaultWeight ?? ''}
-                  onChange={(ev) =>
-                    patch(e.id, { defaultWeight: ev.target.value === '' ? undefined : Number(ev.target.value) })
-                  }
-                  className={numInput}
-                />
-              </div>
-            </div>
+            )}
           </Card>
         ))}
       </div>
 
       <button
-        onClick={() => setExercises((prev) => [...prev, blankExercise()])}
+        onClick={() => setExercises((prev) => [...prev, blankExercise(kind)])}
         className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent px-4 py-3 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-muted"
       >
         <Plus size={15} /> Lisää liike
