@@ -341,7 +341,7 @@ export function WorkoutView() {
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
                               aria-label="Poista pohja"
-                              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
+                              className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -392,7 +392,7 @@ export function WorkoutView() {
               <button
                 onClick={() => shiftMonth(-1)}
                 aria-label="Edellinen kuukausi"
-                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
+                className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -400,7 +400,7 @@ export function WorkoutView() {
               <button
                 onClick={() => shiftMonth(1)}
                 aria-label="Seuraava kuukausi"
-                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
+                className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
               >
                 <ChevronRight size={18} />
               </button>

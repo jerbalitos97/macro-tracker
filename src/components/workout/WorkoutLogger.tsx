@@ -138,7 +138,7 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
       <button
         onClick={(e) => { e.stopPropagation(); onToggleDone() }}
         aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
-        className={`absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+        className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
           done ? 'text-bg' : 'border border-white/20 text-fg-faint'
         }`}
         style={done ? { backgroundColor: accent } : undefined}

@@ -63,7 +63,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
       )}
 
       {/* Column headers */}
-      <div className="mb-1.5 grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5 px-0.5">
+      <div className="mb-1.5 grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2 px-0.5">
         <span className={colLabel}>#</span>
         <span className={`${colLabel} text-center`}>Toistot</span>
         <span className={`${colLabel} text-center`}>Paino kg</span>
@@ -74,7 +74,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
 
       <div className="flex flex-col gap-1.5">
         {sets.map((s, i) => (
-          <div key={i} className="grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5">
+          <div key={i} className="grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2">
             <span className="text-center font-mono text-[12px] tabular-nums text-fg-faint">{i + 1}</span>
             <input inputMode="numeric" value={s.reps ?? ''} placeholder="–"
               onChange={(e) => patchSet(i, { reps: num(e.target.value) })} className={cell} />
@@ -85,7 +85,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
             <button
               onClick={() => patchSet(i, { done: !s.done })}
               aria-label={s.done ? 'Merkitse sarja tekemättömäksi' : 'Merkitse sarja tehdyksi'}
-              className={`flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+              className={`flex h-[34px] w-[34px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
                 s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
               }`}
             >
@@ -95,7 +95,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
               onClick={() => removeSet(i)}
               disabled={sets.length <= 1}
               aria-label="Poista sarja"
-              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger disabled:opacity-30"
+              className="icon-btn flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-md text-fg-faint hover:text-danger disabled:opacity-30"
             >
               <X size={14} />
             </button>
