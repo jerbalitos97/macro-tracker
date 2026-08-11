@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Trash2, Check } from 'lucide-react'
+import { Plus, X, Trash2, Check, ArrowUp, ArrowDown } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, SetEntry } from '../../lib/workouts'
 
@@ -9,6 +9,9 @@ interface Props {
   suggestion?: LoggedExercise | null
   onChange: (updated: LoggedExercise) => void
   onRemoveExercise: () => void
+  /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
+  onMoveUp: (() => void) | null
+  onMoveDown: (() => void) | null
   onClose: () => void
 }
 
@@ -34,7 +37,7 @@ function summarize(ex: LoggedExercise): string {
     .join('  ')
 }
 
-export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onClose }: Props) {
+export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
   const [sets, setSets] = useState<SetEntry[]>(exercise.sets.length ? exercise.sets : [{}])
 
   const commit = (next: SetEntry[]) => {
@@ -110,12 +113,29 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
         <Plus size={14} /> Lisää sarja
       </button>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={() => onMoveUp?.()}
+          disabled={!onMoveUp}
+          aria-label="Siirrä liike ylöspäin"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+        >
+          <ArrowUp size={16} />
+        </button>
+        <button
+          onClick={() => onMoveDown?.()}
+          disabled={!onMoveDown}
+          aria-label="Siirrä liike alaspäin"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+        >
+          <ArrowDown size={16} />
+        </button>
         <button
           onClick={() => { onRemoveExercise(); onClose() }}
-          className="inline-flex items-center justify-center gap-1.5 rounded-input border border-danger/30 bg-danger/[0.08] px-4 py-3 font-mono text-[12px] text-danger"
+          aria-label="Poista liike"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
         >
-          <Trash2 size={14} /> Poista
+          <Trash2 size={16} />
         </button>
         <Button variant="primary" onClick={onClose}>
           <Check size={16} /> Valmis

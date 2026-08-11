@@ -172,6 +172,17 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
   const removeExercise = (id: string) =>
     onChange({ ...workout, exercises: workout.exercises.filter((e) => e.id !== id), updatedAt: new Date().toISOString() })
 
+  /** Non-drag reordering (WCAG 2.5.7) — same move the drag performs. */
+  const moveExercise = (id: string, delta: -1 | 1) => {
+    const arr = [...workout.exercises]
+    const from = arr.findIndex((e) => e.id === id)
+    const to = from + delta
+    if (from < 0 || to < 0 || to >= arr.length) return
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    onChange({ ...workout, exercises: arr, updatedAt: new Date().toISOString() })
+  }
+
   const toggleExerciseDone = (ex: LoggedExercise) => {
     const next = !exerciseDone(ex)
     updateExercise({ ...ex, sets: ex.sets.map((s) => ({ ...s, done: next })) })
@@ -216,6 +227,9 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
   }
 
   const open = openId ? workout.exercises.find((e) => e.id === openId) ?? null : null
+  const openIndex = open ? workout.exercises.findIndex((e) => e.id === open.id) : -1
+  const moveUp = openIndex > 0 ? () => moveExercise(open!.id, -1) : null
+  const moveDown = openIndex >= 0 && openIndex < workout.exercises.length - 1 ? () => moveExercise(open!.id, 1) : null
 
   return (
     <div className="px-4 pb-28 pt-4">
@@ -278,6 +292,8 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           exercise={open as LoggedExercise & { interval: IntervalConfig }}
           onChange={updateExercise}
           onRemoveExercise={() => removeExercise(open.id)}
+          onMoveUp={moveUp}
+          onMoveDown={moveDown}
           onClose={() => setOpenId(null)}
         />
       ) : (
@@ -286,6 +302,8 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           suggestion={lastEntryForExercise(open.name, workout.id)}
           onChange={updateExercise}
           onRemoveExercise={() => removeExercise(open.id)}
+          onMoveUp={moveUp}
+          onMoveDown={moveDown}
           onClose={() => setOpenId(null)}
         />
       ))}

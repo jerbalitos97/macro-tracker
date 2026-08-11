@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Check, Trash2, X } from 'lucide-react'
+import { Play, Check, Trash2, X, ArrowUp, ArrowDown } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 
@@ -7,6 +7,9 @@ interface Props {
   exercise: LoggedExercise & { interval: IntervalConfig }
   onChange: (updated: LoggedExercise) => void
   onRemoveExercise: () => void
+  /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
+  onMoveUp: (() => void) | null
+  onMoveDown: (() => void) | null
   onClose: () => void
 }
 
@@ -49,7 +52,7 @@ function speak(text: string): void {
   } catch { /* no speech available */ }
 }
 
-export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClose }: Props) {
+export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
   const iv = exercise.interval
   const [run, setRun] = useState<Run | null>(null)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
@@ -222,12 +225,29 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
             ))}
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={() => onMoveUp?.()}
+              disabled={!onMoveUp}
+              aria-label="Siirrä liike ylöspäin"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+            >
+              <ArrowUp size={16} />
+            </button>
+            <button
+              onClick={() => onMoveDown?.()}
+              disabled={!onMoveDown}
+              aria-label="Siirrä liike alaspäin"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+            >
+              <ArrowDown size={16} />
+            </button>
             <button
               onClick={() => { onRemoveExercise(); onClose() }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-input border border-danger/30 bg-danger/[0.08] px-4 py-3 font-mono text-[12px] text-danger"
+              aria-label="Poista liike"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
             >
-              <Trash2 size={14} /> Poista
+              <Trash2 size={16} />
             </button>
             <Button variant="primary" onClick={onClose}>
               <Check size={16} /> Valmis
