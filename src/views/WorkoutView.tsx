@@ -226,12 +226,14 @@ export function WorkoutView() {
       <h1 className="mb-3 font-display text-[22px] font-bold tracking-[-0.02em] text-text">Workout</h1>
 
       {/* Segmented tabs */}
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
+      <div role="tablist" aria-label="Workout-näkymät" className="mb-4 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
         {TABS.map((t) => {
           const active = tab === t.id
           return (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={active}
               onClick={() => setTab(t.id)}
               className={`flex min-h-0 items-center justify-center gap-1.5 rounded-[14px] py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
                 active ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'text-fg-muted'
@@ -327,7 +329,16 @@ export function WorkoutView() {
                       return (
                         <div
                           key={t.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Muokkaa pohjaa ${t.name}`}
                           onClick={() => { setEditing(t); setScreen('editTemplate') }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setEditing(t); setScreen('editTemplate')
+                            }
+                          }}
                           className="active:scale-[0.97] relative flex min-h-[104px] cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 transition-transform [backdrop-filter:blur(14px)]"
                           style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
                         >
@@ -341,7 +352,7 @@ export function WorkoutView() {
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
                               aria-label="Poista pohja"
-                              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
+                              className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -392,7 +403,7 @@ export function WorkoutView() {
               <button
                 onClick={() => shiftMonth(-1)}
                 aria-label="Edellinen kuukausi"
-                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
+                className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -400,7 +411,7 @@ export function WorkoutView() {
               <button
                 onClick={() => shiftMonth(1)}
                 aria-label="Seuraava kuukausi"
-                className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
+                className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-full p-2 text-fg-muted"
               >
                 <ChevronRight size={18} />
               </button>
@@ -424,12 +435,16 @@ export function WorkoutView() {
                   <button
                     key={date}
                     onClick={() => setSelectedDay(date)}
+                    aria-pressed={isSelected}
+                    aria-label={`${fromISO(date).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })}${
+                      has ? ` — ${(byDate.get(date) ?? []).length} treeni${(byDate.get(date) ?? []).length > 1 ? 'ä' : ''}` : ' — ei treenejä'
+                    }`}
                     className={`relative flex aspect-square !min-h-0 !min-w-0 flex-col items-center justify-center rounded-xl border text-[13px] tabular-nums transition-colors ${
                       isSelected
                         ? 'border-cyan/50 bg-cyan/[0.12] font-bold text-cyan'
                         : isToday
-                          ? 'border-white/20 bg-white/[0.06] font-bold text-text'
-                          : 'border-white/[0.06] bg-white/[0.03] text-fg-muted'
+                          ? 'border-white/25 bg-black/30 font-bold text-text'
+                          : 'border-white/[0.08] bg-black/25 text-fg-muted'
                     }`}
                   >
                     {Number(date.slice(8, 10))}

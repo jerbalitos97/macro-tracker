@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Check, Trash2, X } from 'lucide-react'
+import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 
@@ -7,6 +7,9 @@ interface Props {
   exercise: LoggedExercise & { interval: IntervalConfig }
   onChange: (updated: LoggedExercise) => void
   onRemoveExercise: () => void
+  /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
+  onMoveUp: (() => void) | null
+  onMoveDown: (() => void) | null
   onClose: () => void
 }
 
@@ -49,9 +52,10 @@ function speak(text: string): void {
   } catch { /* no speech available */ }
 }
 
-export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClose }: Props) {
+export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
   const iv = exercise.interval
   const [run, setRun] = useState<Run | null>(null)
+  const [paused, setPaused] = useState(false)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
 
   // Keep the screen awake while clocking.
@@ -81,10 +85,12 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
     })
     beep(1320); setTimeout(() => beep(1320), 200); setTimeout(() => beep(1760), 400)
     speak('Sarja valmis')
+    setPaused(false)
     setRun(null)
   }
 
   const startClock = (setIndex: number, side: 1 | 2 = 1) => {
+    setPaused(false)
     beep(880)
     speak('Valmistaudu')
     setRun({ setIndex, phase: 'countdown', side, round: 1, secondsLeft: 3 })
@@ -93,7 +99,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
   // One state transition per second while a phase is running. The effect
   // re-arms on every `run` change, so the closure always sees fresh state.
   useEffect(() => {
-    if (!run || run.phase === 'switch') return
+    if (!run || run.phase === 'switch' || paused) return
     const t = setTimeout(() => {
       const r = run
       if (r.secondsLeft > 1) {
@@ -137,7 +143,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
     }, 1000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run])
+  }, [run, paused])
 
   const configLabel = `${iv.workSeconds}s contraction / ${iv.restSeconds}s lepo × ${iv.rounds}${iv.perSide ? ' · per puoli' : ''}`
 
@@ -163,12 +169,17 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
 
       {run ? (
         <div className="flex flex-col items-center py-4">
-          <div className={`font-mono text-[13px] uppercase tracking-[0.2em] ${phaseColor[run.phase]}`}>
-            {phaseLabel[run.phase]}
+          <div
+            className={`font-mono text-[13px] uppercase tracking-[0.2em] ${paused ? 'text-accent' : phaseColor[run.phase]}`}
+            aria-live="polite"
+          >
+            {paused ? `${phaseLabel[run.phase]} · tauolla` : phaseLabel[run.phase]}
           </div>
 
           {run.phase !== 'switch' ? (
-            <div className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums ${phaseColor[run.phase]}`}>
+            <div
+              className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums transition-opacity ${phaseColor[run.phase]} ${paused ? 'opacity-40' : ''}`}
+            >
               {run.secondsLeft}
             </div>
           ) : (
@@ -186,12 +197,22 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
             {iv.perSide && <>{' · '}Puoli {run.side}/2</>}
           </div>
 
-          <button
-            onClick={() => setRun(null)}
-            className="mt-5 flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
-          >
-            <X size={14} /> Keskeytä
-          </button>
+          <div className="mt-5 flex items-center gap-2">
+            {run.phase !== 'switch' && (
+              <button
+                onClick={() => setPaused((p) => !p)}
+                className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
+              >
+                {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}
+              </button>
+            )}
+            <button
+              onClick={() => { setPaused(false); setRun(null) }}
+              className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
+            >
+              <X size={14} /> Keskeytä
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -222,12 +243,29 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onClo
             ))}
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={() => onMoveUp?.()}
+              disabled={!onMoveUp}
+              aria-label="Siirrä liike ylöspäin"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+            >
+              <ArrowUp size={16} />
+            </button>
+            <button
+              onClick={() => onMoveDown?.()}
+              disabled={!onMoveDown}
+              aria-label="Siirrä liike alaspäin"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+            >
+              <ArrowDown size={16} />
+            </button>
             <button
               onClick={() => { onRemoveExercise(); onClose() }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-input border border-danger/30 bg-danger/[0.08] px-4 py-3 font-mono text-[12px] text-danger"
+              aria-label="Poista liike"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
             >
-              <Trash2 size={14} /> Poista
+              <Trash2 size={16} />
             </button>
             <Button variant="primary" onClick={onClose}>
               <Check size={16} /> Valmis

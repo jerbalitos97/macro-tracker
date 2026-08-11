@@ -28,11 +28,15 @@
   /* ── Text ramp ── */
   --color-text:      #ffffff;
   --color-fg:        #ffffff;
-  --color-muted:     #9a9cac;
-  --color-fg-muted:  #9a9cac;
-  --color-fg-dim:    #8a8c9c;
-  --color-fg-faint:  #7c7e8e;
-  --color-fg-ghost:  #5a5c6a;
+  /* The faint end of the ramp is tuned against the *rendered* background, not
+     the #05060c ink: the aurora lifts the effective luminance behind glass
+     surfaces to ~0.05, so the old values measured 2.4–4.0:1 on screen even
+     though they passed on paper. */
+  --color-muted:     #b4b7c3;
+  --color-fg-muted:  #b4b7c3;
+  --color-fg-dim:    #b2b5c1;
+  --color-fg-faint:  #a8abb8;
+  --color-fg-ghost:  #9296a3;
 
   /* ── Per-habit semantic colors ── */
   --color-habit-neutral: #cbd0dc;
@@ -201,6 +205,20 @@ button:active {
 /* Icon-only buttons */
 .icon-btn:active { transform: scale(0.85); opacity: 0.65; }
 
+/* Extends a small control's touch target to at least 44×44 without changing
+   how big it looks. WCAG 2.5.8 asks for 24×24; Apple's HIG asks for 44pt, and
+   these get pressed mid-set with one hand. */
+.hit-44 { position: relative; }
+.hit-44::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 /* ─── Focus ──────────────────────────────────────────────────────────────────── */
 input, select, textarea {
   transition:
@@ -211,8 +229,16 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: rgba(212, 184, 90, 0.65) !important;
-  box-shadow: 0 0 0 3px rgba(212, 184, 90, 0.10);
+  border-color: rgba(34, 211, 238, 0.65) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16);
+}
+
+/* Keyboard focus was invisible on every button. :focus-visible keeps it off
+   for pointer taps, so this costs the touch UI nothing. */
+:where(button, a, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* ─── Spinner removal ────────────────────────────────────────────────────────── */

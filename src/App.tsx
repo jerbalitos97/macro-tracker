@@ -38,12 +38,12 @@ import { HistoryView } from './views/HistoryView'
 import { GoalView } from './views/GoalView'
 import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
-import { LazyMotion, domMax, m, AnimatePresence } from 'motion/react'
+import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion/react'
 
 // Cross-fade between views. `mode="wait"` runs exit before enter, so a slow
 // exit reads as a blank flash — keep it short and let the enter carry the
 // motion. A small upward drift makes the swap read as a transition.
-const viewMotion = {
+const VIEW_MOTION = {
   initial: { opacity: 0, y: 6 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -4 },
@@ -52,6 +52,14 @@ const viewMotion = {
     ease: [0.16, 1, 0.3, 1] as const,
     exit: { duration: 0.1, ease: 'easeIn' as const },
   },
+}
+
+// Reduced motion keeps the swap instant rather than sliding it.
+const VIEW_MOTION_REDUCED = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.01 },
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -79,6 +87,8 @@ const DEFAULT_SETTINGS: Settings = {
 
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled } = useAuth()
+  const reduceMotion = useReducedMotion()
+  const viewMotion = reduceMotion ? VIEW_MOTION_REDUCED : VIEW_MOTION
 
   // A ?g=<listId> share link deep-links straight into the Grocery tool.
   const [view, setView] = useState<View>(() => (sharedListIdFromUrl() ? 'grocery' : 'home'))
@@ -367,7 +377,7 @@ export default function App() {
     <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(96px+env(safe-area-inset-bottom))]">
       {/* Storage error banner */}
       {saveError && (
-        <div className="banner-enter flex items-center justify-between gap-3 border-b border-danger/25 bg-danger/10 px-4 py-2.5 text-xs text-danger">
+        <div role="alert" className="banner-enter flex items-center justify-between gap-3 border-b border-danger/25 bg-danger/10 px-4 py-2.5 text-xs text-danger">
           <span>
             {saveError === 'quota'
               ? '⚠ Tallennustila täynnä – vie varmuuskopio Asetuksista.'
@@ -409,7 +419,7 @@ export default function App() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={reduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
             <NavBar view={view} setView={setView} />
             {user && syncStatus !== 'idle' && (

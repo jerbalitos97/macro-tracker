@@ -99,6 +99,12 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
     <m.div
       layout
       data-exid={ex.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`${ex.name}, ${blockSummary(ex)}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() }
+      }}
       drag
       dragListener={false}
       dragControls={controls}
@@ -138,7 +144,7 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
       <button
         onClick={(e) => { e.stopPropagation(); onToggleDone() }}
         aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
-        className={`absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+        className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
           done ? 'text-bg' : 'border border-white/20 text-fg-faint'
         }`}
         style={done ? { backgroundColor: accent } : undefined}
@@ -171,6 +177,17 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
 
   const removeExercise = (id: string) =>
     onChange({ ...workout, exercises: workout.exercises.filter((e) => e.id !== id), updatedAt: new Date().toISOString() })
+
+  /** Non-drag reordering (WCAG 2.5.7) — same move the drag performs. */
+  const moveExercise = (id: string, delta: -1 | 1) => {
+    const arr = [...workout.exercises]
+    const from = arr.findIndex((e) => e.id === id)
+    const to = from + delta
+    if (from < 0 || to < 0 || to >= arr.length) return
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    onChange({ ...workout, exercises: arr, updatedAt: new Date().toISOString() })
+  }
 
   const toggleExerciseDone = (ex: LoggedExercise) => {
     const next = !exerciseDone(ex)
@@ -216,6 +233,9 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
   }
 
   const open = openId ? workout.exercises.find((e) => e.id === openId) ?? null : null
+  const openIndex = open ? workout.exercises.findIndex((e) => e.id === open.id) : -1
+  const moveUp = openIndex > 0 ? () => moveExercise(open!.id, -1) : null
+  const moveDown = openIndex >= 0 && openIndex < workout.exercises.length - 1 ? () => moveExercise(open!.id, 1) : null
 
   return (
     <div className="px-4 pb-28 pt-4">
@@ -278,6 +298,8 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           exercise={open as LoggedExercise & { interval: IntervalConfig }}
           onChange={updateExercise}
           onRemoveExercise={() => removeExercise(open.id)}
+          onMoveUp={moveUp}
+          onMoveDown={moveDown}
           onClose={() => setOpenId(null)}
         />
       ) : (
@@ -286,6 +308,8 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           suggestion={lastEntryForExercise(open.name, workout.id)}
           onChange={updateExercise}
           onRemoveExercise={() => removeExercise(open.id)}
+          onMoveUp={moveUp}
+          onMoveDown={moveDown}
           onClose={() => setOpenId(null)}
         />
       ))}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Trash2, Check } from 'lucide-react'
+import { Plus, X, Trash2, Check, ArrowUp, ArrowDown } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, SetEntry } from '../../lib/workouts'
 
@@ -9,6 +9,9 @@ interface Props {
   suggestion?: LoggedExercise | null
   onChange: (updated: LoggedExercise) => void
   onRemoveExercise: () => void
+  /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
+  onMoveUp: (() => void) | null
+  onMoveDown: (() => void) | null
   onClose: () => void
 }
 
@@ -34,7 +37,7 @@ function summarize(ex: LoggedExercise): string {
     .join('  ')
 }
 
-export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onClose }: Props) {
+export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
   const [sets, setSets] = useState<SetEntry[]>(exercise.sets.length ? exercise.sets : [{}])
 
   const commit = (next: SetEntry[]) => {
@@ -63,7 +66,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
       )}
 
       {/* Column headers */}
-      <div className="mb-1.5 grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5 px-0.5">
+      <div className="mb-1.5 grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2 px-0.5">
         <span className={colLabel}>#</span>
         <span className={`${colLabel} text-center`}>Toistot</span>
         <span className={`${colLabel} text-center`}>Paino kg</span>
@@ -74,7 +77,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
 
       <div className="flex flex-col gap-1.5">
         {sets.map((s, i) => (
-          <div key={i} className="grid grid-cols-[24px_1fr_1fr_1fr_30px_30px] items-center gap-1.5">
+          <div key={i} className="grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2">
             <span className="text-center font-mono text-[12px] tabular-nums text-fg-faint">{i + 1}</span>
             <input inputMode="numeric" value={s.reps ?? ''} placeholder="–"
               onChange={(e) => patchSet(i, { reps: num(e.target.value) })} className={cell} />
@@ -85,7 +88,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
             <button
               onClick={() => patchSet(i, { done: !s.done })}
               aria-label={s.done ? 'Merkitse sarja tekemättömäksi' : 'Merkitse sarja tehdyksi'}
-              className={`flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+              className={`flex h-[34px] w-[34px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
                 s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
               }`}
             >
@@ -95,7 +98,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
               onClick={() => removeSet(i)}
               disabled={sets.length <= 1}
               aria-label="Poista sarja"
-              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger disabled:opacity-30"
+              className="icon-btn flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-md text-fg-faint hover:text-danger disabled:opacity-30"
             >
               <X size={14} />
             </button>
@@ -110,12 +113,29 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
         <Plus size={14} /> Lisää sarja
       </button>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={() => onMoveUp?.()}
+          disabled={!onMoveUp}
+          aria-label="Siirrä liike ylöspäin"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+        >
+          <ArrowUp size={16} />
+        </button>
+        <button
+          onClick={() => onMoveDown?.()}
+          disabled={!onMoveDown}
+          aria-label="Siirrä liike alaspäin"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+        >
+          <ArrowDown size={16} />
+        </button>
         <button
           onClick={() => { onRemoveExercise(); onClose() }}
-          className="inline-flex items-center justify-center gap-1.5 rounded-input border border-danger/30 bg-danger/[0.08] px-4 py-3 font-mono text-[12px] text-danger"
+          aria-label="Poista liike"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
         >
-          <Trash2 size={14} /> Poista
+          <Trash2 size={16} />
         </button>
         <Button variant="primary" onClick={onClose}>
           <Check size={16} /> Valmis
