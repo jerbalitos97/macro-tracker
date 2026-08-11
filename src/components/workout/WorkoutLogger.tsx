@@ -99,6 +99,12 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
     <m.div
       layout
       data-exid={ex.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`${ex.name}, ${blockSummary(ex)}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() }
+      }}
       drag
       dragListener={false}
       dragControls={controls}

@@ -229,8 +229,16 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: rgba(212, 184, 90, 0.65) !important;
-  box-shadow: 0 0 0 3px rgba(212, 184, 90, 0.10);
+  border-color: rgba(34, 211, 238, 0.65) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16);
+}
+
+/* Keyboard focus was invisible on every button. :focus-visible keeps it off
+   for pointer taps, so this costs the touch UI nothing. */
+:where(button, a, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* ─── Spinner removal ────────────────────────────────────────────────────────── */
