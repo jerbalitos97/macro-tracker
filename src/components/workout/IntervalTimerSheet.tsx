@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Check, Trash2, X, ArrowUp, ArrowDown } from 'lucide-react'
+import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 
@@ -55,6 +55,7 @@ function speak(text: string): void {
 export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
   const iv = exercise.interval
   const [run, setRun] = useState<Run | null>(null)
+  const [paused, setPaused] = useState(false)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
 
   // Keep the screen awake while clocking.
@@ -84,10 +85,12 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     })
     beep(1320); setTimeout(() => beep(1320), 200); setTimeout(() => beep(1760), 400)
     speak('Sarja valmis')
+    setPaused(false)
     setRun(null)
   }
 
   const startClock = (setIndex: number, side: 1 | 2 = 1) => {
+    setPaused(false)
     beep(880)
     speak('Valmistaudu')
     setRun({ setIndex, phase: 'countdown', side, round: 1, secondsLeft: 3 })
@@ -96,7 +99,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
   // One state transition per second while a phase is running. The effect
   // re-arms on every `run` change, so the closure always sees fresh state.
   useEffect(() => {
-    if (!run || run.phase === 'switch') return
+    if (!run || run.phase === 'switch' || paused) return
     const t = setTimeout(() => {
       const r = run
       if (r.secondsLeft > 1) {
@@ -140,7 +143,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     }, 1000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run])
+  }, [run, paused])
 
   const configLabel = `${iv.workSeconds}s contraction / ${iv.restSeconds}s lepo × ${iv.rounds}${iv.perSide ? ' · per puoli' : ''}`
 
@@ -166,12 +169,17 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
       {run ? (
         <div className="flex flex-col items-center py-4">
-          <div className={`font-mono text-[13px] uppercase tracking-[0.2em] ${phaseColor[run.phase]}`}>
-            {phaseLabel[run.phase]}
+          <div
+            className={`font-mono text-[13px] uppercase tracking-[0.2em] ${paused ? 'text-accent' : phaseColor[run.phase]}`}
+            aria-live="polite"
+          >
+            {paused ? `${phaseLabel[run.phase]} · tauolla` : phaseLabel[run.phase]}
           </div>
 
           {run.phase !== 'switch' ? (
-            <div className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums ${phaseColor[run.phase]}`}>
+            <div
+              className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums transition-opacity ${phaseColor[run.phase]} ${paused ? 'opacity-40' : ''}`}
+            >
               {run.secondsLeft}
             </div>
           ) : (
@@ -189,12 +197,22 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
             {iv.perSide && <>{' · '}Puoli {run.side}/2</>}
           </div>
 
-          <button
-            onClick={() => setRun(null)}
-            className="mt-5 flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
-          >
-            <X size={14} /> Keskeytä
-          </button>
+          <div className="mt-5 flex items-center gap-2">
+            {run.phase !== 'switch' && (
+              <button
+                onClick={() => setPaused((p) => !p)}
+                className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
+              >
+                {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}
+              </button>
+            )}
+            <button
+              onClick={() => { setPaused(false); setRun(null) }}
+              className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
+            >
+              <X size={14} /> Keskeytä
+            </button>
+          </div>
         </div>
       ) : (
         <>
