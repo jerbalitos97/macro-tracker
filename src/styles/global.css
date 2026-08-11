@@ -28,11 +28,15 @@
   /* ── Text ramp ── */
   --color-text:      #ffffff;
   --color-fg:        #ffffff;
-  --color-muted:     #9a9cac;
-  --color-fg-muted:  #9a9cac;
-  --color-fg-dim:    #8a8c9c;
-  --color-fg-faint:  #7c7e8e;
-  --color-fg-ghost:  #5a5c6a;
+  /* The faint end of the ramp is tuned against the *rendered* background, not
+     the #05060c ink: the aurora lifts the effective luminance behind glass
+     surfaces to ~0.05, so the old values measured 2.4–4.0:1 on screen even
+     though they passed on paper. */
+  --color-muted:     #b4b7c3;
+  --color-fg-muted:  #b4b7c3;
+  --color-fg-dim:    #b2b5c1;
+  --color-fg-faint:  #a8abb8;
+  --color-fg-ghost:  #9296a3;
 
   /* ── Per-habit semantic colors ── */
   --color-habit-neutral: #cbd0dc;

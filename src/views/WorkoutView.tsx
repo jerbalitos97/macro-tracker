@@ -428,8 +428,8 @@ export function WorkoutView() {
                       isSelected
                         ? 'border-cyan/50 bg-cyan/[0.12] font-bold text-cyan'
                         : isToday
-                          ? 'border-white/20 bg-white/[0.06] font-bold text-text'
-                          : 'border-white/[0.06] bg-white/[0.03] text-fg-muted'
+                          ? 'border-white/25 bg-black/30 font-bold text-text'
+                          : 'border-white/[0.08] bg-black/25 text-fg-muted'
                     }`}
                   >
                     {Number(date.slice(8, 10))}
