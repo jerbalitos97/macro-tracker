@@ -264,3 +264,71 @@ create policy "workout_blocks: own rows only"
 
 create index if not exists workout_blocks_user_range
   on workout_blocks (user_id, start_date, end_date);
+
+-- ── Wealth: assets, valuations, goal ────────────────────────────
+-- These three were created outside this file and ran with RLS DISABLED, which
+-- left every asset, valuation and goal readable and writable by anyone holding
+-- the public anon key. They also had no owner column at all, so there was
+-- nothing for a policy to compare against — user_id came later, backfilled to
+-- the account that had created the rows.
+create table if not exists wt_assets (
+  id                      uuid primary key default gen_random_uuid(),
+  user_id                 uuid not null default auth.uid() references auth.users on delete cascade,
+  name                    text not null,
+  estimated_annual_return numeric not null,
+  monthly_contribution    numeric default 0,
+  contribution_start      text,                   -- YYYY-MM-DD, null = from the start
+  contribution_end        text,
+  position                int,                    -- manual order in the list; null = unsorted
+  created_at              timestamptz not null default now()
+);
+
+alter table wt_assets enable row level security;
+
+create policy "wt_assets: own rows only"
+  on wt_assets for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists wt_assets_user on wt_assets (user_id);
+
+create table if not exists wt_asset_values (
+  id          uuid primary key default gen_random_uuid(),
+  asset_id    uuid not null references wt_assets on delete cascade,
+  value       numeric not null,
+  recorded_at text not null,                      -- YYYY-MM-DD
+  created_at  timestamptz not null default now()
+);
+
+alter table wt_asset_values enable row level security;
+
+-- A valuation carries no owner of its own: it belongs to whoever owns its
+-- asset, and the subquery is itself filtered by the policy above, so quoting
+-- someone else's asset id gets you nothing.
+create policy "wt_asset_values: via own asset"
+  on wt_asset_values for all
+  using (exists (
+    select 1 from wt_assets a where a.id = wt_asset_values.asset_id and a.user_id = auth.uid()
+  ))
+  with check (exists (
+    select 1 from wt_assets a where a.id = wt_asset_values.asset_id and a.user_id = auth.uid()
+  ));
+
+create index if not exists wt_asset_values_asset on wt_asset_values (asset_id);
+
+-- One row per account. This used to be a single global row keyed on a
+-- hardcoded `id integer default 1`, which meant a second account's first save
+-- collided on the primary key. Ownership is the key now.
+create table if not exists wt_settings (
+  user_id     uuid primary key default auth.uid() references auth.users on delete cascade,
+  wealth_goal numeric,
+  currency    text not null default 'EUR',
+  updated_at  timestamptz not null default now()
+);
+
+alter table wt_settings enable row level security;
+
+create policy "wt_settings: own row only"
+  on wt_settings for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
