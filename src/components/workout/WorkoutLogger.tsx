@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronLeft, Plus, Check, GripVertical } from 'lucide-react'
 import { m, useDragControls } from 'motion/react'
 import { Sheet, Button } from '../ui'
@@ -34,10 +34,66 @@ interface TileProps {
   onDrop: (id: string, point: { x: number; y: number }) => void
 }
 
+/** Hold this long anywhere on a tile to pick it up (iOS home-screen feel). */
+const LONG_PRESS_MS = 350
+/** Move further than this before the hold completes and it's a scroll, not a lift. */
+const MOVE_TOLERANCE_PX = 10
+/** Clicks arriving this soon after a drag are the drag's own click — ignore them. */
+const CLICK_SUPPRESS_MS = 300
+
 function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, onDrop }: TileProps) {
   const controls = useDragControls()
-  const dragged = useRef(false)
   const done = exerciseDone(ex)
+
+  const [lifted, setLifted] = useState(false)
+  const pressTimer = useRef<number | null>(null)
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null)
+  const dragEndedAt = useRef(0)
+
+  const cancelPress = useCallback(() => {
+    if (pressTimer.current !== null) {
+      window.clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+    pressOrigin.current = null
+  }, [])
+
+  const beginDrag = useCallback((e: React.PointerEvent) => {
+    cancelPress()
+    setLifted(true)
+    onMeasure()
+    controls.start(e)
+    // Light haptic where supported (Android); a no-op on iOS Safari.
+    navigator.vibrate?.(12)
+  }, [cancelPress, controls, onMeasure])
+
+  // The tile keeps `touch-action: auto` so the page still scrolls under a
+  // swipe. Once a tile is lifted, block scrolling for the rest of the gesture
+  // — changing touch-action mid-touch is not honoured on iOS, but a
+  // non-passive preventDefault is.
+  useEffect(() => {
+    if (!lifted) return
+    const block = (e: TouchEvent) => e.preventDefault()
+    window.addEventListener('touchmove', block, { passive: false })
+    return () => window.removeEventListener('touchmove', block)
+  }, [lifted])
+
+  useEffect(() => cancelPress, [cancelPress])
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!e.isPrimary) return
+    pressOrigin.current = { x: e.clientX, y: e.clientY }
+    pressTimer.current = window.setTimeout(() => {
+      pressTimer.current = null
+      beginDrag(e)
+    }, LONG_PRESS_MS)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const origin = pressOrigin.current
+    if (!origin || pressTimer.current === null) return
+    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > MOVE_TOLERANCE_PX) cancelPress()
+  }
 
   return (
     <m.div
@@ -49,12 +105,20 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
       dragSnapToOrigin
       dragMomentum={false}
       whileDrag={{ scale: 1.06, zIndex: 40, boxShadow: '0 14px 36px rgba(0,0,0,0.55)' }}
-      whileTap={{ scale: 0.97 }}
-      onDragStart={() => { dragged.current = true; onMeasure() }}
-      onDragEnd={(_, info) => onDrop(ex.id, info.point)}
+      whileTap={lifted ? undefined : { scale: 0.97 }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={cancelPress}
+      onPointerCancel={() => { cancelPress(); setLifted(false) }}
+      onDragEnd={(_, info) => {
+        dragEndedAt.current = Date.now()
+        setLifted(false)
+        onDrop(ex.id, info.point)
+      }}
       onClick={() => {
-        // A click bubbles in after a drag ends — don't open the sheet then.
-        if (dragged.current) { dragged.current = false; return }
+        // The click that ends a drag arrives right after it — ignore that one
+        // only. A timestamp self-heals if a drag ever ends without a click.
+        if (lifted || Date.now() - dragEndedAt.current < CLICK_SUPPRESS_MS) return
         onOpen()
       }}
       className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
@@ -64,7 +128,7 @@ function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, o
       }}
     >
       <div
-        onPointerDown={(e) => { e.preventDefault(); controls.start(e) }}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); beginDrag(e) }}
         aria-label="Järjestä raahaamalla"
         className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing"
       >
