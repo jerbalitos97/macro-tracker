@@ -175,6 +175,7 @@ create table if not exists workout_templates (
   name       text not null,
   kind       text not null default 'strength',    -- 'strength' | 'mobility'
   color      text,                                -- hex accent, null = default
+  position   int,                                 -- manual order within its kind; null = unsorted
   exercises  jsonb not null default '[]'::jsonb,  -- TemplateExercise[]
   created_at text not null,                       -- ISO timestamp (client format)
   updated_at text not null

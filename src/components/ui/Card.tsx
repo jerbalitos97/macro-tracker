@@ -21,7 +21,9 @@ const ROW =
   'rounded-row border border-white/10 bg-white/[0.05] p-4 ' +
   '[backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]'
 
-const VARIANTS = {
+/** The variant classes on their own, for the rare element that needs a Card's
+ *  look but not a Card's `div` (a draggable row, say). */
+export const CARD_CLASSES = {
   hero:  HERO,
   glass: HERO,
   panel: PANEL,
@@ -30,5 +32,5 @@ const VARIANTS = {
 } as const
 
 export function Card({ className = '', variant = 'panel', ...props }: Props) {
-  return <div className={`${VARIANTS[variant]} ${className}`} {...props} />
+  return <div className={`${CARD_CLASSES[variant]} ${className}`} {...props} />
 }

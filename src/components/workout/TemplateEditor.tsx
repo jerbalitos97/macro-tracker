@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer } from 'lucide-react'
-import { Card, Button } from '../ui'
+import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer, GripVertical } from 'lucide-react'
+import { Card, CARD_CLASSES, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { WorkoutTemplate, TemplateExercise, TemplateKind, IntervalConfig } from '../../lib/workouts'
 import { uid, TEMPLATE_COLORS, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 
@@ -38,6 +38,10 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
 
   const patch = (id: string, p: Partial<TemplateExercise>) =>
     setExercises((prev) => prev.map((e) => (e.id === id ? { ...e, ...p } : e)))
+
+  // Drag from the grip only — the rows are full of text and number fields.
+  const reorder = useDragReorder((fromId, toId) => setExercises((prev) => moveById(prev, fromId, toId)))
+  const move = (id: string, delta: -1 | 1) => setExercises((prev) => moveByDelta(prev, id, delta))
 
   const patchInterval = (id: string, p: Partial<IntervalConfig>) =>
     setExercises((prev) =>
@@ -158,127 +162,145 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
       <div className="mb-2 mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">
         Liikkeet ({exercises.length})
       </div>
-      <div className="flex flex-col gap-2.5">
+      <div ref={reorder.containerRef} className="flex flex-col gap-2.5">
         {exercises.map((e, i) => (
-          <Card key={e.id} variant="panel">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
-              <input
-                value={e.name}
-                onChange={(ev) => patch(e.id, { name: ev.target.value })}
-                placeholder="Liikkeen nimi"
-                className="min-w-0 flex-1 rounded-input border border-white/10 bg-black/[0.45] px-[11px] py-2 text-sm text-text"
-              />
-              <button
-                onClick={() => setExercises((prev) => prev.filter((x) => x.id !== e.id))}
-                aria-label="Poista liike"
-                className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-            {kind === 'mobility' ? (
+          <DragItem
+            key={e.id}
+            id={e.id}
+            reorder={reorder}
+            onMove={(d) => move(e.id, d)}
+            tabIndex={0}
+            ariaLabel={`Liike ${i + 1}: ${e.name || 'nimetön'}`}
+            className={CARD_CLASSES.panel}
+          >
+            {({ handleProps }) => (
               <>
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className={label}>Sarjat</label>
-                    <input
-                      inputMode="numeric"
-                      value={e.defaultSets}
-                      onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
-                      className={numInput}
-                    />
+                <div className="mb-2.5 flex items-center gap-2">
+                  <div
+                    {...handleProps}
+                    className="-m-1.5 flex flex-shrink-0 cursor-grab touch-none items-center gap-1 p-1.5 active:cursor-grabbing"
+                  >
+                    <GripVertical size={15} className="text-fg-faint" />
+                    <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
                   </div>
-                  <div>
-                    <label className={label}>Contr. s</label>
-                    <input
-                      inputMode="numeric"
-                      value={e.interval?.workSeconds ?? ''}
-                      onChange={(ev) => patchInterval(e.id, { workSeconds: toInt(ev.target.value) ?? 0 })}
-                      className={numInput}
-                    />
-                  </div>
-                  <div>
-                    <label className={label}>Lepo s</label>
-                    <input
-                      inputMode="numeric"
-                      value={e.interval?.restSeconds ?? ''}
-                      onChange={(ev) => patchInterval(e.id, { restSeconds: toInt(ev.target.value) ?? 0 })}
-                      className={numInput}
-                    />
-                  </div>
-                  <div>
-                    <label className={label}>Kierrot</label>
-                    <input
-                      inputMode="numeric"
-                      value={e.interval?.rounds ?? ''}
-                      onChange={(ev) => patchInterval(e.id, { rounds: toInt(ev.target.value) ?? 0 })}
-                      className={numInput}
-                    />
-                  </div>
+                  <input
+                    value={e.name}
+                    onChange={(ev) => patch(e.id, { name: ev.target.value })}
+                    placeholder="Liikkeen nimi"
+                    className="min-w-0 flex-1 rounded-input border border-white/10 bg-black/[0.45] px-[11px] py-2 text-sm text-text"
+                  />
+                  <button
+                    onClick={() => setExercises((prev) => prev.filter((x) => x.id !== e.id))}
+                    aria-label="Poista liike"
+                    className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => patchInterval(e.id, { perSide: !(e.interval?.perSide ?? true) })}
-                  className={`mt-2 flex min-h-0 w-full items-center justify-center gap-1.5 rounded-input border py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
-                    e.interval?.perSide
-                      ? 'border-cyan/35 bg-cyan/[0.10] text-cyan'
-                      : 'border-white/10 bg-white/[0.03] text-fg-muted'
-                  }`}
-                >
-                  <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />
-                  Molemmille puolille (esim. per jalka)
-                </button>
+                {kind === 'mobility' ? (
+                  <>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className={label}>Sarjat</label>
+                        <input
+                          inputMode="numeric"
+                          value={e.defaultSets}
+                          onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
+                          className={numInput}
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>Contr. s</label>
+                        <input
+                          inputMode="numeric"
+                          value={e.interval?.workSeconds ?? ''}
+                          onChange={(ev) => patchInterval(e.id, { workSeconds: toInt(ev.target.value) ?? 0 })}
+                          className={numInput}
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>Lepo s</label>
+                        <input
+                          inputMode="numeric"
+                          value={e.interval?.restSeconds ?? ''}
+                          onChange={(ev) => patchInterval(e.id, { restSeconds: toInt(ev.target.value) ?? 0 })}
+                          className={numInput}
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>Kierrot</label>
+                        <input
+                          inputMode="numeric"
+                          value={e.interval?.rounds ?? ''}
+                          onChange={(ev) => patchInterval(e.id, { rounds: toInt(ev.target.value) ?? 0 })}
+                          className={numInput}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => patchInterval(e.id, { perSide: !(e.interval?.perSide ?? true) })}
+                      className={`mt-2 flex min-h-0 w-full items-center justify-center gap-1.5 rounded-input border py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                        e.interval?.perSide
+                          ? 'border-cyan/35 bg-cyan/[0.10] text-cyan'
+                          : 'border-white/10 bg-white/[0.03] text-fg-muted'
+                      }`}
+                    >
+                      <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />
+                      Molemmille puolille (esim. per jalka)
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className={label}>Sarjat</label>
+                      <input
+                        inputMode="numeric"
+                        value={e.defaultSets}
+                        onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
+                        className={numInput}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={label}>Toistot</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          inputMode="numeric"
+                          placeholder="–"
+                          value={e.repRange?.min ?? ''}
+                          onChange={(ev) =>
+                            patch(e.id, { repRange: { min: toInt(ev.target.value) ?? 0, max: e.repRange?.max ?? 0 } })
+                          }
+                          className={numInput}
+                        />
+                        <span className="text-fg-faint">–</span>
+                        <input
+                          inputMode="numeric"
+                          placeholder="–"
+                          value={e.repRange?.max ?? ''}
+                          onChange={(ev) =>
+                            patch(e.id, { repRange: { min: e.repRange?.min ?? 0, max: toInt(ev.target.value) ?? 0 } })
+                          }
+                          className={numInput}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={label}>Paino</label>
+                      <input
+                        inputMode="decimal"
+                        placeholder="kg"
+                        value={e.defaultWeight ?? ''}
+                        onChange={(ev) =>
+                          patch(e.id, { defaultWeight: ev.target.value === '' ? undefined : Number(ev.target.value) })
+                        }
+                        className={numInput}
+                      />
+                    </div>
+                  </div>
+                )}
               </>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <label className={label}>Sarjat</label>
-                  <input
-                    inputMode="numeric"
-                    value={e.defaultSets}
-                    onChange={(ev) => patch(e.id, { defaultSets: toInt(ev.target.value) ?? 0 })}
-                    className={numInput}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className={label}>Toistot</label>
-                  <div className="flex items-center gap-1">
-                    <input
-                      inputMode="numeric"
-                      placeholder="–"
-                      value={e.repRange?.min ?? ''}
-                      onChange={(ev) =>
-                        patch(e.id, { repRange: { min: toInt(ev.target.value) ?? 0, max: e.repRange?.max ?? 0 } })
-                      }
-                      className={numInput}
-                    />
-                    <span className="text-fg-faint">–</span>
-                    <input
-                      inputMode="numeric"
-                      placeholder="–"
-                      value={e.repRange?.max ?? ''}
-                      onChange={(ev) =>
-                        patch(e.id, { repRange: { min: e.repRange?.min ?? 0, max: toInt(ev.target.value) ?? 0 } })
-                      }
-                      className={numInput}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className={label}>Paino</label>
-                  <input
-                    inputMode="decimal"
-                    placeholder="kg"
-                    value={e.defaultWeight ?? ''}
-                    onChange={(ev) =>
-                      patch(e.id, { defaultWeight: ev.target.value === '' ? undefined : Number(ev.target.value) })
-                    }
-                    className={numInput}
-                  />
-                </div>
-              </div>
             )}
-          </Card>
+          </DragItem>
         ))}
       </div>
 

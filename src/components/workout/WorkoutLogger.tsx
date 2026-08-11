@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, Plus, Check, GripVertical } from 'lucide-react'
-import { m, useDragControls } from 'motion/react'
-import { Sheet, Button } from '../ui'
+import { m } from 'motion/react'
+import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
+import type { DragReorder } from '../ui'
 import { ExerciseSetSheet } from './ExerciseSetSheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig } from '../../lib/workouts'
@@ -26,141 +27,59 @@ interface TileProps {
   exercise: LoggedExercise
   /** Accent inherited from the workout's template. */
   accent: string
+  reorder: DragReorder
   onOpen: () => void
   onToggleDone: () => void
-  /** Snapshot tile positions right when a drag starts. */
-  onMeasure: () => void
-  /** Drop at a page-space point; parent decides the new order. */
-  onDrop: (id: string, point: { x: number; y: number }) => void
+  onMove: (delta: -1 | 1) => void
 }
 
-/** Hold this long anywhere on a tile to pick it up (iOS home-screen feel). */
-const LONG_PRESS_MS = 350
-/** Move further than this before the hold completes and it's a scroll, not a lift. */
-const MOVE_TOLERANCE_PX = 10
-/** Clicks arriving this soon after a drag are the drag's own click — ignore them. */
-const CLICK_SUPPRESS_MS = 300
-
-function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, onDrop }: TileProps) {
-  const controls = useDragControls()
+function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove }: TileProps) {
   const done = exerciseDone(ex)
 
-  const [lifted, setLifted] = useState(false)
-  const pressTimer = useRef<number | null>(null)
-  const pressOrigin = useRef<{ x: number; y: number } | null>(null)
-  const dragEndedAt = useRef(0)
-
-  const cancelPress = useCallback(() => {
-    if (pressTimer.current !== null) {
-      window.clearTimeout(pressTimer.current)
-      pressTimer.current = null
-    }
-    pressOrigin.current = null
-  }, [])
-
-  const beginDrag = useCallback((e: React.PointerEvent) => {
-    cancelPress()
-    setLifted(true)
-    onMeasure()
-    controls.start(e)
-    // Light haptic where supported (Android); a no-op on iOS Safari.
-    navigator.vibrate?.(12)
-  }, [cancelPress, controls, onMeasure])
-
-  // The tile keeps `touch-action: auto` so the page still scrolls under a
-  // swipe. Once a tile is lifted, block scrolling for the rest of the gesture
-  // — changing touch-action mid-touch is not honoured on iOS, but a
-  // non-passive preventDefault is.
-  useEffect(() => {
-    if (!lifted) return
-    const block = (e: TouchEvent) => e.preventDefault()
-    window.addEventListener('touchmove', block, { passive: false })
-    return () => window.removeEventListener('touchmove', block)
-  }, [lifted])
-
-  useEffect(() => cancelPress, [cancelPress])
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (!e.isPrimary) return
-    pressOrigin.current = { x: e.clientX, y: e.clientY }
-    pressTimer.current = window.setTimeout(() => {
-      pressTimer.current = null
-      beginDrag(e)
-    }, LONG_PRESS_MS)
-  }
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    const origin = pressOrigin.current
-    if (!origin || pressTimer.current === null) return
-    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > MOVE_TOLERANCE_PX) cancelPress()
-  }
-
   return (
-    <m.div
-      layout
-      data-exid={ex.id}
+    <DragItem
+      id={ex.id}
+      reorder={reorder}
+      longPress
+      onActivate={onOpen}
+      onMove={onMove}
       role="button"
       tabIndex={0}
-      aria-label={`${ex.name}, ${blockSummary(ex)}`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() }
-      }}
-      drag
-      dragListener={false}
-      dragControls={controls}
-      dragSnapToOrigin
-      dragMomentum={false}
-      whileDrag={{ scale: 1.06, zIndex: 40, boxShadow: '0 14px 36px rgba(0,0,0,0.55)' }}
-      whileTap={lifted ? undefined : { scale: 0.97 }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={cancelPress}
-      onPointerCancel={() => { cancelPress(); setLifted(false) }}
-      onDragEnd={(_, info) => {
-        dragEndedAt.current = Date.now()
-        setLifted(false)
-        onDrop(ex.id, info.point)
-      }}
-      onClick={() => {
-        // The click that ends a drag arrives right after it — ignore that one
-        // only. A timestamp self-heals if a drag ever ends without a click.
-        if (lifted || Date.now() - dragEndedAt.current < CLICK_SUPPRESS_MS) return
-        onOpen()
-      }}
+      ariaLabel={`${ex.name}, ${blockSummary(ex)}`}
       className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
       style={{
         backgroundColor: done ? `${accent}1A` : 'rgba(255,255,255,0.05)',
         borderColor: done ? `${accent}4D` : 'rgba(255,255,255,0.10)',
       }}
     >
-      <div
-        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); beginDrag(e) }}
-        aria-label="Järjestä raahaamalla"
-        className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing"
-      >
-        <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
-      </div>
+      {({ handleProps }) => (
+        <>
+          <div {...handleProps} className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing">
+            <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
+          </div>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleDone() }}
-        aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
-        className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
-          done ? 'text-bg' : 'border border-white/20 text-fg-faint'
-        }`}
-        style={done ? { backgroundColor: accent } : undefined}
-      >
-        <Check size={13} strokeWidth={3} />
-      </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleDone() }}
+            aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
+            className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+              done ? 'text-bg' : 'border border-white/20 text-fg-faint'
+            }`}
+            style={done ? { backgroundColor: accent } : undefined}
+          >
+            <Check size={13} strokeWidth={3} />
+          </button>
 
-      <div className="pr-7">
-        <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
-          {ex.name}
-        </div>
-        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
-          {blockSummary(ex)}
-        </div>
-      </div>
-    </m.div>
+          <div className="pr-7">
+            <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+              {ex.name}
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+              {blockSummary(ex)}
+            </div>
+          </div>
+        </>
+      )}
+    </DragItem>
   )
 }
 
@@ -168,9 +87,6 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
-
-  const gridRef = useRef<HTMLDivElement>(null)
-  const tileRects = useRef<Array<{ id: string; rect: DOMRect }>>([])
 
   const updateExercise = (updated: LoggedExercise) =>
     onChange({ ...workout, exercises: workout.exercises.map((e) => (e.id === updated.id ? updated : e)), updatedAt: new Date().toISOString() })
@@ -180,44 +96,20 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
 
   /** Non-drag reordering (WCAG 2.5.7) — same move the drag performs. */
   const moveExercise = (id: string, delta: -1 | 1) => {
-    const arr = [...workout.exercises]
-    const from = arr.findIndex((e) => e.id === id)
-    const to = from + delta
-    if (from < 0 || to < 0 || to >= arr.length) return
-    const [moved] = arr.splice(from, 1)
-    arr.splice(to, 0, moved)
+    const arr = moveByDelta(workout.exercises, id, delta)
+    if (arr === workout.exercises) return
     onChange({ ...workout, exercises: arr, updatedAt: new Date().toISOString() })
   }
+
+  const reorder = useDragReorder((fromId, toId) => {
+    const arr = moveById(workout.exercises, fromId, toId)
+    if (arr === workout.exercises) return
+    onChange({ ...workout, exercises: arr, updatedAt: new Date().toISOString() })
+  })
 
   const toggleExerciseDone = (ex: LoggedExercise) => {
     const next = !exerciseDone(ex)
     updateExercise({ ...ex, sets: ex.sets.map((s) => ({ ...s, done: next })) })
-  }
-
-  const measureTiles = () => {
-    const root = gridRef.current
-    if (!root) return
-    tileRects.current = Array.from(root.querySelectorAll<HTMLElement>('[data-exid]')).map((el) => ({
-      id: el.dataset.exid as string,
-      rect: el.getBoundingClientRect(),
-    }))
-  }
-
-  const dropExercise = (fromId: string, point: { x: number; y: number }) => {
-    // info.point is page-space; the rects were captured in viewport-space.
-    const x = point.x - window.scrollX
-    const y = point.y - window.scrollY
-    const target = tileRects.current.find(
-      ({ id, rect }) => id !== fromId && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom,
-    )
-    if (!target) return
-    const arr = [...workout.exercises]
-    const from = arr.findIndex((e) => e.id === fromId)
-    const to = arr.findIndex((e) => e.id === target.id)
-    if (from < 0 || to < 0 || from === to) return
-    const [moved] = arr.splice(from, 1)
-    arr.splice(to, 0, moved)
-    onChange({ ...workout, exercises: arr, updatedAt: new Date().toISOString() })
   }
 
   const addExercise = () => {
@@ -261,16 +153,16 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
       </div>
 
       {/* Exercise blocks */}
-      <div ref={gridRef} className="grid grid-cols-2 gap-3">
+      <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">
         {workout.exercises.map((ex) => (
           <ExerciseTile
             key={ex.id}
             exercise={ex}
             accent={workout.color ?? DEFAULT_TEMPLATE_COLOR}
+            reorder={reorder}
             onOpen={() => setOpenId(ex.id)}
             onToggleDone={() => toggleExerciseDone(ex)}
-            onMeasure={measureTiles}
-            onDrop={dropExercise}
+            onMove={(d) => moveExercise(ex.id, d)}
           />
         ))}
 
