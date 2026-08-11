@@ -39,10 +39,19 @@ export interface WorkoutTemplate {
   id: string
   name: string
   kind?: TemplateKind       // default 'strength'
+  color?: string            // hex accent shown on tiles and in the logger
   exercises: TemplateExercise[]
   createdAt: string
   updatedAt: string
 }
+
+/** Palette offered when colour-coding a template. */
+export const TEMPLATE_COLORS = [
+  '#22d3ee', '#a78bfa', '#f472b6', '#fb923c',
+  '#facc15', '#4ade80', '#60a5fa', '#f87171',
+] as const
+
+export const DEFAULT_TEMPLATE_COLOR = TEMPLATE_COLORS[0]
 
 /** A single logged set. Every field is optional — a set may track any
  *  combination of reps, weight, and duration. */
@@ -80,6 +89,7 @@ export interface Workout {
   date: string            // ISO yyyy-mm-dd
   name: string
   templateId?: string
+  color?: string          // inherited from the template it was started from
   exercises: LoggedExercise[]
   completed: boolean
   createdAt: string
@@ -137,6 +147,7 @@ interface TemplateRow {
   id: string
   name: string
   kind: string | null
+  color: string | null
   exercises: TemplateExercise[]
   created_at: string
   updated_at: string
@@ -146,6 +157,7 @@ const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   id: r.id,
   name: r.name,
   kind: r.kind === 'mobility' ? 'mobility' : 'strength',
+  color: r.color ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -181,6 +193,7 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       user_id: userId,
       name: t.name,
       kind: t.kind ?? 'strength',
+      color: t.color ?? null,
       exercises: t.exercises,
       created_at: t.createdAt,
       updated_at: t.updatedAt,
@@ -225,6 +238,7 @@ interface WorkoutRow {
   date: string
   name: string
   template_id: string | null
+  color: string | null
   exercises: LoggedExercise[]
   completed: boolean
   created_at: string
@@ -236,6 +250,7 @@ const fromWorkoutRow = (r: WorkoutRow): Workout => ({
   date: r.date,
   name: r.name,
   templateId: r.template_id ?? undefined,
+  color: r.color ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   completed: r.completed,
   createdAt: r.created_at,
@@ -272,6 +287,7 @@ export function syncWorkoutCloud(userId: string, w: Workout): void {
       date: w.date,
       name: w.name,
       template_id: w.templateId ?? null,
+      color: w.color ?? null,
       exercises: w.exercises,
       completed: w.completed,
       created_at: w.createdAt,
@@ -357,6 +373,7 @@ export function newWorkout(todayISO: string, template?: WorkoutTemplate): Workou
     date: todayISO,
     name: template?.name ?? 'Treeni',
     templateId: template?.id,
+    color: template?.color,
     exercises,
     completed: false,
     createdAt: now,

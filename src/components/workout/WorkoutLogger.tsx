@@ -5,7 +5,7 @@ import { Sheet, Button } from '../ui'
 import { ExerciseSetSheet } from './ExerciseSetSheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig } from '../../lib/workouts'
-import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession } from '../../lib/workouts'
+import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 
 interface Props {
   workout: Workout
@@ -24,6 +24,8 @@ function blockSummary(ex: LoggedExercise): string {
 
 interface TileProps {
   exercise: LoggedExercise
+  /** Accent inherited from the workout's template. */
+  accent: string
   onOpen: () => void
   onToggleDone: () => void
   /** Snapshot tile positions right when a drag starts. */
@@ -32,7 +34,7 @@ interface TileProps {
   onDrop: (id: string, point: { x: number; y: number }) => void
 }
 
-function ExerciseTile({ exercise: ex, onOpen, onToggleDone, onMeasure, onDrop }: TileProps) {
+function ExerciseTile({ exercise: ex, accent, onOpen, onToggleDone, onMeasure, onDrop }: TileProps) {
   const controls = useDragControls()
   const dragged = useRef(false)
   const done = exerciseDone(ex)
@@ -57,8 +59,8 @@ function ExerciseTile({ exercise: ex, onOpen, onToggleDone, onMeasure, onDrop }:
       }}
       className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
       style={{
-        backgroundColor: done ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.05)',
-        borderColor: done ? 'rgba(34,211,238,0.30)' : 'rgba(255,255,255,0.10)',
+        backgroundColor: done ? `${accent}1A` : 'rgba(255,255,255,0.05)',
+        borderColor: done ? `${accent}4D` : 'rgba(255,255,255,0.10)',
       }}
     >
       <div
@@ -66,15 +68,16 @@ function ExerciseTile({ exercise: ex, onOpen, onToggleDone, onMeasure, onDrop }:
         aria-label="Järjestä raahaamalla"
         className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing"
       >
-        <GripVertical size={16} className={done ? 'text-cyan' : 'text-fg-faint'} />
+        <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
       </div>
 
       <button
         onClick={(e) => { e.stopPropagation(); onToggleDone() }}
         aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
         className={`absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
-          done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
+          done ? 'text-bg' : 'border border-white/20 text-fg-faint'
         }`}
+        style={done ? { backgroundColor: accent } : undefined}
       >
         <Check size={13} strokeWidth={3} />
       </button>
@@ -179,6 +182,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           <ExerciseTile
             key={ex.id}
             exercise={ex}
+            accent={workout.color ?? DEFAULT_TEMPLATE_COLOR}
             onOpen={() => setOpenId(ex.id)}
             onToggleDone={() => toggleExerciseDone(ex)}
             onMeasure={measureTiles}

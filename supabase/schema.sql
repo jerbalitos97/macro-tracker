@@ -174,6 +174,7 @@ create table if not exists workout_templates (
   user_id    uuid not null references auth.users on delete cascade,
   name       text not null,
   kind       text not null default 'strength',    -- 'strength' | 'mobility'
+  color      text,                                -- hex accent, null = default
   exercises  jsonb not null default '[]'::jsonb,  -- TemplateExercise[]
   created_at text not null,                       -- ISO timestamp (client format)
   updated_at text not null
@@ -195,6 +196,7 @@ create table if not exists workouts (
   date        text not null,                       -- YYYY-MM-DD
   name        text not null,
   template_id text,
+  color       text,                                -- inherited from the template
   exercises   jsonb not null default '[]'::jsonb,  -- LoggedExercise[]
   completed   boolean not null default true,
   created_at  text not null,                       -- ISO timestamp (client format)
