@@ -40,6 +40,7 @@ export interface WorkoutTemplate {
   name: string
   kind?: TemplateKind       // default 'strength'
   color?: string            // hex accent shown on tiles and in the logger
+  position?: number         // manual order within its kind; undefined = unsorted
   exercises: TemplateExercise[]
   createdAt: string
   updatedAt: string
@@ -122,17 +123,40 @@ function write(key: string, value: unknown): void {
 }
 
 // ── Templates ──────────────────────────────────────────────────────────────────
+/** Manual `position` first, then newest-first for templates never reordered. */
+export function sortTemplates(list: WorkoutTemplate[]): WorkoutTemplate[] {
+  return [...list].sort((a, b) => {
+    const ap = a.position, bp = b.position
+    if (ap != null && bp != null) return ap - bp
+    if (ap != null) return -1
+    if (bp != null) return 1
+    return b.updatedAt.localeCompare(a.updatedAt)
+  })
+}
+
 export function getTemplates(): WorkoutTemplate[] {
   const arr = read<WorkoutTemplate[]>(K_TEMPLATES, [])
-  return Array.isArray(arr) ? arr : []
+  return Array.isArray(arr) ? sortTemplates(arr) : []
 }
 
 export function saveTemplate(t: WorkoutTemplate): WorkoutTemplate[] {
-  const next = getTemplates().filter((x) => x.id !== t.id)
-  next.push(t)
-  next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const next = sortTemplates([...getTemplates().filter((x) => x.id !== t.id), t])
   write(K_TEMPLATES, next)
   return next
+}
+
+/** Persist an explicit order for one kind's templates. Positions are assigned
+ *  per kind so reordering strength templates never disturbs mobility ones. */
+export function reorderTemplates(kind: TemplateKind, orderedIds: string[]): WorkoutTemplate[] {
+  const byId = new Map(orderedIds.map((id, i) => [id, i]))
+  const next = getTemplates().map((t) => {
+    const pos = byId.get(t.id)
+    if (pos === undefined) return t
+    const sameKind = (t.kind === 'mobility' ? 'mobility' : 'strength') === kind
+    return sameKind ? { ...t, position: pos, updatedAt: new Date().toISOString() } : t
+  })
+  write(K_TEMPLATES, sortTemplates(next))
+  return sortTemplates(next)
 }
 
 export function deleteTemplate(id: string): WorkoutTemplate[] {
@@ -148,6 +172,7 @@ interface TemplateRow {
   name: string
   kind: string | null
   color: string | null
+  position: number | null
   exercises: TemplateExercise[]
   created_at: string
   updated_at: string
@@ -158,6 +183,7 @@ const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   name: r.name,
   kind: r.kind === 'mobility' ? 'mobility' : 'strength',
   color: r.color ?? undefined,
+  position: r.position ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -180,7 +206,7 @@ export async function pullTemplates(userId: string): Promise<WorkoutTemplate[]> 
   const cloudIds = new Set(cloud.map((t) => t.id))
   const localOnly = getTemplates().filter((t) => !cloudIds.has(t.id))
   for (const t of localOnly) syncTemplateCloud(userId, t)
-  const next = [...cloud, ...localOnly].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const next = sortTemplates([...cloud, ...localOnly])
   write(K_TEMPLATES, next)
   return next
 }
@@ -194,6 +220,7 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       name: t.name,
       kind: t.kind ?? 'strength',
       color: t.color ?? null,
+      position: t.position ?? null,
       exercises: t.exercises,
       created_at: t.createdAt,
       updated_at: t.updatedAt,

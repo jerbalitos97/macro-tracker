@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Flame, Pencil, Plus, Trash2, Check } from 'lucide-react'
-import { Sheet, Button } from '../ui'
+import { Flame, Pencil, Plus, Trash2, Check, GripVertical } from 'lucide-react'
+import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import { useAuth } from '../../contexts/AuthContext'
 import { uid } from '../../lib/workouts'
 import { getWarmup, saveWarmupLocal, pullWarmup, syncWarmupCloud } from '../../lib/warmup'
@@ -34,6 +34,12 @@ export function WarmupFab() {
 
   const patch = (id: string, p: Partial<WarmupMove>) =>
     setDraft((prev) => prev.map((m) => (m.id === id ? { ...m, ...p } : m)))
+
+  // These rows are full of text inputs, so a hold on the row itself has to keep
+  // placing the caret — the drag lives on the grip alone. Alt+Arrow is the
+  // keyboard equivalent.
+  const reorder = useDragReorder((fromId, toId) => setDraft((prev) => moveById(prev, fromId, toId)))
+  const move = (id: string, delta: -1 | 1) => setDraft((prev) => moveByDelta(prev, id, delta))
 
   const saveEdit = () => {
     const cleaned = draft
@@ -111,44 +117,62 @@ export function WarmupFab() {
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-2.5">
+            <div ref={reorder.containerRef} className="flex flex-col gap-2.5">
               {draft.map((mv, i) => (
-                <div key={mv.id} className="rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
-                    <input
-                      value={mv.name}
-                      onChange={(e) => patch(mv.id, { name: e.target.value })}
-                      placeholder="Liikkeen nimi"
-                      className={`${input} min-w-0 flex-1`}
-                    />
-                    <button
-                      onClick={() => setDraft((prev) => prev.filter((x) => x.id !== mv.id))}
-                      aria-label="Poista liike"
-                      className="icon-btn flex !min-h-0 !min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <div className="mb-2">
-                    <label className={label}>Kuvaus (valinnainen)</label>
-                    <input
-                      value={mv.detail ?? ''}
-                      onChange={(e) => patch(mv.id, { detail: e.target.value })}
-                      placeholder="esim. quadruped rocks + rystypito"
-                      className={input}
-                    />
-                  </div>
-                  <div>
-                    <label className={label}>Annostus</label>
-                    <input
-                      value={mv.dose}
-                      onChange={(e) => patch(mv.id, { dose: e.target.value })}
-                      placeholder="esim. 2×10 tai 60–90s"
-                      className={input}
-                    />
-                  </div>
-                </div>
+                <DragItem
+                  key={mv.id}
+                  id={mv.id}
+                  reorder={reorder}
+                  onMove={(d) => move(mv.id, d)}
+                  tabIndex={0}
+                  ariaLabel={`Liike ${i + 1}: ${mv.name || 'nimetön'}`}
+                  className="rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-3"
+                >
+                  {({ handleProps }) => (
+                    <>
+                      <div className="mb-2 flex items-center gap-2">
+                        <div
+                          {...handleProps}
+                          className="-m-1.5 flex flex-shrink-0 cursor-grab touch-none items-center gap-1 p-1.5 active:cursor-grabbing"
+                        >
+                          <GripVertical size={15} className="text-fg-faint" />
+                          <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
+                        </div>
+                        <input
+                          value={mv.name}
+                          onChange={(e) => patch(mv.id, { name: e.target.value })}
+                          placeholder="Liikkeen nimi"
+                          className={`${input} min-w-0 flex-1`}
+                        />
+                        <button
+                          onClick={() => setDraft((prev) => prev.filter((x) => x.id !== mv.id))}
+                          aria-label="Poista liike"
+                          className="icon-btn flex !min-h-0 !min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                      <div className="mb-2">
+                        <label className={label}>Kuvaus (valinnainen)</label>
+                        <input
+                          value={mv.detail ?? ''}
+                          onChange={(e) => patch(mv.id, { detail: e.target.value })}
+                          placeholder="esim. quadruped rocks + rystypito"
+                          className={input}
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>Annostus</label>
+                        <input
+                          value={mv.dose}
+                          onChange={(e) => patch(mv.id, { dose: e.target.value })}
+                          placeholder="esim. 2×10 tai 60–90s"
+                          className={input}
+                        />
+                      </div>
+                    </>
+                  )}
+                </DragItem>
               ))}
             </div>
 

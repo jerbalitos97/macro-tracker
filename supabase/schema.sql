@@ -135,6 +135,7 @@ create table if not exists habits (
   goal_unit    text not null,                       -- 'count' | 'binary'
   task_days    jsonb not null default '[0,1,2,3,4,5,6]'::jsonb,
   is_archived  boolean not null default false,
+  position     int,                                 -- manual order in the list; null = unsorted
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
@@ -175,6 +176,7 @@ create table if not exists workout_templates (
   name       text not null,
   kind       text not null default 'strength',    -- 'strength' | 'mobility'
   color      text,                                -- hex accent, null = default
+  position   int,                                 -- manual order within its kind; null = unsorted
   exercises  jsonb not null default '[]'::jsonb,  -- TemplateExercise[]
   created_at text not null,                       -- ISO timestamp (client format)
   updated_at text not null
@@ -211,6 +213,20 @@ create policy "workouts: own rows only"
   with check (auth.uid() = user_id);
 
 create index if not exists workouts_user_date on workouts (user_id, date);
+
+-- ── Interface preferences (home launcher order, …) ──────────────
+create table if not exists ui_prefs (
+  user_id    uuid primary key references auth.users on delete cascade,
+  data       jsonb not null default '{}'::jsonb,   -- UiPrefs
+  updated_at text not null                         -- ISO timestamp (client format)
+);
+
+alter table ui_prefs enable row level security;
+
+create policy "ui_prefs: own row only"
+  on ui_prefs for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- ── Warm-up routine (one editable routine per user) ─────────────
 create table if not exists warmups (

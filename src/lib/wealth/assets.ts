@@ -15,6 +15,7 @@ type AssetRow = {
   monthly_contribution: number | string | null
   contribution_start: string | null
   contribution_end: string | null
+  position: number | null
   created_at: string
 }
 
@@ -34,6 +35,7 @@ function fromAssetRow(r: AssetRow): Asset {
     monthlyContribution: r.monthly_contribution === null ? 0 : Number(r.monthly_contribution),
     contributionStart: r.contribution_start,
     contributionEnd: r.contribution_end,
+    position: r.position ?? undefined,
     createdAt: r.created_at,
   }
 }
@@ -52,9 +54,20 @@ export async function listAssets(): Promise<Asset[]> {
   const { data, error } = await db()
     .from('wt_assets')
     .select('*')
+    .order('position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data ?? []).map((r) => fromAssetRow(r as AssetRow))
+}
+
+/** Writes an explicit order for the asset list. Positions are dense from 0, so
+ *  an asset added later (position null) always lands at the end. */
+export async function reorderAssets(orderedIds: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedIds.map((id, i) => db().from('wt_assets').update({ position: i }).eq('id', id)),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) throw failed.error
 }
 
 export async function listAllValues(): Promise<AssetValue[]> {

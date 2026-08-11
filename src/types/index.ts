@@ -167,6 +167,8 @@ export interface Habit {
   goalUnit: HabitGoalUnit
   taskDays: number[]    // 0=Sunday … 6=Saturday
   isArchived: boolean
+  /** Manual order in the list; undefined = never reordered, sorts by age. */
+  position?: number
   createdAt: string
   updatedAt: string
 }

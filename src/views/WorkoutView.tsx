@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff } from 'lucide-react'
-import { Card, Button, Sheet } from '../components/ui'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical } from 'lucide-react'
+import { Card, Button, Sheet, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WarmupFab } from '../components/workout/WarmupSheet'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
@@ -9,7 +9,7 @@ import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
 import { toISO, fromISO, addDays } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import {
-  getTemplates, saveTemplate, deleteTemplate,
+  getTemplates, saveTemplate, deleteTemplate, reorderTemplates,
   pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
   pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
@@ -48,6 +48,72 @@ const KINDS: Array<{ id: TemplateKind; label: string; Icon: typeof Dumbbell }> =
 /** Templates saved before the kind/colour fields existed default to strength. */
 const templateKind = (t: WorkoutTemplate): TemplateKind => (t.kind === 'mobility' ? 'mobility' : 'strength')
 const templateColor = (t: WorkoutTemplate): string => t.color ?? DEFAULT_TEMPLATE_COLOR
+
+interface GroupProps {
+  group: WorkoutTemplate[]
+  onOpen: (t: WorkoutTemplate) => void
+  onDelete: (id: string) => void
+  /** Receives the whole group's new id order; positions are stored per kind. */
+  onReorder: (orderedIds: string[]) => void
+}
+
+/** One kind's template tiles. Hold a tile to pick it up and drop it on the slot
+ *  it should take; Alt+Arrow does the same from the keyboard. */
+function TemplateGroup({ group, onOpen, onDelete, onReorder }: GroupProps) {
+  const apply = (next: WorkoutTemplate[]) => {
+    if (next !== group) onReorder(next.map((t) => t.id))
+  }
+  const reorder = useDragReorder((fromId, toId) => apply(moveById(group, fromId, toId)))
+
+  return (
+    <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">
+      {group.map((t) => {
+        const c = templateColor(t)
+        return (
+          <DragItem
+            key={t.id}
+            id={t.id}
+            reorder={reorder}
+            longPress
+            onActivate={() => onOpen(t)}
+            onMove={(d) => apply(moveByDelta(group, t.id, d))}
+            role="button"
+            tabIndex={0}
+            ariaLabel={`Muokkaa pohjaa ${t.name}, ${t.exercises.length} liikettä`}
+            className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 [backdrop-filter:blur(14px)]"
+            style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
+          >
+            {({ handleProps }) => (
+              <>
+                <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: c }} />
+                <div className="flex items-start justify-between gap-1">
+                  <div {...handleProps} className="-m-1.5 cursor-grab touch-none p-1.5 active:cursor-grabbing">
+                    <GripVertical size={16} style={{ color: c }} />
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(t.id) }}
+                    aria-label={`Poista pohja ${t.name}`}
+                    className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div>
+                  <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+                    {t.name}
+                  </div>
+                  <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                    {t.exercises.length} liikettä
+                  </div>
+                </div>
+              </>
+            )}
+          </DragItem>
+        )
+      })}
+    </div>
+  )
+}
 
 export function WorkoutView() {
   const todayISO = toISO(new Date())
@@ -206,6 +272,16 @@ export function WorkoutView() {
     setEditing(null)
     setScreen('home')
     setTab('templates')
+  }
+
+  /** Persist a new manual order for one kind. Every template in the kind gets a
+   *  fresh position, so all of them go up to the cloud, not just the moved one. */
+  const handleReorderTemplates = (kind: TemplateKind, orderedIds: string[]) => {
+    const next = reorderTemplates(kind, orderedIds)
+    setTemplates(next)
+    if (user) {
+      for (const t of next) if (templateKind(t) === kind) syncTemplateCloud(user.id, t)
+    }
   }
 
   const handleDeleteTemplate = (id: string) => {
@@ -367,52 +443,12 @@ export function WorkoutView() {
                     Ei pohjia tässä kategoriassa.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {group.map((t) => {
-                      const c = templateColor(t)
-                      return (
-                        <div
-                          key={t.id}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Muokkaa pohjaa ${t.name}`}
-                          onClick={() => { setEditing(t); setScreen('editTemplate') }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              setEditing(t); setScreen('editTemplate')
-                            }
-                          }}
-                          className="active:scale-[0.97] relative flex min-h-[104px] cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 transition-transform [backdrop-filter:blur(14px)]"
-                          style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
-                        >
-                          <span
-                            aria-hidden
-                            className="absolute inset-y-0 left-0 w-1"
-                            style={{ backgroundColor: c }}
-                          />
-                          <div className="flex items-start justify-between gap-1">
-                            <ClipboardList size={17} style={{ color: c }} />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
-                              aria-label="Poista pohja"
-                              className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          <div>
-                            <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
-                              {t.name}
-                            </div>
-                            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
-                              {t.exercises.length} liikettä
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <TemplateGroup
+                    group={group}
+                    onOpen={(t) => { setEditing(t); setScreen('editTemplate') }}
+                    onDelete={handleDeleteTemplate}
+                    onReorder={(ids) => handleReorderTemplates(k.id, ids)}
+                  />
                 )}
               </div>
             )

@@ -7,6 +7,8 @@ export type Asset = {
   monthlyContribution: number
   contributionStart: string | null
   contributionEnd: string | null
+  /** Manual order in the asset list; undefined = never reordered. */
+  position?: number
   createdAt: string
 }
 

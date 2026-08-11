@@ -1,9 +1,15 @@
+import { useEffect, useState } from 'react'
 import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
+import { DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
+import { useAuth } from '../contexts/AuthContext'
+import { getPrefs, savePrefsLocal, pullPrefs, syncPrefsCloud, applyOrder } from '../lib/uiPrefs'
 
 interface Tool {
+  /** Stable key for the saved order — never rename these. */
+  id: string
   label: string
   Icon: LucideIcon
   color: string
@@ -12,12 +18,12 @@ interface Tool {
 }
 
 const TOOLS: Tool[] = [
-  { label: 'Habit Tracking',    Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
-  { label: 'Fitness Tracking',  Icon: Activity,       color: '#22d3ee', target: 'today' },
-  { label: 'Wealth',            Icon: Wallet,         color: '#34d399', target: 'wealth' },
-  { label: 'Workout',           Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
-  { label: 'Grocery',           Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
-  { label: 'Talk to Friday',    Icon: Sparkles,       color: '#a78bfa', target: null,    short: 'Friday' },
+  { id: 'habits',  label: 'Habit Tracking',   Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
+  { id: 'fitness', label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },
+  { id: 'wealth',  label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
+  { id: 'workout', label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
+  { id: 'grocery', label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
+  { id: 'friday',  label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
 ]
 
 interface Props {
@@ -25,6 +31,28 @@ interface Props {
 }
 
 export function HomeView({ setView }: Props) {
+  const { user } = useAuth()
+  const [order, setOrder] = useState<string[] | undefined>(() => getPrefs().homeToolOrder)
+
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    pullPrefs(user.id).then((p) => { if (alive) setOrder(p.homeToolOrder) })
+    return () => { alive = false }
+  }, [user])
+
+  const tools = applyOrder(TOOLS, (t) => t.id, order)
+
+  const persist = (next: Tool[]) => {
+    if (next === tools) return
+    const ids = next.map((t) => t.id)
+    setOrder(ids)
+    const prefs = savePrefsLocal({ ...getPrefs(), homeToolOrder: ids })
+    if (user) syncPrefsCloud(user.id, prefs)
+  }
+
+  const reorder = useDragReorder((fromId, toId) => persist(moveById(tools, fromId, toId)))
+
   return (
     <div className="flex min-h-dvh flex-col gap-8 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+36px)]">
       {/* Header — app mark + name */}
@@ -37,9 +65,15 @@ export function HomeView({ setView }: Props) {
       </div>
 
       {/* Tool grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {TOOLS.map((tool) => (
-          <ToolTile key={tool.label} tool={tool} setView={setView} />
+      <div ref={reorder.containerRef} className="grid grid-cols-2 gap-4">
+        {tools.map((tool) => (
+          <ToolTile
+            key={tool.id}
+            tool={tool}
+            reorder={reorder}
+            onOpen={() => { if (tool.target) setView(tool.target) }}
+            onMove={(d) => persist(moveByDelta(tools, tool.id, d))}
+          />
         ))}
       </div>
 
@@ -51,16 +85,31 @@ export function HomeView({ setView }: Props) {
   )
 }
 
-function ToolTile({ tool, setView }: { tool: Tool; setView: (v: View) => void }) {
+interface TileProps {
+  tool: Tool
+  reorder: ReturnType<typeof useDragReorder>
+  onOpen: () => void
+  onMove: (delta: -1 | 1) => void
+}
+
+function ToolTile({ tool, reorder, onOpen, onMove }: TileProps) {
   const enabled = tool.target !== null
-  const handle = () => {
-    if (enabled && tool.target) setView(tool.target)
-  }
+
   return (
-    <button
-      onClick={handle}
-      disabled={!enabled}
-      className="active:scale-[0.97] relative flex aspect-[1/1.08] min-h-0 min-w-0 flex-col items-start justify-between overflow-hidden rounded-tile border p-5 transition-transform duration-150 [backdrop-filter:blur(16px)_saturate(160%)] [-webkit-backdrop-filter:blur(16px)_saturate(160%)] disabled:cursor-not-allowed"
+    <DragItem
+      id={tool.id}
+      reorder={reorder}
+      longPress
+      // A disabled tool still reorders — it just doesn't open.
+      onActivate={enabled ? onOpen : () => {}}
+      onMove={onMove}
+      role="button"
+      tabIndex={0}
+      ariaLabel={enabled ? tool.label : `${tool.label} — tulossa`}
+      ariaDisabled={!enabled}
+      className={`relative flex aspect-[1/1.08] min-h-0 min-w-0 flex-col items-start justify-between overflow-hidden rounded-tile border p-5 [backdrop-filter:blur(16px)_saturate(160%)] [-webkit-backdrop-filter:blur(16px)_saturate(160%)] ${
+        enabled ? 'cursor-pointer' : 'cursor-not-allowed'
+      }`}
       style={{
         backgroundColor: enabled ? `${tool.color}14` : 'rgba(255,255,255,0.03)',
         borderColor: enabled ? `${tool.color}38` : 'rgba(255,255,255,0.08)',
@@ -89,6 +138,6 @@ function ToolTile({ tool, setView }: { tool: Tool; setView: (v: View) => void })
           Tulossa
         </div>
       )}
-    </button>
+    </DragItem>
   )
 }
