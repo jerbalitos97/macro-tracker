@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft } from 'lucide-react'
-import { Card, Button } from '../components/ui'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer } from 'lucide-react'
+import { Card, Button, Sheet } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WarmupFab } from '../components/workout/WarmupSheet'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
@@ -15,7 +15,8 @@ import {
   pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
   getDraft, saveDraft, clearDraft, newWorkout,
 } from '../lib/workouts'
-import type { Workout, WorkoutTemplate } from '../lib/workouts'
+import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
+import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
 
 type Tab = 'log' | 'templates' | 'calendar'
 type Screen = 'home' | 'logging' | 'summary' | 'editTemplate'
@@ -27,6 +28,15 @@ const TABS: Array<{ id: Tab; label: string; Icon: typeof Dumbbell }> = [
 ]
 
 const sectionLabel = 'mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim'
+
+const KINDS: Array<{ id: TemplateKind; label: string; Icon: typeof Dumbbell }> = [
+  { id: 'strength', label: 'Voimatreeni',   Icon: Dumbbell },
+  { id: 'mobility', label: 'Liikkuvuustreeni', Icon: Timer },
+]
+
+/** Templates saved before the kind/colour fields existed default to strength. */
+const templateKind = (t: WorkoutTemplate): TemplateKind => (t.kind === 'mobility' ? 'mobility' : 'strength')
+const templateColor = (t: WorkoutTemplate): string => t.color ?? DEFAULT_TEMPLATE_COLOR
 
 export function WorkoutView() {
   const todayISO = toISO(new Date())
@@ -47,6 +57,9 @@ export function WorkoutView() {
   // never touches the in-progress draft.
   const [pastEdit, setPastEdit] = useState(false)
   const cloudSyncTimer = useRef<number | null>(null)
+
+  // Which category's template picker is open (null = closed).
+  const [picking, setPicking] = useState<TemplateKind | null>(null)
 
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date()
@@ -82,6 +95,7 @@ export function WorkoutView() {
 
   // ── Session lifecycle ────────────────────────────────────────────
   const startWorkout = (template?: WorkoutTemplate) => {
+    setPicking(null)
     const w = newWorkout(todayISO, template)
     setSession(w)
     saveDraft(w)
@@ -264,66 +278,90 @@ export function WorkoutView() {
 
           <div className="mt-3">
             <div className={sectionLabel}>Aloita pohjasta</div>
-            {templates.length === 0 ? (
-              <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-5 text-center text-[12px] leading-relaxed text-fg-faint">
-                Ei pohjia vielä. Luo pohja Pohjat-välilehdellä.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {templates.map((t) => (
+            <div className="grid grid-cols-2 gap-3">
+              {KINDS.map((k) => {
+                const count = templates.filter((t) => templateKind(t) === k.id).length
+                return (
                   <button
-                    key={t.id}
-                    onClick={() => startWorkout(t)}
-                    className="active:scale-[0.99] flex items-center gap-3 rounded-row border border-white/10 bg-white/[0.05] px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
+                    key={k.id}
+                    onClick={() => setPicking(k.id)}
+                    className="active:scale-[0.97] flex min-h-[104px] flex-col justify-between rounded-tile border border-white/10 bg-white/[0.05] p-4 text-left transition-transform [backdrop-filter:blur(14px)]"
                   >
-                    <Dumbbell size={16} className="flex-shrink-0 text-cyan" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-display text-[14px] font-semibold text-text">{t.name}</div>
-                      <div className="font-mono text-[10px] text-fg-faint">
-                        {t.exercises.length} liikettä{t.kind === 'mobility' ? ' · liikkuvuus' : ''}
+                    <k.Icon size={20} className="text-cyan" />
+                    <div>
+                      <div className="font-display text-[15px] font-semibold leading-tight text-text">{k.label}</div>
+                      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                        {count} {count === 1 ? 'pohja' : 'pohjaa'}
                       </div>
                     </div>
-                    <Play size={15} className="flex-shrink-0 text-fg-muted" />
                   </button>
-                ))}
-              </div>
-            )}
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
 
       {tab === 'templates' && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           <button
             onClick={() => { setEditing(null); setScreen('editTemplate') }}
             className="active:scale-[0.98] flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-4 font-mono text-[13px] uppercase tracking-[0.06em] text-fg-muted transition-transform"
           >
             <Plus size={18} /> Uusi pohja
           </button>
-          {templates.map((t) => (
-            <Card key={t.id} variant="panel" className="flex items-center gap-3">
-              <button
-                onClick={() => { setEditing(t); setScreen('editTemplate') }}
-                className="flex min-h-0 min-w-0 flex-1 items-center gap-3 bg-transparent p-0 text-left"
-              >
-                <ClipboardList size={16} className="flex-shrink-0 text-violet" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-display text-[14px] font-semibold text-text">{t.name}</div>
-                  <div className="font-mono text-[10px] text-fg-faint">
-                    {t.exercises.length} liikettä{t.kind === 'mobility' ? ' · liikkuvuus' : ''}
+
+          {KINDS.map((k) => {
+            const group = templates.filter((t) => templateKind(t) === k.id)
+            return (
+              <div key={k.id}>
+                <div className={sectionLabel}>{k.label}</div>
+                {group.length === 0 ? (
+                  <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] text-fg-faint">
+                    Ei pohjia tässä kategoriassa.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {group.map((t) => {
+                      const c = templateColor(t)
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => { setEditing(t); setScreen('editTemplate') }}
+                          className="active:scale-[0.97] relative flex min-h-[104px] cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 transition-transform [backdrop-filter:blur(14px)]"
+                          style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
+                        >
+                          <span
+                            aria-hidden
+                            className="absolute inset-y-0 left-0 w-1"
+                            style={{ backgroundColor: c }}
+                          />
+                          <div className="flex items-start justify-between gap-1">
+                            <ClipboardList size={17} style={{ color: c }} />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
+                              aria-label="Poista pohja"
+                              className="icon-btn flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div>
+                            <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+                              {t.name}
+                            </div>
+                            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                              {t.exercises.length} liikettä
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                </div>
-                <ChevronRight size={16} className="flex-shrink-0 text-fg-faint" />
-              </button>
-              <button
-                onClick={() => handleDeleteTemplate(t.id)}
-                aria-label="Poista pohja"
-                className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
-              >
-                <Trash2 size={15} />
-              </button>
-            </Card>
-          ))}
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -395,7 +433,17 @@ export function WorkoutView() {
                     }`}
                   >
                     {Number(date.slice(8, 10))}
-                    {has && <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-cyan" />}
+                    {has && (
+                      <span className="absolute bottom-1 flex gap-0.5">
+                        {(byDate.get(date) ?? []).slice(0, 3).map((w) => (
+                          <span
+                            key={w.id}
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ backgroundColor: w.color ?? DEFAULT_TEMPLATE_COLOR }}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -416,9 +464,13 @@ export function WorkoutView() {
                     <button
                       key={w.id}
                       onClick={() => { setViewing(w); setScreen('summary') }}
-                      className="active:scale-[0.99] flex items-center gap-3 rounded-row border border-white/10 bg-white/[0.05] px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
+                      className="active:scale-[0.99] flex items-center gap-3 rounded-row border px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
+                      style={{
+                        borderColor: `${w.color ?? DEFAULT_TEMPLATE_COLOR}44`,
+                        backgroundColor: `${w.color ?? DEFAULT_TEMPLATE_COLOR}12`,
+                      }}
                     >
-                      <Dumbbell size={16} className="flex-shrink-0 text-cyan" />
+                      <Dumbbell size={16} className="flex-shrink-0" style={{ color: w.color ?? DEFAULT_TEMPLATE_COLOR }} />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-display text-[14px] font-semibold text-text">{w.name}</div>
                         <div className="font-mono text-[10px] text-fg-faint">
@@ -432,6 +484,50 @@ export function WorkoutView() {
               )}
             </div>
           </div>
+        )
+      })()}
+
+      {/* Template picker for the chosen category */}
+      {picking && (() => {
+        const kind = KINDS.find((k) => k.id === picking)!
+        const group = templates.filter((t) => templateKind(t) === picking)
+        return (
+          <Sheet
+            open
+            onClose={() => setPicking(null)}
+            title={<><kind.Icon size={14} /> {kind.label}</>}
+          >
+            {group.length === 0 ? (
+              <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-5 text-center text-[12px] leading-relaxed text-fg-faint">
+                Ei pohjia tässä kategoriassa. Luo pohja Pohjat-välilehdellä.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {group.map((t) => {
+                  const c = templateColor(t)
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => startWorkout(t)}
+                      className="active:scale-[0.97] relative flex min-h-[104px] flex-col justify-between overflow-hidden rounded-tile border p-4 text-left transition-transform"
+                      style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
+                    >
+                      <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: c }} />
+                      <Play size={17} style={{ color: c }} />
+                      <div>
+                        <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+                          {t.name}
+                        </div>
+                        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                          {t.exercises.length} liikettä
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </Sheet>
         )
       })()}
 

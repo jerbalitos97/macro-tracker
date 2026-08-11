@@ -40,11 +40,18 @@ import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
 import { LazyMotion, domMax, m, AnimatePresence } from 'motion/react'
 
+// Cross-fade between views. `mode="wait"` runs exit before enter, so a slow
+// exit reads as a blank flash — keep it short and let the enter carry the
+// motion. A small upward drift makes the swap read as a transition.
 const viewMotion = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
-  transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const },
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -4 },
+  transition: {
+    duration: 0.2,
+    ease: [0.16, 1, 0.3, 1] as const,
+    exit: { duration: 0.1, ease: 'easeIn' as const },
+  },
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -391,17 +398,28 @@ export default function App() {
         />
       )}
 
-      {/* Nav with sync badge — hidden on the launcher (home) view */}
-      {view !== 'home' && (
-        <div className="relative">
-          <NavBar view={view} setView={setView} />
-          {user && syncStatus !== 'idle' && (
-            <div className="absolute right-2.5 top-[calc(env(safe-area-inset-top)+6px)] z-20">
-              <SyncBadge status={syncStatus} />
-            </div>
-          )}
-        </div>
-      )}
+      {/* Nav with sync badge — hidden on the launcher (home) view. The bar is
+          sticky, so unmounting it outright yanks the content up; collapse its
+          height instead so entering/leaving home stays smooth. */}
+      <AnimatePresence initial={false}>
+        {view !== 'home' && (
+          <m.div
+            key="navbar"
+            className="relative overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <NavBar view={view} setView={setView} />
+            {user && syncStatus !== 'idle' && (
+              <div className="absolute right-2.5 top-[calc(env(safe-area-inset-top)+6px)] z-20">
+                <SyncBadge status={syncStatus} />
+              </div>
+            )}
+          </m.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
       {view === 'home' && (

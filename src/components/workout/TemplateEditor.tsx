@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer } from 'lucide-react'
 import { Card, Button } from '../ui'
 import type { WorkoutTemplate, TemplateExercise, TemplateKind, IntervalConfig } from '../../lib/workouts'
-import { uid } from '../../lib/workouts'
+import { uid, TEMPLATE_COLORS, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 
 interface Props {
   initial?: WorkoutTemplate
@@ -31,6 +31,7 @@ function toInt(v: string): number | undefined {
 export function TemplateEditor({ initial, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [kind, setKind] = useState<TemplateKind>(initial?.kind ?? 'strength')
+  const [color, setColor] = useState<string>(initial?.color ?? DEFAULT_TEMPLATE_COLOR)
   const [exercises, setExercises] = useState<TemplateExercise[]>(
     initial?.exercises.length ? initial.exercises.map((e) => ({ ...e })) : [blankExercise(initial?.kind ?? 'strength')],
   )
@@ -85,6 +86,7 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
       id: initial?.id ?? uid(),
       name: name.trim(),
       kind,
+      color,
       exercises: cleaned,
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
@@ -133,6 +135,21 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
             >
               <k.Icon size={13} /> {k.text}
             </button>
+          ))}
+        </div>
+
+        <label className={`${label} mt-3`}>Väri</label>
+        <div className="flex flex-wrap gap-2">
+          {TEMPLATE_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              aria-label={`Väri ${c}`}
+              className={`h-8 w-8 !min-h-0 !min-w-0 rounded-full transition-transform ${
+                color === c ? 'ring-2 ring-white/70 ring-offset-2 ring-offset-transparent' : ''
+              }`}
+              style={{ backgroundColor: c }}
+            />
           ))}
         </div>
       </Card>
