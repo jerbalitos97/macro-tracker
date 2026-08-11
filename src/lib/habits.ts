@@ -14,6 +14,7 @@ interface HabitRow {
   goal_unit: string
   task_days: number[] | null
   is_archived: boolean
+  position: number | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +37,7 @@ const fromHabitRow = (r: HabitRow): Habit => ({
   goalUnit: r.goal_unit === 'binary' ? 'binary' : 'count',
   taskDays: Array.isArray(r.task_days) ? r.task_days : [0, 1, 2, 3, 4, 5, 6],
   isArchived: r.is_archived,
+  position: r.position ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -56,12 +58,26 @@ export async function listHabits(userId: string): Promise<Habit[]> {
     .select('*')
     .eq('user_id', userId)
     .eq('is_archived', false)
+    .order('position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
   if (error) {
     console.warn('[habits] list:', error.message)
     return []
   }
   return (data ?? []).map((r) => fromHabitRow(r as HabitRow))
+}
+
+/** Writes an explicit order for the whole habit list. Positions are dense and
+ *  start at 0, so a habit added later (position null) always lands at the end. */
+export async function reorderHabits(userId: string, orderedIds: number[]): Promise<void> {
+  if (!supabase) return
+  const results = await Promise.all(
+    orderedIds.map((id, i) =>
+      supabase!.from('habits').update({ position: i }).eq('id', id).eq('user_id', userId),
+    ),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) console.warn('[habits] reorder:', failed.error.message)
 }
 
 export async function syncHabit(userId: string, h: Habit): Promise<string | null> {
@@ -78,6 +94,7 @@ export async function syncHabit(userId: string, h: Habit): Promise<string | null
     goal_unit: h.goalUnit,
     task_days: h.taskDays,
     is_archived: h.isArchived,
+    position: h.position ?? null,
     updated_at: new Date().toISOString(),
   })
   if (error) console.warn('[habits] sync:', error.message)

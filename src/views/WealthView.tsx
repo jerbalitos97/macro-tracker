@@ -4,7 +4,7 @@ import PortfolioChart from '../components/wealth/PortfolioChart'
 import AssetCard from '../components/wealth/AssetCard'
 import AddAssetForm from '../components/wealth/AddAssetForm'
 import ToggleChip from '../components/wealth/ToggleChip'
-import { listAssets, listAllValues } from '../lib/wealth/assets'
+import { listAssets, listAllValues, reorderAssets } from '../lib/wealth/assets'
 import { getSettings } from '../lib/wealth/settings'
 import {
   buildChartData,
@@ -13,7 +13,7 @@ import {
 } from '../lib/wealth/projection'
 import { formatMoney, formatPercent } from '../lib/wealth/format'
 import type { Asset, AssetValue, Settings } from '../lib/wealth/types'
-import { Card } from '../components/ui'
+import { Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 
 const tinyLabel = 'text-[10px] font-medium uppercase tracking-[0.12em] text-muted font-mono'
 const errorBanner =
@@ -66,6 +66,20 @@ export function WealthView({ onOpenSettings }: Props) {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  // Reordering is optimistic: the list re-renders straight away and the new
+  // positions go to the database behind it. A failed write reloads the server's
+  // order rather than leaving the screen lying about it.
+  const applyAssetOrder = (next: Asset[]) => {
+    if (next === assets) return
+    setAssets(next)
+    reorderAssets(next.map((a) => a.id)).catch((e) => {
+      setError(e instanceof Error ? e.message : 'Failed to save order')
+      void refresh()
+    })
+  }
+
+  const assetDrag = useDragReorder((fromId, toId) => applyAssetOrder(moveById(assets, fromId, toId)))
 
   const includedAssets = useMemo(
     () => assets.filter((a) => !excludedIds.has(a.id)),
@@ -275,24 +289,36 @@ export function WealthView({ onOpenSettings }: Props) {
       {/* Assets list */}
       <section className="flex flex-col gap-2.5">
         <div className={tinyLabel}>Assets</div>
-        {assets.map((a, i) => {
-          const sortedOwn = values
-            .filter((v) => v.assetId === a.id)
-            .sort((x, y) => x.recordedAt.localeCompare(y.recordedAt))
-          return (
-            <AssetCard
-              key={a.id}
-              asset={a}
-              currentValue={currentAssetValue(a.id, values)}
-              initialValue={sortedOwn[0]?.value ?? null}
-              visible={visibleAssetIds.has(a.id)}
-              swatch={ASSET_COLORS[i % ASSET_COLORS.length]}
-              currency={settings.currency}
-              onToggle={() => toggleAsset(a.id)}
-              onChange={refresh}
-            />
-          )
-        })}
+        <div ref={assetDrag.containerRef} className="flex flex-col gap-2.5">
+          {assets.map((a, i) => {
+            const sortedOwn = values
+              .filter((v) => v.assetId === a.id)
+              .sort((x, y) => x.recordedAt.localeCompare(y.recordedAt))
+            return (
+              <DragItem
+                key={a.id}
+                id={a.id}
+                reorder={assetDrag}
+                longPress
+                onMove={(d) => applyAssetOrder(moveByDelta(assets, a.id, d))}
+                tabIndex={0}
+                ariaLabel={`${a.name} — pidä pohjassa järjestääksesi`}
+                className="rounded-panel"
+              >
+                <AssetCard
+                  asset={a}
+                  currentValue={currentAssetValue(a.id, values)}
+                  initialValue={sortedOwn[0]?.value ?? null}
+                  visible={visibleAssetIds.has(a.id)}
+                  swatch={ASSET_COLORS[i % ASSET_COLORS.length]}
+                  currency={settings.currency}
+                  onToggle={() => toggleAsset(a.id)}
+                  onChange={refresh}
+                />
+              </DragItem>
+            )
+          })}
+        </div>
         <AddAssetForm onAdded={refresh} />
       </section>
     </main>

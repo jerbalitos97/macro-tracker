@@ -13,7 +13,7 @@ import {
   pushAllData, pullAllData,
 } from './lib/sync'
 import {
-  listHabits, syncHabit, archiveHabit as archiveHabitRemote,
+  listHabits, syncHabit, archiveHabit as archiveHabitRemote, reorderHabits,
   listEntries as listHabitEntries, syncEntry as syncHabitEntry,
 } from './lib/habits'
 import { useAuth } from './contexts/AuthContext'
@@ -502,6 +502,11 @@ export default function App() {
               if (!user) return
               setHabits((prev) => prev.filter((h) => h.id !== id))
               archiveHabitRemote(user.id, id)
+            }}
+            onReorder={(ordered) => {
+              if (!user) return
+              setHabits(ordered.map((h, i) => ({ ...h, position: i })))
+              reorderHabits(user.id, ordered.map((h) => h.id))
             }}
             onIncrement={(habit, delta, date) => {
               if (!user) return

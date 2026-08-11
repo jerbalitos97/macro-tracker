@@ -83,6 +83,8 @@ interface Props {
   role?: string
   tabIndex?: number
   ariaLabel?: string
+  /** For items that reorder but can't be activated (a "coming soon" tile). */
+  ariaDisabled?: boolean
   className?: string
   style?: CSSProperties
   children: ReactNode | ((api: DragItemApi) => ReactNode)
@@ -90,7 +92,7 @@ interface Props {
 
 export function DragItem({
   id, reorder, longPress = false, onActivate, onMove,
-  role, tabIndex, ariaLabel, className, style, children,
+  role, tabIndex, ariaLabel, ariaDisabled, className, style, children,
 }: Props) {
   const controls = useDragControls()
   const [lifted, setLifted] = useState(false)
@@ -130,6 +132,10 @@ export function DragItem({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!longPress || !e.isPrimary) return
+    // A hold on a form control belongs to the control — text selection, the
+    // caret, a native picker — never to the drag.
+    const t = e.target as HTMLElement
+    if (t.closest('input, textarea, select, [contenteditable="true"]')) return
     pressOrigin.current = { x: e.clientX, y: e.clientY }
     pressTimer.current = window.setTimeout(() => {
       pressTimer.current = null
@@ -155,6 +161,7 @@ export function DragItem({
       role={role}
       tabIndex={tabIndex}
       aria-label={ariaLabel}
+      aria-disabled={ariaDisabled || undefined}
       aria-keyshortcuts={onMove ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={(e) => {
         // Rows can contain text fields; leave their own key handling alone
@@ -185,9 +192,16 @@ export function DragItem({
         setLifted(false)
         reorder.drop(id, info.point)
       }}
+      // The click that ends a drag arrives right after it. Swallow that one in
+      // the capture phase so it reaches neither onActivate nor any button
+      // inside the item. A timestamp self-heals if a drag ends without a click.
+      onClickCapture={(e) => {
+        if (lifted || Date.now() - dragEndedAt.current < CLICK_SUPPRESS_MS) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }}
       onClick={onActivate ? () => {
-        // The click that ends a drag arrives right after it — ignore that one
-        // only. A timestamp self-heals if a drag ever ends without a click.
         if (lifted || Date.now() - dragEndedAt.current < CLICK_SUPPRESS_MS) return
         onActivate()
       } : undefined}
@@ -199,24 +213,26 @@ export function DragItem({
   )
 }
 
-/** Moves `fromId` to `toId`'s slot, returning a new array. */
-export function moveById<T extends { id: string }>(arr: T[], fromId: string, toId: string): T[] {
-  const from = arr.findIndex((x) => x.id === fromId)
-  const to = arr.findIndex((x) => x.id === toId)
-  if (from < 0 || to < 0 || from === to) return arr
+// data-dragid is a DOM attribute, so ids arrive back from a drop as strings.
+// Both helpers compare loosely so lists keyed by number (habits) work unchanged.
+type Id = string | number
+const sameId = (a: Id, b: Id) => String(a) === String(b)
+
+function move<T>(arr: T[], from: number, to: number): T[] {
+  if (from < 0 || to < 0 || to >= arr.length || from === to) return arr
   const next = [...arr]
   const [moved] = next.splice(from, 1)
   next.splice(to, 0, moved)
   return next
 }
 
+/** Moves `fromId` to `toId`'s slot, returning a new array. */
+export function moveById<T extends { id: Id }>(arr: T[], fromId: Id, toId: Id): T[] {
+  return move(arr, arr.findIndex((x) => sameId(x.id, fromId)), arr.findIndex((x) => sameId(x.id, toId)))
+}
+
 /** Moves the item one slot up (-1) or down (1). Returns the same array at the ends. */
-export function moveByDelta<T extends { id: string }>(arr: T[], id: string, delta: -1 | 1): T[] {
-  const from = arr.findIndex((x) => x.id === id)
-  const to = from + delta
-  if (from < 0 || to < 0 || to >= arr.length) return arr
-  const next = [...arr]
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
+export function moveByDelta<T extends { id: Id }>(arr: T[], id: Id, delta: -1 | 1): T[] {
+  const from = arr.findIndex((x) => sameId(x.id, id))
+  return from < 0 ? arr : move(arr, from, from + delta)
 }

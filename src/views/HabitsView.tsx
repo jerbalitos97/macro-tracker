@@ -5,7 +5,7 @@ import { addDays, fromISO, getWeekdayNum, toISO } from '../lib/dates'
 import { HabitFormModal } from '../components/HabitFormModal'
 import { HabitDetailModal } from '../components/HabitDetailModal'
 import { HabitsHistoryView } from './HabitsHistoryView'
-import { Card } from '../components/ui'
+import { Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 
 interface Props {
   habits: Habit[]
@@ -15,6 +15,8 @@ interface Props {
   onArchive: (id: number) => void
   onIncrement: (habit: Habit, delta: number, date: string) => void
   onSetBinary: (habit: Habit, done: boolean, date: string) => void
+  /** Receives the full habit list in its new order. */
+  onReorder: (habits: Habit[]) => void
 }
 
 const DAY_LETTERS = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU']
@@ -38,6 +40,7 @@ export function HabitsView({
   onArchive,
   onIncrement,
   onSetBinary,
+  onReorder,
 }: Props) {
   const todayISO = toISO(new Date())
 
@@ -55,6 +58,18 @@ export function HabitsView({
     () => habits.filter((h) => h.taskDays.includes(selectedDow)),
     [habits, selectedDow],
   )
+
+  // Only the habits scheduled today are on screen, so a drag reorders a subset.
+  // The moved habits go back into the same slots the subset occupied in the full
+  // list, leaving habits hidden by the weekday filter exactly where they were.
+  const applyOrder = (nextVisible: Habit[]) => {
+    if (nextVisible === scheduledHabits) return
+    const queue = [...nextVisible]
+    const visible = new Set(scheduledHabits.map((h) => h.id))
+    onReorder(habits.map((h) => (visible.has(h.id) ? queue.shift()! : h)))
+  }
+
+  const reorder = useDragReorder((fromId, toId) => applyOrder(moveById(scheduledHabits, fromId, toId)))
 
   // Habit's value as of a given date — for week habits, cumulative through that
   // date within the week containing it.
@@ -231,7 +246,7 @@ export function HabitsView({
 
       {/* List */}
       {scheduledHabits.length > 0 && (
-        <div className="flex flex-col gap-2 list-stagger">
+        <div ref={reorder.containerRef} className="flex flex-col gap-2 list-stagger">
           {scheduledHabits.map((habit) => {
             const value = valueFor(habit, selectedDate)
             const goal = habit.goalValue
@@ -239,10 +254,16 @@ export function HabitsView({
             const pct = goal > 0 ? Math.min(1, value / goal) : 0
             const isBinary = habit.goalUnit === 'binary'
             return (
-              <div
+              <DragItem
                 key={habit.id}
-                onClick={() => setDetailId(habit.id)}
+                id={String(habit.id)}
+                reorder={reorder}
+                longPress
+                onActivate={() => setDetailId(habit.id)}
+                onMove={(d) => applyOrder(moveByDelta(scheduledHabits, habit.id, d))}
                 role="button"
+                tabIndex={0}
+                ariaLabel={`${habit.name}, ${value} / ${goal}`}
                 className="relative cursor-pointer overflow-hidden rounded-row border [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]"
                 style={{
                   backgroundColor: `${habit.color}12`,
@@ -323,7 +344,7 @@ export function HabitsView({
                     />
                   </div>
                 </div>
-              </div>
+              </DragItem>
             )
           })}
         </div>
