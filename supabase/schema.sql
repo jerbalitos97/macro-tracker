@@ -225,3 +225,26 @@ create policy "warmups: own row only"
   on warmups for all
   using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ── Training blocks (mesocycles shown on the workout calendar) ───
+create table if not exists workout_blocks (
+  id         text primary key,                    -- client UUID
+  user_id    uuid not null references auth.users on delete cascade,
+  name       text not null,
+  start_date text not null,                       -- YYYY-MM-DD, inclusive
+  end_date   text not null,                       -- YYYY-MM-DD, inclusive
+  color      text,
+  note       text,
+  created_at text not null,
+  updated_at text not null
+);
+
+alter table workout_blocks enable row level security;
+
+create policy "workout_blocks: own rows only"
+  on workout_blocks for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists workout_blocks_user_range
+  on workout_blocks (user_id, start_date, end_date);

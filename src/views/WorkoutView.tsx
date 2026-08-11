@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer } from 'lucide-react'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff } from 'lucide-react'
 import { Card, Button, Sheet } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WarmupFab } from '../components/workout/WarmupSheet'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
-import { toISO, fromISO } from '../lib/dates'
+import { toISO, fromISO, addDays } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getTemplates, saveTemplate, deleteTemplate,
@@ -17,6 +17,17 @@ import {
 } from '../lib/workouts'
 import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
 import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
+import { BlockEditorSheet } from '../components/workout/BlockEditorSheet'
+import {
+  getBlocks, saveBlockLocal, deleteBlockLocal, newBlock,
+  pullBlocks, syncBlockCloud, deleteBlockCloud,
+  blockForDate, blockStatus, BLOCK_ENDING_SOON_DAYS,
+} from '../lib/blocks'
+import type { TrainingBlock } from '../lib/blocks'
+import {
+  notifyPermission, requestNotifyPermission, maybeNotifyBlockEnding, resetNotifyGuard,
+} from '../lib/blockNotify'
+import type { NotifyPermission } from '../lib/blockNotify'
 
 type Tab = 'log' | 'templates' | 'calendar'
 type Screen = 'home' | 'logging' | 'summary' | 'editTemplate'
@@ -67,12 +78,17 @@ export function WorkoutView() {
   })
   const [selectedDay, setSelectedDay] = useState<string>(todayISO)
 
+  const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
+  const [editingBlock, setEditingBlock] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
+  const [notifyState, setNotifyState] = useState<NotifyPermission>(() => notifyPermission())
+
   // Refresh templates and history from the cloud when logged in.
   useEffect(() => {
     if (!user) return
     let alive = true
     pullTemplates(user.id).then((ts) => { if (alive) setTemplates(ts) })
     pullWorkouts(user.id).then((ws) => { if (alive) setWorkouts(ws) })
+    pullBlocks(user.id).then((bs) => { if (alive) setBlocks(bs) })
     return () => { alive = false }
   }, [user])
 
@@ -154,6 +170,34 @@ export function WorkoutView() {
     }
     setScreen('home')
   }
+
+  // ── Training blocks ──────────────────────────────────────────────
+  const status = blockStatus(blocks, todayISO)
+
+  const handleSaveBlock = (b: TrainingBlock) => {
+    setBlocks(saveBlockLocal(b))
+    if (user) syncBlockCloud(user.id, b)
+    // A changed block means a fresh countdown — let today's reminder fire again.
+    resetNotifyGuard()
+    setEditingBlock(null)
+  }
+
+  const handleDeleteBlock = (id: string) => {
+    setBlocks(deleteBlockLocal(id))
+    if (user) deleteBlockCloud(user.id, id)
+    resetNotifyGuard()
+  }
+
+  // Fire the once-a-day reminder on open and whenever the app returns to the
+  // foreground. iOS can't schedule notifications for a closed web app, so this
+  // is the reachable half; the UI says so next to the toggle.
+  useEffect(() => {
+    if (notifyState !== 'granted') return
+    const check = () => { if (document.visibilityState === 'visible') maybeNotifyBlockEnding(status) }
+    check()
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
+  }, [notifyState, status.current?.id, status.daysLeft]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Templates ────────────────────────────────────────────────────
   const handleSaveTemplate = (t: WorkoutTemplate) => {
@@ -398,6 +442,118 @@ export function WorkoutView() {
 
         return (
           <div>
+            {/* Current / next block */}
+            <section className="mb-4">
+              <div className={sectionLabel}>Treeniblokit</div>
+              {status.current ? (
+                <div
+                  className="rounded-row border p-4"
+                  style={{ borderColor: `${status.current.color}59`, backgroundColor: `${status.current.color}14` }}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="min-w-0 truncate font-display text-[15px] font-semibold text-text">
+                      {status.current.name}
+                    </div>
+                    <div
+                      className="flex-shrink-0 font-mono text-[12px] tabular-nums"
+                      style={{ color: status.current.color }}
+                    >
+                      {status.daysLeft} pv jäljellä
+                    </div>
+                  </div>
+                  {status.current.note && (
+                    <div className="mt-0.5 text-[12px] text-fg-muted">{status.current.note}</div>
+                  )}
+                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-[3px] bg-black/40">
+                    <div
+                      className="h-full rounded-[3px] transition-[width] duration-500"
+                      style={{ width: `${Math.round((status.progress ?? 0) * 100)}%`, backgroundColor: status.current.color }}
+                    />
+                  </div>
+                  <div className="mt-1.5 font-mono text-[10px] text-fg-faint">
+                    {fromISO(status.current.startDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })}
+                    {' – '}
+                    {fromISO(status.current.endDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })}
+                  </div>
+                  {status.endingSoon && (
+                    <p role="status" className="mt-2 text-[12px] leading-relaxed text-accent">
+                      Blokki päättyy pian — suunnittele seuraava.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] leading-relaxed text-fg-faint">
+                  Ei blokkia käynnissä tänään.
+                </p>
+              )}
+
+              {status.next && (
+                <div className="mt-2 flex items-center gap-2.5 rounded-row border border-white/10 bg-white/[0.04] px-4 py-2.5">
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                    style={{ backgroundColor: status.next.color }}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-text">{status.next.name}</span>
+                  <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">
+                    {status.daysToNext === 0 ? 'huomenna' : `${status.daysToNext} pv päästä`}
+                  </span>
+                </div>
+              )}
+
+              {/* Reminder opt-in */}
+              {status.current && notifyState !== 'granted' && notifyState !== 'unsupported' && (
+                <button
+                  onClick={async () => setNotifyState(await requestNotifyPermission())}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+                >
+                  <Bell size={14} /> Muistuta {BLOCK_ENDING_SOON_DAYS} pv ennen loppua
+                </button>
+              )}
+              {notifyState === 'granted' && (
+                <p className="mt-2 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-faint">
+                  <Bell size={12} className="mt-0.5 flex-shrink-0 text-accent" />
+                  Muistutus päällä. iOS ei salli verkkosovelluksen ajastaa ilmoituksia suljettuna,
+                  joten se näytetään kerran päivässä kun avaat appin.
+                </p>
+              )}
+              {notifyState === 'denied' && (
+                <p className="mt-2 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-faint">
+                  <BellOff size={12} className="mt-0.5 flex-shrink-0" />
+                  Ilmoitukset estetty. Salli ne Asetukset → Friday → Ilmoitukset.
+                </p>
+              )}
+
+              {/* Block list */}
+              <div className="mt-3 flex flex-col gap-1.5">
+                {blocks.map((b) => (
+                  <button
+                    key={b.id}
+                    onClick={() => setEditingBlock({ block: b, isNew: false })}
+                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left"
+                  >
+                    <span aria-hidden className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: b.color }} />
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-text">{b.name}</span>
+                    <span className="flex-shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
+                      {fromISO(b.startDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+                      –
+                      {fromISO(b.endDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+                    </span>
+                    <ChevronRight size={15} className="flex-shrink-0 text-fg-faint" />
+                  </button>
+                ))}
+                <button
+                  onClick={() => setEditingBlock({
+                    block: newBlock(status.current ? addDays(status.current.endDate, 1) : selectedDay),
+                    isNew: true,
+                  })}
+                  className="flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+                >
+                  <Layers size={14} /> Uusi blokki
+                </button>
+              </div>
+            </section>
+
             {/* Month header */}
             <div className="mb-2 flex items-center justify-between">
               <button
@@ -431,10 +587,16 @@ export function WorkoutView() {
                 const has = byDate.has(date)
                 const isSelected = date === selectedDay
                 const isToday = date === todayISO
+                const dayBlock = blockForDate(blocks, date)
                 return (
                   <button
                     key={date}
                     onClick={() => setSelectedDay(date)}
+                    style={
+                      dayBlock && !isSelected
+                        ? { backgroundColor: `${dayBlock.color}26`, borderColor: `${dayBlock.color}59` }
+                        : undefined
+                    }
                     aria-pressed={isSelected}
                     aria-label={`${fromISO(date).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })}${
                       has ? ` — ${(byDate.get(date) ?? []).length} treeni${(byDate.get(date) ?? []).length > 1 ? 'ä' : ''}` : ' — ei treenejä'
@@ -545,6 +707,18 @@ export function WorkoutView() {
           </Sheet>
         )
       })()}
+
+      {/* Block editor */}
+      {editingBlock && (
+        <BlockEditorSheet
+          block={editingBlock.block}
+          all={blocks}
+          isNew={editingBlock.isNew}
+          onSave={handleSaveBlock}
+          onDelete={() => handleDeleteBlock(editingBlock.block.id)}
+          onClose={() => setEditingBlock(null)}
+        />
+      )}
 
       <WarmupFab />
     </div>
