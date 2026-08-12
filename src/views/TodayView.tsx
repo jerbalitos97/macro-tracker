@@ -189,12 +189,17 @@ export function TodayView({
         // Only count future days within the cut window
         const futureDays = todayIdx >= 0 ? computed.days.slice(todayIdx + 1) : []
         if (futureDays.length === 0) return null
-        const options = [3, 5, 7].filter((n) => n <= futureDays.length)
-        if (options.length === 0) options.push(futureDays.length)
+        // 1 = put the whole excess on tomorrow and be done with it.
+        const options = [1, 3, 5, 7].filter((n) => n <= futureDays.length)
+        // Fewer future days left than any preset: offer the days that remain.
+        if (!options.includes(futureDays.length) && futureDays.length < 3) options.push(futureDays.length)
+
+        const dayPhrase = (n: number) =>
+          n === 1 ? 'seuraavalle päivälle' : `seuraaville ${n} päivälle`
 
         const apply = (n: number) => {
           const perDay = Math.ceil(excess / n)
-          if (!window.confirm(`Lisää ${perDay} kcal vajetta seuraaville ${n} päivälle?`)) return
+          if (!window.confirm(`Lisää ${perDay} kcal vajetta ${dayPhrase(n)}?`)) return
           const noteTag = `tasoitus ${day.date.slice(5)}`
           for (let i = 0; i < n; i++) {
             const target = futureDays[i]
@@ -213,21 +218,28 @@ export function TodayView({
               Ylitit budjetin <strong className="text-white">{excess.toLocaleString('fi-FI')} kcal</strong>.
               Jaa se tulevien päivien lisävajeeksi pysyäksesi linjalla.
             </p>
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+            {/* Four options in one row leaves ~76px a cell at 390pt, which is
+                narrower than "−31 kcal/pv" renders — so past three, wrap to a
+                2×2 grid instead of squeezing. */}
+            <div
+              className="grid gap-1.5"
+              style={{ gridTemplateColumns: `repeat(${options.length === 4 ? 2 : options.length}, minmax(0, 1fr))` }}
+            >
               {options.map((n) => {
                 const perDay = Math.ceil(excess / n)
                 return (
                   <button
                     key={n}
                     onClick={() => apply(n)}
-                    className="rounded-lg border border-white/[0.08] bg-black/30 px-1.5 py-2.5 text-center"
+                    aria-label={`Lisää ${perDay} kcal vajetta ${dayPhrase(n)}`}
+                    className="min-w-0 rounded-lg border border-white/[0.08] bg-black/30 px-1.5 py-2.5 text-center"
                   >
                     <div className="text-[13px] font-bold tabular-nums text-white">
                       −{perDay}
                       <span className="font-normal text-fg-faint"> kcal/pv</span>
                     </div>
                     <div className="mt-0.5 text-[10px] text-fg-faint">
-                      {n} päivälle
+                      {n === 1 ? 'huomenna' : `${n} päivälle`}
                     </div>
                   </button>
                 )
