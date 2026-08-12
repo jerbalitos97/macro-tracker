@@ -137,22 +137,22 @@ export function TodayView({
           >
             {remaining >= 0 ? '+' : ''}{Math.round(remaining).toLocaleString('fi-FI')}
           </span>
-          <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/50">kcal jäljellä</span>
+          <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-muted">kcal jäljellä</span>
         </RingGauge>
 
         {/* Side stats */}
         <div className="mt-5 flex w-full items-start justify-around gap-2">
           <div className="min-w-0 text-center">
             <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.consumed.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-white/50">syöty</div>
+            <div className="mt-0.5 text-[11px] text-fg-muted">syöty</div>
           </div>
           <div className="min-w-0 text-center">
             <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{effectiveBudget.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-white/50">budjetti</div>
+            <div className="mt-0.5 text-[11px] text-fg-muted">budjetti</div>
           </div>
           <div className="min-w-0 text-center">
-            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-white/70">{day.baseTdee.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-white/50">TDEE</div>
+            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-fg-dim">{day.baseTdee.toLocaleString('fi-FI')}</div>
+            <div className="mt-0.5 text-[11px] text-fg-muted">TDEE</div>
           </div>
         </div>
 
@@ -160,7 +160,7 @@ export function TodayView({
         {totalBurnKcal > 0 && (
           <div className="mt-4 w-full border-t border-white/[0.1] pt-3">
             {[
-              { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,      cls: 'text-[#777]' },
+              { label: 'Perusbudjetti', val: `${day.budget.toLocaleString('fi-FI')} kcal`,      cls: 'text-fg-faint' },
               { label: 'Treenikulutus', val: `+${totalBurnKcal.toLocaleString('fi-FI')} kcal`,   cls: 'text-protein' },
               { label: 'Budjetti',      val: `${effectiveBudget.toLocaleString('fi-FI')} kcal`,  cls: 'text-text' },
             ].map(({ label, val, cls }) => (
@@ -209,7 +209,7 @@ export function TodayView({
         return (
           <div className="mt-2.5 rounded-card border border-danger/[0.22] bg-danger/[0.05] p-4">
             <div className={`${cardLabel} text-danger`}>Tasoitus</div>
-            <p className="m-0 mb-3 text-[13px] leading-normal text-white/70">
+            <p className="m-0 mb-3 text-[13px] leading-normal text-fg-dim">
               Ylitit budjetin <strong className="text-white">{excess.toLocaleString('fi-FI')} kcal</strong>.
               Jaa se tulevien päivien lisävajeeksi pysyäksesi linjalla.
             </p>
@@ -224,9 +224,9 @@ export function TodayView({
                   >
                     <div className="text-[13px] font-bold tabular-nums text-white">
                       −{perDay}
-                      <span className="font-normal text-[#777]"> kcal/pv</span>
+                      <span className="font-normal text-fg-faint"> kcal/pv</span>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-[#777]">
+                    <div className="mt-0.5 text-[10px] text-fg-faint">
                       {n} päivälle
                     </div>
                   </button>
@@ -258,7 +258,7 @@ export function TodayView({
       <div className="mt-[18px]">
         <div className={sectionLabel}>Ateriat ({meals.length})</div>
         {meals.length === 0 ? (
-          <div className="py-2.5 text-xs text-[#3a3a3a]">
+          <div className="py-2.5 text-xs text-fg-ghost">
             Ei vielä aterioita.
           </div>
         ) : (
@@ -285,12 +285,12 @@ export function TodayView({
                       <span className="ml-1 text-[11px] font-normal text-[#4a6a94]">kcal</span>
                     </div>
                     {b.note && (
-                      <div className="mt-px truncate text-[11px] text-[#444]">{b.note}</div>
+                      <div className="mt-px truncate text-[11px] text-fg-ghost">{b.note}</div>
                     )}
                   </div>
                 </div>
                 <button
-                  className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#333]"
+                  className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost"
                   onClick={() => onDeleteBurn(b.id)}
                 >
                   <X size={14} />
@@ -338,7 +338,7 @@ export function TodayView({
       ) : (
         <button
           onClick={() => { setShowMealForm(true); setShowBurnForm(false) }}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#666]"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-fg-faint"
         >
           <Plus size={14} />Lisää ateria
         </button>
@@ -396,13 +396,13 @@ export function TodayView({
               <span className="text-aurora">{Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}</span>
               <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
             </div>
-            <div className="mt-0.5 text-[11px] text-[#444]">
+            <div className="mt-0.5 text-[11px] text-fg-ghost">
               / {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal tavoite
             </div>
           </div>
           <div className="text-[22px] font-extrabold tabular-nums tracking-[-0.025em] text-accent">
             {(deficitPct * 100).toFixed(1)}
-            <span className="text-xs font-normal text-[#666]">%</span>
+            <span className="text-xs font-normal text-fg-faint">%</span>
           </div>
         </div>
         <ProgressBar value={deficitPct} color="#22d3ee" height={4} />

@@ -163,7 +163,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
   return (
     <Sheet open onClose={onClose} title={<span className="normal-case">{exercise.name}</span>}>
-      <div className="mb-3 rounded-row border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-[11px] text-fg-muted">
+      <div className="mb-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3 py-2 font-mono text-[11px] text-fg-muted">
         {configLabel}
       </div>
 
@@ -201,14 +201,14 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
             {run.phase !== 'switch' && (
               <button
                 onClick={() => setPaused((p) => !p)}
-                className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
+                className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
               >
                 {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}
               </button>
             )}
             <button
               onClick={() => { setPaused(false); setRun(null) }}
-              className="flex items-center gap-1.5 rounded-input border border-white/10 bg-white/[0.05] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
+              className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
             >
               <X size={14} /> Keskeytä
             </button>
@@ -221,7 +221,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               <div
                 key={i}
                 className={`flex items-center justify-between rounded-row border px-4 py-3 ${
-                  s.done ? 'border-cyan/25 bg-cyan/[0.08]' : 'border-white/10 bg-white/[0.04]'
+                  s.done ? 'border-cyan/25 bg-cyan/[0.08]' : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -248,7 +248,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               onClick={() => onMoveUp?.()}
               disabled={!onMoveUp}
               aria-label="Siirrä liike ylöspäin"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
             >
               <ArrowUp size={16} />
             </button>
@@ -256,7 +256,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               onClick={() => onMoveDown?.()}
               disabled={!onMoveDown}
               aria-label="Siirrä liike alaspäin"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
             >
               <ArrowDown size={16} />
             </button>

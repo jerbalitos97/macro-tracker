@@ -118,7 +118,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
           onClick={() => onMoveUp?.()}
           disabled={!onMoveUp}
           aria-label="Siirrä liike ylöspäin"
-          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
         >
           <ArrowUp size={16} />
         </button>
@@ -126,7 +126,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
           onClick={() => onMoveDown?.()}
           disabled={!onMoveDown}
           aria-label="Siirrä liike alaspäin"
-          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-white/[0.05] text-fg-muted disabled:opacity-25"
+          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
         >
           <ArrowDown size={16} />
         </button>

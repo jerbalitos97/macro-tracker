@@ -193,7 +193,7 @@ export function WealthView({ onOpenSettings }: Props) {
               <div className="mt-1 font-display text-[24px] font-bold tabular-nums tracking-[-0.02em] text-text">
                 {formatMoney(settings.wealthGoal, settings.currency)}
               </div>
-              <div className="mt-2.5 h-1.5 rounded-[3px] bg-white/[0.06]">
+              <div className="mt-2.5 h-1.5 rounded-[3px] bg-[rgba(9,11,20,0.50)]">
                 <div
                   className="h-1.5 rounded-[3px] bg-goal transition-[width] duration-[450ms] ease-out"
                   style={{ width: `${Math.min(100, Math.max(0, goalProgress ?? 0))}%` }}

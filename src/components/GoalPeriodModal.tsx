@@ -89,7 +89,7 @@ export function GoalPeriodModal({
           </Chip>
         ))}
       </div>
-      <p className="m-0 mb-3 text-[11px] leading-normal text-white/45">{TYPE_HINT[form.type]}</p>
+      <p className="m-0 mb-3 text-[11px] leading-normal text-fg-muted">{TYPE_HINT[form.type]}</p>
 
       <div className="grid grid-cols-2 gap-2.5">
         <Field

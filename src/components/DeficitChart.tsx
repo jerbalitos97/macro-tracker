@@ -129,7 +129,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
 
       {/* Logged-day dots */}
       {inRange.map((p, i) => (
-        <circle key={i} cx={xPos(p.date)} cy={yPos(p.cum)} r="1.8" fill="#3a3a3a" />
+        <circle key={i} cx={xPos(p.date)} cy={yPos(p.cum)} r="1.8" fill="#8f94a3" />
       ))}
 
       {/* Cumulative path */}
@@ -185,7 +185,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
         strokeDasharray="4,2"
         opacity="0.55"
       />
-      <text x={W - 80} y={pad.top + 7} fill="#555" fontSize="8" fontFamily={monoFont}>
+      <text x={W - 80} y={pad.top + 7} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>
         tavoitelinja
       </text>
       <line
@@ -196,7 +196,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
         stroke="var(--color-accent)"
         strokeWidth="2"
       />
-      <text x={W - 80} y={pad.top + 17} fill="#555" fontSize="8" fontFamily={monoFont}>
+      <text x={W - 80} y={pad.top + 17} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>
         toteutunut
       </text>
     </svg>

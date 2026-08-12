@@ -105,7 +105,7 @@ export function NavBar({ view, setView }: Props) {
             aria-selected={active}
             aria-label={tab.label}
             className={`nav-btn flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent px-0.5 pb-[11px] pt-[9px] transition-colors duration-200 ${
-              active ? 'text-accent' : 'text-white/[0.62]'
+              active ? 'text-accent' : 'text-fg-muted'
             }`}
             onClick={() => setView(tab.id)}
           >

@@ -63,7 +63,7 @@ export function WarmupFab() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Lämmittely"
-        className="active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-accent transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)]"
+        className="active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[rgba(9,11,20,0.54)] text-accent transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)]"
       >
         <Flame size={20} />
       </button>
@@ -78,7 +78,7 @@ export function WarmupFab() {
               <button
                 onClick={startEdit}
                 aria-label="Muokkaa rutiinia"
-                className="ml-auto flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-fg-muted"
+                className="ml-auto flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-[rgba(9,11,20,0.50)] text-fg-muted"
               >
                 <Pencil size={13} />
               </button>
@@ -93,7 +93,7 @@ export function WarmupFab() {
             </p>
             <ol className="flex flex-col gap-2.5">
               {moves.map((mv, i) => (
-                <li key={mv.id} className="rounded-row border border-white/10 bg-white/[0.04] px-4 py-3">
+                <li key={mv.id} className="rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3">
                   <div className="flex items-baseline gap-2">
                     <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
                     <span className="font-display text-[14px] font-semibold text-text">{mv.name}</span>
@@ -126,7 +126,7 @@ export function WarmupFab() {
                   onMove={(d) => move(mv.id, d)}
                   tabIndex={0}
                   ariaLabel={`Liike ${i + 1}: ${mv.name || 'nimetön'}`}
-                  className="rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-3"
+                  className="rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-3"
                 >
                   {({ handleProps }) => (
                     <>

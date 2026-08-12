@@ -21,7 +21,7 @@ const DAY_TYPE_LABEL: Record<string, string> = {
 
 const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
-const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#444]'
+const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost'
 
 interface Props {
   computed: ComputedResult
@@ -103,7 +103,7 @@ export function CalendarView({
   const addBtn = (label: string, onClick: () => void, mt: string) => (
     <button
       onClick={onClick}
-      className={`flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#666] ${mt}`}
+      className={`flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-fg-faint ${mt}`}
     >
       <Plus size={14} />
       {label}
@@ -222,17 +222,17 @@ export function CalendarView({
                 <div className="min-w-0">
                   <div className="text-sm font-semibold tabular-nums text-text">
                     +{b.kcal.toLocaleString('fi-FI')}
-                    <span className="ml-1 text-[11px] text-[#555]">kcal</span>
+                    <span className="ml-1 text-[11px] text-fg-faint">kcal</span>
                   </div>
                   {b.note && (
-                    <div className="mt-px truncate text-[11px] text-[#666]">{b.note}</div>
+                    <div className="mt-px truncate text-[11px] text-fg-faint">{b.note}</div>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => onDeleteBurn(b.id)}
                 aria-label="Poista treenikulutus"
-                className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#3a3a3a]"
+                className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost"
               >
                 <X size={14} />
               </button>

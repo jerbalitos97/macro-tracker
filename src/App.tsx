@@ -345,7 +345,7 @@ export default function App() {
             <div key={i} className="pulse-dot h-2 w-2 rounded-full bg-accent" />
           ))}
         </div>
-        <div className="text-[11px] uppercase tracking-[0.12em] text-[#333]">Ladataan</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] text-fg-ghost">Ladataan</div>
       </div>
     )
   }

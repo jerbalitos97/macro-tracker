@@ -97,14 +97,14 @@ export function WeightView({
                   {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
                   <span className="text-[11px] font-normal text-muted"> kg/vko</span>
                 </div>
-                <div className="mt-0.5 text-[10px] text-[#444]">
+                <div className="mt-0.5 text-[10px] text-fg-ghost">
                   tavoite −{targetWeeklyRate} kg/vko
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="mt-1 text-[13px] leading-relaxed text-[#444]">
+          <div className="mt-1 text-[13px] leading-relaxed text-fg-ghost">
             Kirjaa vähintään 2 päivän paino<br />aloittaaksesi trendin.
           </div>
         )}
@@ -220,7 +220,7 @@ export function WeightView({
         <div className="mt-[18px]">
           <div className="mb-1 flex items-baseline justify-between">
             <div className={sectionLabel}>Kirjaukset ({weights.length})</div>
-            <div className="font-mono text-[9px] tracking-[0.06em] text-white/30">
+            <div className="font-mono text-[9px] tracking-[0.06em] text-fg-ghost">
               <span className="text-accent">■</span> nyk. keskiarvossa
             </div>
           </div>
@@ -247,7 +247,7 @@ export function WeightView({
                     <div>
                       <div className={`text-[15px] font-[650] tabular-nums tracking-[-0.01em] ${inAvg ? 'text-text' : 'text-text'}`}>
                         {w.kg.toFixed(1)}
-                        <span className="ml-1 text-[11px] font-normal text-[#555]">kg</span>
+                        <span className="ml-1 text-[11px] font-normal text-fg-faint">kg</span>
                         {w.excludeFromTrend ? (
                           <span className="ml-2 text-[9px] uppercase tracking-[0.06em] text-danger">
                             ohitettu
@@ -258,7 +258,7 @@ export function WeightView({
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-px text-[10px] text-[#444]">{formatDateShort(w.date)}</div>
+                      <div className="mt-px text-[10px] text-fg-ghost">{formatDateShort(w.date)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -267,14 +267,14 @@ export function WeightView({
                       className={`rounded-[7px] border px-2.5 py-1.5 text-[10px] tracking-[0.04em] ${
                         w.excludeFromTrend
                           ? 'border-accent/30 text-accent'
-                          : 'border-white/[0.06] text-[#444]'
+                          : 'border-white/[0.06] text-fg-ghost'
                       }`}
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >
                       {w.excludeFromTrend ? '+ trendi' : '− trendi'}
                     </button>
                     <button
-                      className="icon-btn flex items-center justify-center rounded-md p-1.5 text-[#333]"
+                      className="icon-btn flex items-center justify-center rounded-md p-1.5 text-fg-ghost"
                       onClick={() => onDeleteWeight(w.id)}
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >

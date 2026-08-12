@@ -25,7 +25,7 @@ export function AdjustmentModal({ date, current, onSave, onDelete, onClose }: Pr
       onClose={onClose}
       title={<><Sliders size={14} />Päivän säätö · {date}</>}
     >
-      <p className="mb-3.5 text-xs leading-[1.55] text-white/50">
+      <p className="mb-3.5 text-xs leading-[1.55] text-fg-muted">
         Lisää tai vähennä päivän kaloribudjettia. Negatiivinen luku tiukentaa päivää
         (esim. <span className="text-white">−150</span> = 150 kcal vähemmän ruokaa, vajetta enemmän).
         Positiivinen löysää.

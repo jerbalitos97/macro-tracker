@@ -196,7 +196,7 @@ export function GoalChart({
 
       {/* Raw weight dots */}
       {inRange.map((d, i) => (
-        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="1.8" fill="#3a3a3a" />
+        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="1.8" fill="#8f94a3" />
       ))}
 
       {/* Actual trend line (solid gold) */}
@@ -249,9 +249,9 @@ export function GoalChart({
 
       {/* Legend */}
       <line x1={W - 90} y1={pad.top + 4} x2={W - 78} y2={pad.top + 4} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.55" />
-      <text x={W - 75} y={pad.top + 7} fill="#555" fontSize="8" fontFamily={monoFont}>tavoitelinja</text>
+      <text x={W - 75} y={pad.top + 7} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>tavoitelinja</text>
       <line x1={W - 90} y1={pad.top + 14} x2={W - 78} y2={pad.top + 14} stroke="#22d3ee" strokeWidth="2" />
-      <text x={W - 75} y={pad.top + 17} fill="#555" fontSize="8" fontFamily={monoFont}>trendi</text>
+      <text x={W - 75} y={pad.top + 17} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>trendi</text>
     </svg>
   )
 }

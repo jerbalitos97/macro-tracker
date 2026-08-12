@@ -25,7 +25,7 @@ function StatRow({ label, value, sub, accent, warn }: StatRowProps) {
     <div className="flex items-baseline justify-between border-b border-white/[0.05] py-[9px]">
       <div>
         <div className="text-[12px] text-muted">{label}</div>
-        {sub && <div className="mt-0.5 text-[10px] text-[#444]">{sub}</div>}
+        {sub && <div className="mt-0.5 text-[10px] text-fg-ghost">{sub}</div>}
       </div>
       <div className={`text-[15px] font-bold tabular-nums tracking-[-0.01em] ${accent ? 'text-accent' : warn ? 'text-danger' : 'text-text'}`}>
         {value}
@@ -73,7 +73,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
             <span className="font-display text-[32px] font-extrabold tabular-nums tracking-[-0.03em] text-text">
               {settings.startWeight}
             </span>
-            <span className="mx-2 text-[16px] text-[#444]">→</span>
+            <span className="mx-2 text-[16px] text-fg-ghost">→</span>
             <span className="font-display text-[32px] font-extrabold tabular-nums tracking-[-0.03em] text-accent">
               {settings.targetWeight}
             </span>
@@ -87,7 +87,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
         {trend.currentTrend && (
           <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
             <div>
-              <div className="mb-[3px] text-[10px] uppercase tracking-[0.1em] text-[#444]">
+              <div className="mb-[3px] text-[10px] uppercase tracking-[0.1em] text-fg-ghost">
                 Nykyinen trendi
               </div>
               <span className="font-display text-[22px] font-bold tabular-nums tracking-[-0.02em] text-text">
@@ -97,7 +97,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
             </div>
             {trend.weeklyChange !== null && (
               <div className="text-right">
-                <div className="mb-[3px] text-[10px] uppercase tracking-[0.1em] text-[#444]">
+                <div className="mb-[3px] text-[10px] uppercase tracking-[0.1em] text-fg-ghost">
                   Viikkovauhti
                 </div>
                 <span className={`font-display text-[18px] font-bold tabular-nums tracking-[-0.02em] ${trend.weeklyChange < 0 ? 'text-accent' : 'text-danger'}`}>
@@ -127,7 +127,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
           </span>
         </div>
         <ProgressBar value={overallPct} color="#22d3ee" height={6} />
-        <div className="mt-2 flex justify-between text-[10px] text-[#444]">
+        <div className="mt-2 flex justify-between text-[10px] text-fg-ghost">
           <span>{doneDays.length} pv tehty</span>
           <span>{daysLeft} pv jäljellä</span>
         </div>
@@ -169,7 +169,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
       )}
 
       {doneDays.length === 0 && (
-        <div className="py-12 text-center text-[13px] leading-relaxed text-[#333]">
+        <div className="py-12 text-center text-[13px] leading-relaxed text-fg-ghost">
           Kirjaa ateriat päivittäin,<br />jotta trendit ilmestyvät tähän näkymään.
         </div>
       )}

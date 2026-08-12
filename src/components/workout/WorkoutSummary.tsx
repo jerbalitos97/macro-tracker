@@ -53,7 +53,7 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit }: Props) {
           <button
             onClick={onEdit}
             aria-label="Muokkaa treeniä"
-            className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-fg-muted"
+            className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-[rgba(9,11,20,0.50)] text-fg-muted"
           >
             <Pencil size={15} />
           </button>

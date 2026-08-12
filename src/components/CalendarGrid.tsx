@@ -39,7 +39,7 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
     <div>
       <div className="mb-[3px] grid grid-cols-7 gap-0.5">
         {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
-          <div key={d} className="py-1 text-center text-[9px] uppercase tracking-[0.1em] text-[#444]">{d}</div>
+          <div key={d} className="py-1 text-center text-[9px] uppercase tracking-[0.1em] text-fg-ghost">{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (
@@ -55,7 +55,7 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
               ? 'border-accent/60 bg-accent/[0.08] text-accent'
               : isToday
                 ? 'border-white/[0.05] bg-[#0f0f0f] font-bold text-text'
-                : 'border-white/[0.05] bg-[#0f0f0f] text-[#777]'
+                : 'border-white/[0.05] bg-[#0f0f0f] text-fg-faint'
             return (
               <button
                 key={di}

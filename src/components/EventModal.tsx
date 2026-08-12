@@ -113,7 +113,7 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
             {dirBtn('after', 'Jälkeen')}
             {dirBtn('both', 'Molemmat', isPastOrToday)}
           </div>
-          <div className="mt-[7px] text-[10px] leading-[1.5] text-[#555]">
+          <div className="mt-[7px] text-[10px] leading-[1.5] text-fg-faint">
             {bufferLabel()}
           </div>
           {isPastOrToday && (

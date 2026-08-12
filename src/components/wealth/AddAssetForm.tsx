@@ -75,7 +75,7 @@ export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-glass border border-dashed border-white/[0.12] bg-white/[0.02] px-4 py-3.5 text-[13px] text-muted"
+        className="w-full rounded-glass border border-dashed border-white/[0.12] bg-[rgba(9,11,20,0.40)] px-4 py-3.5 text-[13px] text-muted"
       >
         + Add asset
       </button>

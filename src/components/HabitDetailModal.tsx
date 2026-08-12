@@ -18,7 +18,7 @@ interface Props {
 }
 
 const counterBtn =
-  'flex h-12 w-12 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] p-0 text-text'
+  'flex h-12 w-12 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-[rgba(9,11,20,0.50)] p-0 text-text'
 const menuItem =
   'flex w-full min-h-0 items-center gap-2 rounded-md px-3 py-2.5 text-left text-[13px] text-[#ebebeb]'
 
@@ -59,7 +59,7 @@ export function HabitDetailModal({
           <div className="truncate font-display text-[15px] font-bold tracking-[-0.01em] text-text">
             {habit.name}
           </div>
-          <div className="mt-0.5 text-[10px] text-white/40">
+          <div className="mt-0.5 text-[10px] text-fg-faint">
             {habit.goalPeriod === 'day' ? 'Päivätavoite' : 'Viikkotavoite'}
           </div>
         </div>
@@ -109,16 +109,16 @@ export function HabitDetailModal({
             {reached && <Check size={28} color={habit.color} className="mb-1" />}
             <div className="font-display text-[38px] font-extrabold leading-none tracking-[-0.02em] tabular-nums text-text">
               {todayValue}
-              <span className="text-[22px] font-semibold text-[#555]"> / {goal}</span>
+              <span className="text-[22px] font-semibold text-fg-faint"> / {goal}</span>
             </div>
-            <div className="mt-2 text-[10px] uppercase tracking-[0.1em] text-white/40">
+            <div className="mt-2 text-[10px] uppercase tracking-[0.1em] text-fg-faint">
               {Math.round(pct * 100)} %
             </div>
           </div>
         </div>
 
         {habit.description && (
-          <p className="mt-3.5 max-w-[320px] text-center text-xs leading-normal text-white/50">
+          <p className="mt-3.5 max-w-[320px] text-center text-xs leading-normal text-fg-muted">
             {habit.description}
           </p>
         )}
@@ -171,7 +171,7 @@ export function HabitDetailModal({
 
       {/* 7-day strip */}
       <div className="px-4 pb-2 pt-2">
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/35">
+        <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-faint">
           Viimeiset 7 päivää
         </div>
         <div className="grid grid-cols-7 gap-1.5">
@@ -184,11 +184,11 @@ export function HabitDetailModal({
                 backgroundColor: d.reached ? `${habit.color}22` : 'rgba(255,255,255,0.03)',
               }}
             >
-              <div className="font-mono text-[9px] uppercase text-white/40">{dayLetter(d.date)}</div>
+              <div className="font-mono text-[9px] uppercase text-fg-faint">{dayLetter(d.date)}</div>
               {d.reached ? (
                 <Check size={14} color={habit.color} />
               ) : (
-                <div className={`text-[11px] tabular-nums ${d.value > 0 ? 'text-text' : 'text-white/30'}`}>
+                <div className={`text-[11px] tabular-nums ${d.value > 0 ? 'text-text' : 'text-fg-ghost'}`}>
                   {d.value}
                 </div>
               )}

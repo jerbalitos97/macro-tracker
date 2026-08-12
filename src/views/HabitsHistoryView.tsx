@@ -207,7 +207,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
       {/* Day headers */}
       <div className="mb-1 grid grid-cols-7 gap-1">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="py-1 text-center font-mono text-[9px] tracking-[0.08em] text-[#555]">
+          <div key={d} className="py-1 text-center font-mono text-[9px] tracking-[0.08em] text-fg-faint">
             {d}
           </div>
         ))}
@@ -251,7 +251,7 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
                 />
               )}
               <div
-                className={`text-xs leading-none tabular-nums ${perfect ? 'font-bold' : 'font-medium'} ${r.ratio > 0.5 ? 'text-white' : c.inMonth ? 'text-[#ebebeb]' : 'text-[#444]'}`}
+                className={`text-xs leading-none tabular-nums ${perfect ? 'font-bold' : 'font-medium'} ${r.ratio > 0.5 ? 'text-white' : c.inMonth ? 'text-[#ebebeb]' : 'text-fg-ghost'}`}
               >
                 {dayNum}
               </div>
@@ -301,7 +301,7 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-0 min-w-0 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs ${active ? 'text-white' : 'text-white/55'}`}
+      className={`flex min-h-0 min-w-0 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs ${active ? 'text-white' : 'text-fg-muted'}`}
       style={{
         backgroundColor: active ? `${color}22` : 'rgba(255,255,255,0.04)',
         border: active ? `1px solid ${color}66` : '1px solid rgba(255,255,255,0.08)',
@@ -333,7 +333,7 @@ function StatTile({
       >
         {value}
       </div>
-      <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white/45">
+      <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-fg-muted">
         {label}
       </div>
     </Card>

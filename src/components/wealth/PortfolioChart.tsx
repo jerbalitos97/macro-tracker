@@ -67,12 +67,12 @@ export default function PortfolioChart({
             <CartesianGrid stroke="#1c1c1c" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#444"
+              stroke="#8f94a3"
               tickFormatter={formatTick}
               minTickGap={32}
               tick={{ fontSize: 11 }}
             />
-            <YAxis stroke="#444" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} width={56} />
+            <YAxis stroke="#8f94a3" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} width={56} />
             <Tooltip
               contentStyle={{
                 background: '#0a0b12',

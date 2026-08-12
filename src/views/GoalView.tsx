@@ -186,18 +186,18 @@ export function GoalView({ settings, weights, computed }: Props) {
             </span>
           )}
         </h2>
-        <p className="m-0 text-[12px] text-white/35">
+        <p className="m-0 text-[12px] text-fg-faint">
           {(activePeriod?.startDate ?? settings.startDate).slice(5).replace('-', '/')} – {(activePeriod?.endDate ?? settings.endDate).slice(5).replace('-', '/')} · {(activePeriod?.startWeight ?? settings.startWeight)} → {(activePeriod?.targetWeight ?? settings.targetWeight)} kg
         </p>
       </div>
 
       {/* Progress bar */}
       <div>
-        <div className="mb-1.5 flex justify-between text-[11px] text-white/35">
+        <div className="mb-1.5 flex justify-between text-[11px] text-fg-faint">
           <span>Päivä {elapsedDays} / {totalDays}</span>
           <span>{progressPct.toFixed(0)} %</span>
         </div>
-        <div className="h-1 overflow-hidden rounded-sm bg-white/[0.06]">
+        <div className="h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
           <div
             className="h-full rounded-sm bg-gradient-to-r from-accent to-[#e8d07a] transition-[width] duration-[600ms] ease-out"
             style={{ width: `${progressPct}%` }}
@@ -220,10 +220,10 @@ export function GoalView({ settings, weights, computed }: Props) {
       {/* Not enough data state */}
       {notEnoughData && (
         <Card variant="glass" className="px-4 py-5 text-center">
-          <p className="m-0 mb-1.5 text-[14px] text-white/50">
+          <p className="m-0 mb-1.5 text-[14px] text-fg-muted">
             Ei tarpeeksi dataa analyysiin
           </p>
-          <p className="m-0 text-[12px] leading-normal text-white/[0.28]">
+          <p className="m-0 text-[12px] leading-normal text-fg-ghost">
             Kirjaa paino vähintään 4 päivänä ennen kuin tavoiteanalyysi aktivoituu.
             ({trend.trendData.length}/4 kirjausta)
           </p>
@@ -258,7 +258,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                     <li>&gt;1,0 kg yli → Selkeästi jäljessä (punainen)</li>
                     <li>&lt;−0,3 kg (alle linjan) → Edellä tavoitetta</li>
                   </ul>
-                  <p className="m-0 text-white/45">
+                  <p className="m-0 text-fg-muted">
                     Tekstissä mainittu kcal/pv-luku = mitä päivätason vajetta loppuajalle
                     tarvittaisiin, jotta tavoite saavutetaan suunniteltuna päivänä.
                   </p>
@@ -292,7 +292,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       <strong className="text-text">Laskenta:</strong> aloituspaino −
                       (kokonaispudotus × kulunut osuus jaksosta).
                     </p>
-                    <p className="m-0 text-white/45">
+                    <p className="m-0 text-fg-muted">
                       Tämä on sama lineaarinen viiva, joka näkyy yllä olevassa kuvaajassa
                       katkoviivana.
                     </p>
@@ -358,7 +358,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       aikataulusta). Negatiivinen luku ={' '}
                       <strong style={{ color: '#34d399' }}>alle linjan</strong> (edellä).
                     </p>
-                    <p className="m-0 text-white/45">
+                    <p className="m-0 text-fg-muted">
                       Toleranssit: ±0,3 kg = oikealla radalla · 0,3–1,0 kg = hieman
                       jäljessä · &gt;1,0 kg = selkeästi jäljessä. Tämä määrää myös
                       suosituslaatikon värin.
@@ -406,7 +406,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                     olevat kilot ÷ nykyinen viikkotahti × 7 päivää, lisättynä
                     tämänpäivän päiväykseen.
                   </p>
-                  <p className="m-0 text-white/45">
+                  <p className="m-0 text-fg-muted">
                     Vaatii selvän laskevan trendin (&gt; 0,01 kg/vk pudotusta).
                     Tasaisella tai nousevalla trendillä päivää ei voi projisoida.
                   </p>
@@ -427,7 +427,7 @@ export function GoalView({ settings, weights, computed }: Props) {
       {/* ── Cumulative deficit section ──────────────────────────── */}
       <div className="mt-3 border-t border-white/[0.06] pt-5">
         <h2 className="m-0 mb-0.5 font-display text-[16px] font-bold tracking-[-0.02em] text-text">Kalorivajeanalyysi</h2>
-        <p className="m-0 text-[12px] text-white/35">
+        <p className="m-0 text-[12px] text-fg-faint">
           Kumulatiivinen vaje · tavoite {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal
         </p>
       </div>
@@ -443,10 +443,10 @@ export function GoalView({ settings, weights, computed }: Props) {
 
       {!deficit.hasData && (
         <Card variant="glass" className="px-4 py-5 text-center">
-          <p className="m-0 mb-1.5 text-[14px] text-white/50">
+          <p className="m-0 mb-1.5 text-[14px] text-fg-muted">
             Ei kirjattua kulutusta vielä
           </p>
-          <p className="m-0 text-[12px] leading-normal text-white/[0.28]">
+          <p className="m-0 text-[12px] leading-normal text-fg-ghost">
             Lisää aterioita Tänään-välilehdeltä — vaje kerääntyy päivien edetessä.
           </p>
         </Card>
@@ -472,7 +472,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                     <li>&gt;300 kcal/pv jäljessä → Selkeästi jäljessä</li>
                     <li>&gt;100 kcal/pv edellä → Voit löystää</li>
                   </ul>
-                  <p className="m-0 text-white/45">
+                  <p className="m-0 text-fg-muted">
                     Päivätason ero = kokonaisero ÷ kuluneet päivät.
                   </p>
                 </>
@@ -522,7 +522,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       <strong className="text-text">Päivän vaje:</strong> TDEE +
                       ekstratreeni + treenikulutus − kulutetut kalorit.
                     </p>
-                    <p className="m-0 text-white/45">
+                    <p className="m-0 text-fg-muted">
                       Päivät joilta ei ole yhtään kirjausta jätetään pois — emme
                       arvaa niiden vajetta.
                     </p>
@@ -557,7 +557,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       Positiivinen = jäljessä (vajetta jäänyt kerryttämättä).
                       Negatiivinen = edellä.
                     </p>
-                    <p className="m-0 text-white/45">
+                    <p className="m-0 text-fg-muted">
                       Alarivi: ero ÷ kuluneet päivät. Kertoo paljonko vajetta pitäisi
                       lisätä joka päivä saadakseen kiinni. Toleranssi ±100 kcal/pv.
                     </p>
@@ -605,7 +605,7 @@ export function GoalView({ settings, weights, computed }: Props) {
                       kcal:iin, rajoitettuna välille 50–200 kcal/pv. Tarvittavat päivät =
                       kokonaisero ÷ valittu kcal/pv.
                     </p>
-                    <p className="m-0 text-white/45">
+                    <p className="m-0 text-fg-muted">
                       Jos edes 200 kcal/pv koko jäljellä olevalle ajalle ei riitä, laatikko
                       muuttuu punaiseksi ja ehdottaa tavoitepäivän pidennystä tai
                       tavoitepainon nostoa.
@@ -625,30 +625,30 @@ export function GoalView({ settings, weights, computed }: Props) {
 
       {/* How it works */}
       <details className="mt-1">
-        <summary className="flex cursor-pointer select-none items-center gap-1 text-[11px] text-white/25 [list-style:none]">
+        <summary className="flex cursor-pointer select-none items-center gap-1 text-[11px] text-fg-ghost [list-style:none]">
           ▸ Miten lasketaan?
         </summary>
-        <div className="mt-2.5 px-0.5 text-[11px] leading-[1.7] text-white/[0.38]">
+        <div className="mt-2.5 px-0.5 text-[11px] leading-[1.7] text-fg-faint">
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Tavoitelinja:</strong> lineaarinen viiva cut-jakson alusta loppuun (aloituspaino → tavoitepaino).
+            <strong className="text-fg-muted">Tavoitelinja:</strong> lineaarinen viiva cut-jakson alusta loppuun (aloituspaino → tavoitepaino).
           </p>
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Trendilinja:</strong> 7 pv liukuva keskiarvo kirjatuista painoista — tasoittaa vesipainon vaihtelut.
+            <strong className="text-fg-muted">Trendilinja:</strong> 7 pv liukuva keskiarvo kirjatuista painoista — tasoittaa vesipainon vaihtelut.
           </p>
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Tavoitepaino tänään:</strong> aloituspaino − (kokonais­pudotus × kulunut osuus jaksosta).
+            <strong className="text-fg-muted">Tavoitepaino tänään:</strong> aloituspaino − (kokonais­pudotus × kulunut osuus jaksosta).
           </p>
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Ero tavoitelinjasta:</strong> nykyinen trendipaino − tavoitepaino tänään. Positiivinen = yli linjan (jäljessä), negatiivinen = alle linjan (edellä).
+            <strong className="text-fg-muted">Ero tavoitelinjasta:</strong> nykyinen trendipaino − tavoitepaino tänään. Positiivinen = yli linjan (jäljessä), negatiivinen = alle linjan (edellä).
           </p>
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Viikkotahti:</strong> trendi­käyrän kulmakerroin 14 päivän aikaikkunassa kerrottuna 7:llä — kg/viikossa.
+            <strong className="text-fg-muted">Viikkotahti:</strong> trendi­käyrän kulmakerroin 14 päivän aikaikkunassa kerrottuna 7:llä — kg/viikossa.
           </p>
           <p className="m-0 mb-1.5">
-            <strong className="text-white/50">Kumulatiivinen vaje:</strong> päivittäisten toteutuneiden vajeiden summa. Päivän vaje = TDEE + treenibonus − (kulutus − treeniaikana poltetut kcal). Vain päivät joilta on kirjauksia lasketaan mukaan.
+            <strong className="text-fg-muted">Kumulatiivinen vaje:</strong> päivittäisten toteutuneiden vajeiden summa. Päivän vaje = TDEE + treenibonus − (kulutus − treeniaikana poltetut kcal). Vain päivät joilta on kirjauksia lasketaan mukaan.
           </p>
           <p className="m-0">
-            <strong className="text-white/50">Toleranssit:</strong> paino ±0,3 kg linjasta = oikealla radalla · 0,3–1,0 kg = hienoinen ero · &gt;1,0 kg = merkittävä ero · kalorivaje ±100 kcal/pv = oikealla radalla.
+            <strong className="text-fg-muted">Toleranssit:</strong> paino ±0,3 kg linjasta = oikealla radalla · 0,3–1,0 kg = hienoinen ero · &gt;1,0 kg = merkittävä ero · kalorivaje ±100 kcal/pv = oikealla radalla.
           </p>
         </div>
       </details>
@@ -696,7 +696,7 @@ function BannerShell({ rec, body }: { rec: Recommendation; body: string }) {
       <span className="mt-px flex-shrink-0 text-[18px]">{c.emoji}</span>
       <div>
         <p className="m-0 mb-1 text-[13px] font-bold text-text">{c.title}</p>
-        <p className="m-0 text-[12px] leading-normal text-white/55">{body}</p>
+        <p className="m-0 text-[12px] leading-normal text-fg-muted">{body}</p>
       </div>
     </div>
   )
@@ -729,12 +729,12 @@ function TrendStatusBanner({
         <p className="m-0 mb-1 text-[13px] font-bold text-text">
           {result.title}
           {period && (
-            <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40">
+            <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
               {period.type}
             </span>
           )}
         </p>
-        <p className="m-0 text-[12px] leading-normal text-white/55">
+        <p className="m-0 text-[12px] leading-normal text-fg-muted">
           {result.body}
         </p>
       </div>
@@ -799,19 +799,21 @@ function StatCard({
       <div
         onClick={clickable ? () => setShowInfo(true) : undefined}
         role={clickable ? 'button' : undefined}
-        className={`relative min-h-0 min-w-0 rounded-glass border bg-white/[0.04] px-3.5 py-3.5 [backdrop-filter:blur(20px)_saturate(160%)] [-webkit-backdrop-filter:blur(20px)_saturate(160%)] ${
+        className={`relative min-h-0 min-w-0 rounded-glass border bg-[rgba(9,11,20,0.45)] px-3.5 py-3.5 [backdrop-filter:blur(20px)_saturate(160%)] [-webkit-backdrop-filter:blur(20px)_saturate(160%)] ${
           accent ? 'border-border-hi' : 'border-white/[0.06]'
         } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
       >
         {clickable && (
           <span
             aria-hidden="true"
-            className="absolute right-2.5 top-2 font-mono text-[11px] font-semibold leading-none text-white/[0.22]"
+            className="absolute right-2.5 top-2 font-mono text-[11px] font-semibold leading-none text-fg-ghost"
           >
             ⓘ
           </span>
         )}
-        <p className="m-0 mb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-white/35">
+        {/* The ⓘ is absolutely positioned in this corner, so the label has to
+            keep clear of it — a long one used to run underneath. */}
+        <p className={`m-0 mb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint ${clickable ? 'pr-4' : ''}`}>
           {label}
         </p>
         <p
@@ -822,7 +824,7 @@ function StatCard({
           {value}
         </p>
         {sub && (
-          <p className="m-0 text-[11px] text-white/30">{sub}</p>
+          <p className="m-0 text-[11px] text-fg-ghost">{sub}</p>
         )}
       </div>
       {showInfo && info && (
@@ -843,7 +845,7 @@ function InfoModal({
 }) {
   return (
     <Sheet open onClose={onClose} title={title}>
-      <div className="text-[13px] leading-relaxed text-white/75">
+      <div className="text-[13px] leading-relaxed text-fg-dim">
         {body}
       </div>
       <Button variant="primary" onClick={onClose} className="mt-[18px] flex-none">
@@ -874,7 +876,7 @@ function InfoCardWrapper({
       >
         <span
           aria-hidden="true"
-          className="absolute right-3 top-2 z-[1] font-mono text-[11px] font-semibold leading-none text-white/[0.28]"
+          className="absolute right-3 top-2 z-[1] font-mono text-[11px] font-semibold leading-none text-fg-ghost"
         >
           ⓘ
         </span>
@@ -904,7 +906,7 @@ function ProjectedDateCard({
         className="rounded-card border px-4 py-3.5"
         style={{ backgroundColor: 'rgba(100,200,120,0.06)', borderColor: 'rgba(100,200,120,0.15)' }}
       >
-        <p className="m-0 text-[13px] text-white/70">
+        <p className="m-0 text-[13px] text-fg-dim">
           🎯 Tavoitepaino saavutettu!
         </p>
       </div>
@@ -913,8 +915,8 @@ function ProjectedDateCard({
 
   if (!projectedDate) {
     return (
-      <div className="rounded-card bg-white/[0.03] px-4 py-3.5">
-        <p className="m-0 text-[12px] leading-normal text-white/35">
+      <div className="rounded-card bg-[rgba(9,11,20,0.42)] px-4 py-3.5">
+        <p className="m-0 text-[12px] leading-normal text-fg-faint">
           Projisoidun päättymispäivän laskemiseen tarvitaan selvä laskeva trendi.
         </p>
       </div>
@@ -932,7 +934,7 @@ function ProjectedDateCard({
         borderColor: onTime ? 'rgba(100,200,120,0.15)' : 'rgba(248,113,113,0.15)',
       }}
     >
-      <p className="m-0 mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-white/30">
+      <p className="m-0 mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-ghost">
         Arvioitu tavoitepäivä nykyisellä tahdilla
       </p>
       <p className="m-0 mb-1 text-[17px] font-bold text-text">
@@ -985,7 +987,7 @@ function SuggestionCard({
 
       {recovery.achievable ? (
         <>
-          <p className="m-0 mb-2 text-[13px] leading-[1.55] text-white/85">
+          <p className="m-0 mb-2 text-[13px] leading-[1.55] text-text">
             {isTighten ? 'Lisää ' : 'Vähennä '}
             <strong className="text-text">
               {recovery.extraPerDay} kcal/pv
@@ -994,9 +996,9 @@ function SuggestionCard({
             <strong className="text-text">{recovery.daysNeeded} päivän</strong>{' '}
             ajaksi → palaat tavoitelinjalle.
           </p>
-          <p className="m-0 text-[11px] leading-normal text-white/45">
+          <p className="m-0 text-[11px] leading-normal text-fg-muted">
             Päiväbudjetti tällä jaksolla noin{' '}
-            <span className="tabular-nums text-white/70">
+            <span className="tabular-nums text-fg-dim">
               {newDailyTarget.toLocaleString('fi-FI')} kcal/pv
             </span>{' '}
             vaje (oletus {dailyDeficitBase.toLocaleString('fi-FI')}).
@@ -1004,12 +1006,12 @@ function SuggestionCard({
         </>
       ) : (
         <>
-          <p className="m-0 mb-2 text-[13px] leading-[1.55] text-white/85">
+          <p className="m-0 mb-2 text-[13px] leading-[1.55] text-text">
             Vaje on liian suuri saavuttaaksesi tavoitteen jäljellä olevassa ajassa.
             Maksimi 200 kcal/pv lisävaje koko jäljellä olevalle{' '}
             <strong className="text-text">{recovery.daysNeeded} päivälle</strong> ei riitä.
           </p>
-          <p className="m-0 text-[11px] leading-normal text-white/45">
+          <p className="m-0 text-[11px] leading-normal text-fg-muted">
             Harkitse tavoitepäivän siirtoa eteenpäin tai tavoitepainon nostamista hieman.
           </p>
         </>

@@ -159,7 +159,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
       <Card variant="glass" className="mb-2.5">
         <div className="flex items-baseline justify-between">
           <div className={cardLabel}>Tavoitehistoria</div>
-          <div className="text-[10px] text-white/30">
+          <div className="text-[10px] text-fg-ghost">
             {periods.length} jakso{periods.length === 1 ? '' : 'a'}
           </div>
         </div>
@@ -186,18 +186,23 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-1.5 text-[12px] font-semibold text-text">
                     <span>{PERIOD_TYPE_LABEL[p.type]}</span>
-                    <span className="font-normal text-white/50">
+                    <span className="font-normal text-fg-muted">
                       {p.startWeight.toFixed(1)} → {p.targetWeight.toFixed(1)} kg
                     </span>
                   </div>
-                  <div className="mt-0.5 text-[10px] text-white/40">
+                  {/* A long label used to wrap to three lines and crowd the status
+                      column beside it. The dates stay on one line and the label
+                      gets its own, each truncated rather than wrapped. */}
+                  <div className="mt-0.5 truncate text-[10px] text-fg-faint">
                     {p.startDate.slice(5).replace('-', '/')} – {p.endDate.slice(5).replace('-', '/')}
-                    {p.label ? ` · ${p.label}` : ''}
                   </div>
+                  {p.label && (
+                    <div className="mt-0.5 truncate text-[10px] text-fg-ghost">{p.label}</div>
+                  )}
                 </div>
                 <div
-                  className="font-mono text-[9px] uppercase tracking-[0.08em]"
-                  style={{ color: isActive ? color : '#666' }}
+                  className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-faint"
+                  style={{ color: isActive ? color : undefined }}
                 >
                   {p.status === 'active' ? 'Aktiivinen' : p.status === 'achieved' ? 'Saavutettu' : 'Päätetty'}
                 </div>
@@ -209,7 +214,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
                         setSettings(removePeriod(settings, p.id))
                       }
                     }}
-                    className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-[#3a3a3a]"
+                    className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost"
                     aria-label="Poista jakso"
                   >
                     <Trash2 size={12} />
@@ -377,7 +382,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
             <span className="text-muted">Tallennustila käytössä</span>
             <span className={`tabular-nums ${storageTextClass}`}>{usedKB} KB / 5 000 KB</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-sm bg-white/[0.06]">
+          <div className="h-1.5 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
             <div
               className={`h-full rounded-sm transition-[width] duration-[450ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${storageColorClass}`}
               style={{ width: `${usedPct}%` }}
@@ -397,7 +402,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
             ↑ Tuo varmuuskopio (JSON)
           </Button>
         </div>
-        <div className="mt-2.5 text-[10px] leading-relaxed text-white/30">
+        <div className="mt-2.5 text-[10px] leading-relaxed text-fg-ghost">
           Tuonti korvaa kaiken nykyisen datan. Vie ensin varmuuskopio ennen tuontia.{'\n'}
           Data säilyy vaikka poistaisit pikakuvakkeen kotinäytöltä — se asuu Safarin
           sivustomuistissa. Poistaminen ei tyhjennä dataa.
@@ -418,7 +423,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
               </Button>
             </div>
           ) : (
-            <div className="text-[12px] text-white/30">Ei kirjautunut.</div>
+            <div className="text-[12px] text-fg-ghost">Ei kirjautunut.</div>
           )}
         </Card>
       )}

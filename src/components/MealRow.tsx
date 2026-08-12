@@ -15,7 +15,7 @@ export function MealRow({ meal, onDelete }: Props) {
         <div className="min-w-0">
           <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
             {meal.kcal.toLocaleString('fi-FI')}
-            <span className="ml-1 text-[11px] font-normal text-[#555]">kcal</span>
+            <span className="ml-1 text-[11px] font-normal text-fg-faint">kcal</span>
           </div>
           {meal.protein > 0 && (
             <div className="mt-px text-[11px] tabular-nums text-protein">
@@ -26,7 +26,7 @@ export function MealRow({ meal, onDelete }: Props) {
       </div>
 
       <button
-        className="icon-btn flex items-center justify-center rounded-md bg-transparent border-none p-2 text-[#3a3a3a] transition-colors hover:text-danger"
+        className="icon-btn flex items-center justify-center rounded-md bg-transparent border-none p-2 text-fg-ghost transition-colors hover:text-danger"
         onClick={() => onDelete(meal.id)}
         aria-label="Poista ateria"
       >

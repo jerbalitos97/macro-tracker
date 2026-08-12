@@ -59,7 +59,7 @@ export function HomeView({ setView }: Props) {
       <div className="flex items-center gap-3.5">
         <AppMark size={44} />
         <div>
-          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-white/45">FRIDAY</div>
+          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-fg-muted">FRIDAY</div>
           <h1 className="font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">Työkalut</h1>
         </div>
       </div>
@@ -134,7 +134,7 @@ function ToolTile({ tool, reorder, onOpen, onMove }: TileProps) {
         {tool.label}
       </div>
       {!enabled && (
-        <div className="absolute right-4 top-4 rounded-lg bg-white/[0.06] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">
+        <div className="absolute right-4 top-4 rounded-lg bg-[rgba(9,11,20,0.50)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">
           Tulossa
         </div>
       )}

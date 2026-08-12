@@ -17,7 +17,7 @@ export function DayBreakdown({ day }: Props) {
       </div>
       <div className={row}>
         <span className={label}>Cut-vaje (perus)</span>
-        <span className={`${val} text-white/50`}>−{day.dailyDeficitBase}</span>
+        <span className={`${val} text-fg-muted`}>−{day.dailyDeficitBase}</span>
       </div>
       {day.preBufferReduction > 0 && (
         <div className={row}>
@@ -61,7 +61,7 @@ export function DayBreakdown({ day }: Props) {
       {/* Toteutuma — actual consumed and resulting deficit vs the planned baseline */}
       {(day.consumed > 0 || day.burnKcal > 0) && day.actualDeficit !== undefined && (
         <>
-          <div className="mb-1 mt-3.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[#666]">
+          <div className="mb-1 mt-3.5 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
             Toteutuma
           </div>
           <div className={row}>
@@ -86,13 +86,13 @@ export function DayBreakdown({ day }: Props) {
                   </span>
                 </div>
                 <div className={row}>
-                  <span className={`${label} text-[#666]`}>Suunniteltu vaje</span>
-                  <span className={`${val} text-[#666]`}>
+                  <span className={`${label} text-fg-faint`}>Suunniteltu vaje</span>
+                  <span className={`${val} text-fg-faint`}>
                     +{planned.toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
                 <div className={row}>
-                  <span className={`${label} text-[#666]`}>Ero suunnitelmaan</span>
+                  <span className={`${label} text-fg-faint`}>Ero suunnitelmaan</span>
                   <span className={`${val} ${deficitColor}`}>
                     {diff >= 0 ? '+' : '−'}{Math.abs(Math.round(diff)).toLocaleString('fi-FI')} kcal
                   </span>

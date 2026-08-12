@@ -125,7 +125,7 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
         />
 
         <label className={`${label} mt-3`}>Tyyppi</label>
-        <div className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
           {([
             { id: 'strength' as const, text: 'Voima', Icon: Dumbbell },
             { id: 'mobility' as const, text: 'Liikkuvuus', Icon: Timer },
@@ -242,7 +242,7 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
                       className={`mt-2 flex min-h-0 w-full items-center justify-center gap-1.5 rounded-input border py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
                         e.interval?.perSide
                           ? 'border-cyan/35 bg-cyan/[0.10] text-cyan'
-                          : 'border-white/10 bg-white/[0.03] text-fg-muted'
+                          : 'border-white/10 bg-[rgba(9,11,20,0.42)] text-fg-muted'
                       }`}
                     >
                       <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />

@@ -346,7 +346,7 @@ export function WorkoutView() {
       <h1 className="mb-3 font-display text-[22px] font-bold tracking-[-0.02em] text-text">Workout</h1>
 
       {/* Segmented tabs */}
-      <div role="tablist" aria-label="Workout-näkymät" className="mb-4 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
+      <div role="tablist" aria-label="Workout-näkymät" className="mb-4 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
         {TABS.map((t) => {
           const active = tab === t.id
           return (
@@ -393,7 +393,7 @@ export function WorkoutView() {
 
           <button
             onClick={() => startWorkout()}
-            className="active:scale-[0.98] flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-white/[0.05] py-4 font-mono text-[13px] uppercase tracking-[0.06em] text-text transition-transform [backdrop-filter:blur(14px)]"
+            className="active:scale-[0.98] flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-4 font-mono text-[13px] uppercase tracking-[0.06em] text-text transition-transform [backdrop-filter:blur(14px)]"
           >
             <Plus size={18} /> Aloita tyhjästä
           </button>
@@ -407,7 +407,7 @@ export function WorkoutView() {
                   <button
                     key={k.id}
                     onClick={() => setPicking(k.id)}
-                    className="active:scale-[0.97] flex min-h-[104px] flex-col justify-between rounded-tile border border-white/10 bg-white/[0.05] p-4 text-left transition-transform [backdrop-filter:blur(14px)]"
+                    className="active:scale-[0.97] flex min-h-[104px] flex-col justify-between rounded-tile border border-white/10 bg-[rgba(9,11,20,0.48)] p-4 text-left transition-transform [backdrop-filter:blur(14px)]"
                   >
                     <k.Icon size={20} className="text-cyan" />
                     <div>
@@ -524,7 +524,7 @@ export function WorkoutView() {
               )}
 
               {status.next && (
-                <div className="mt-2 flex items-center gap-2.5 rounded-row border border-white/10 bg-white/[0.04] px-4 py-2.5">
+                <div className="mt-2 flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-2.5">
                   <span
                     aria-hidden
                     className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
@@ -566,7 +566,7 @@ export function WorkoutView() {
                   <button
                     key={b.id}
                     onClick={() => setEditingBlock({ block: b, isNew: false })}
-                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left"
+                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-2.5 text-left"
                   >
                     <span aria-hidden className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: b.color }} />
                     <span className="min-w-0 flex-1 truncate text-[13px] text-text">{b.name}</span>

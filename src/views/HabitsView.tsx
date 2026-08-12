@@ -154,11 +154,11 @@ export function HabitsView({
           <button
             onClick={goPrevWeek}
             aria-label="Edellinen viikko"
-            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-white/55"
+            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-muted"
           >
             <ChevronLeft size={16} />
           </button>
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-white/35">
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-faint">
             {fromISO(stripWeekStart).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
             {' – '}
             {fromISO(addDays(stripWeekStart, 6)).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
@@ -167,7 +167,7 @@ export function HabitsView({
             onClick={goNextWeek}
             aria-label="Seuraava viikko"
             disabled={!canGoNextWeek}
-            className={`icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-white/55 ${canGoNextWeek ? '' : 'opacity-25'}`}
+            className={`icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-muted ${canGoNextWeek ? '' : 'opacity-25'}`}
           >
             <ChevronRight size={16} />
           </button>
@@ -192,7 +192,7 @@ export function HabitsView({
                 aria-label={d}
               >
                 <div
-                  className={`font-mono text-[9px] tracking-[0.08em] ${isSelected ? 'text-accent' : 'text-white/40'}`}
+                  className={`font-mono text-[9px] tracking-[0.08em] ${isSelected ? 'text-accent' : 'text-fg-faint'}`}
                 >
                   {DAY_LETTERS[i]}
                 </div>
@@ -233,10 +233,10 @@ export function HabitsView({
       {/* Empty state */}
       {scheduledHabits.length === 0 && (
         <Card variant="glass" className="text-center">
-          <p className="mb-1.5 text-sm text-white/50">
+          <p className="mb-1.5 text-sm text-fg-muted">
             {habits.length === 0 ? 'Ei vielä tapoja' : `${dateLabel} ei ole ajastettuja tapoja`}
           </p>
-          <p className="text-xs leading-normal text-white/30">
+          <p className="text-xs leading-normal text-fg-ghost">
             {habits.length === 0
               ? 'Lisää ensimmäinen tapa + napista yläoikealla.'
               : 'Tarkista taparyhmän viikkoasetukset.'}
@@ -282,9 +282,9 @@ export function HabitsView({
                       <div className="truncate text-sm font-semibold text-white">
                         {habit.name}
                       </div>
-                      <div className="mt-0.5 text-[11px] tabular-nums text-white/40">
+                      <div className="mt-0.5 text-[11px] tabular-nums text-fg-faint">
                         {value} / {goal}
-                        <span className="text-white/25">
+                        <span className="text-fg-ghost">
                           {' · '}
                           {habit.goalPeriod === 'week' ? 'viikko' : 'päivä'}
                         </span>
@@ -312,7 +312,7 @@ export function HabitsView({
                             onClick={() => onIncrement(habit, -1, selectedDate)}
                             disabled={value <= 0}
                             aria-label="Vähennä"
-                            className={`flex h-8 w-8 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-transparent p-0 text-white/60 ${value <= 0 ? 'cursor-not-allowed opacity-30' : ''}`}
+                            className={`flex h-8 w-8 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-transparent p-0 text-fg-muted ${value <= 0 ? 'cursor-not-allowed opacity-30' : ''}`}
                           >
                             <Minus size={14} />
                           </button>
@@ -333,7 +333,7 @@ export function HabitsView({
                   </div>
 
                   {/* Inline progress bar */}
-                  <div className="mt-3 h-1 overflow-hidden rounded-sm bg-white/[0.06]">
+                  <div className="mt-3 h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
                     <div
                       className="h-full"
                       style={{

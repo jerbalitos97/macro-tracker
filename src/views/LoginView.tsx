@@ -35,13 +35,13 @@ export function LoginView() {
         <h1 className="font-display m-0 mb-1 text-[22px] font-bold uppercase tracking-[0.18em] text-text">
           Friday
         </h1>
-        <p className="m-0 text-[13px] leading-relaxed text-white/[0.38]">
+        <p className="m-0 text-[13px] leading-relaxed text-fg-faint">
           {mode === 'signin' ? 'Kirjaudu sisään synkronoidaksesi tiedot.' : 'Luo tili synkronoidaksesi tiedot.'}
         </p>
       </div>
 
       {/* ── Glass card ─────────────────────────────────────────────────── */}
-      <div className="w-full max-w-[320px] rounded-glass border border-white/[0.14] bg-white/[0.06] p-6 [backdrop-filter:blur(26px)_saturate(180%)] [-webkit-backdrop-filter:blur(26px)_saturate(180%)] shadow-[0_28px_70px_-24px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)]">
+      <div className="w-full max-w-[320px] rounded-glass border border-white/[0.14] bg-[rgba(9,11,20,0.50)] p-6 [backdrop-filter:blur(26px)_saturate(180%)] [-webkit-backdrop-filter:blur(26px)_saturate(180%)] shadow-[0_28px_70px_-24px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)]">
         <div className="flex flex-col gap-1">
           <Field
             label="Sähköpostiosoite"
@@ -81,7 +81,7 @@ export function LoginView() {
               setMode(mode === 'signin' ? 'signup' : 'signin')
               setError(null)
             }}
-            className="cursor-pointer bg-transparent border-none py-2 text-[12px] text-white/40"
+            className="cursor-pointer bg-transparent border-none py-2 text-[12px] text-fg-faint"
           >
             {mode === 'signin' ? 'Ei tiliä? Luo tili' : 'Onko jo tili? Kirjaudu sisään'}
           </button>

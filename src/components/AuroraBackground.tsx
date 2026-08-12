@@ -59,6 +59,14 @@ export function AuroraBackground() {
         className="animate-aurora-1 absolute right-0 top-[84%] h-[380px] w-[380px] rounded-full opacity-52 blur-[60px]"
         style={{ background: 'radial-gradient(circle, #a78bfa, transparent 70%)' }}
       />
+
+      {/* Veil over the blobs. Not every label lives inside a card — section
+          headings, weekday strips and ghost buttons sit straight on this layer,
+          and the blobs pushed those spots to ~0.12 relative luminance, where
+          small secondary text measured 1.6–2.9:1. The veil holds the bare
+          background dark enough for the same text ramp the cards use, and the
+          aurora still reads through it. */}
+      <div className="absolute inset-0 bg-[rgba(5,6,12,0.38)]" />
     </div>
   )
 }

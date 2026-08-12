@@ -43,7 +43,7 @@ export function WeightChart({ trendData, settings }: Props) {
   // Dynamic color refs via CSS custom properties (set in @theme)
   const accentColor = 'var(--color-accent)'
   const gridColor = 'rgba(255,255,255,0.06)'
-  const dotColor = '#444'
+  const dotColor = '#8f94a3'
   const labelColor = 'var(--color-muted)'
 
   return (

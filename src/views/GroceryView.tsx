@@ -151,14 +151,14 @@ export function GroceryView() {
         <h1 className="font-display text-[22px] font-bold tracking-[-0.02em] text-text">Ostoslista</h1>
         <button
           onClick={share}
-          className="icon-btn flex min-h-0 min-w-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan"
+          className="icon-btn flex min-h-0 min-w-0 items-center gap-1.5 rounded-full border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan"
         >
           <Share2 size={13} /> {copied ? 'Kopioitu' : 'Jaa'}
         </button>
       </div>
 
       {/* Store switcher */}
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-white/[0.04] p-1">
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
         {STORES.map((s) => {
           const active = store === s
           return (
@@ -193,7 +193,7 @@ export function GroceryView() {
             placeholder="Määrä"
             className="w-20 rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-center text-sm tabular-nums text-text"
           />
-          <div className="flex flex-1 gap-1 rounded-input border border-white/10 bg-white/[0.04] p-1">
+          <div className="flex flex-1 gap-1 rounded-input border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
             {UNITS.map((u) => (
               <button
                 key={u}
@@ -234,7 +234,7 @@ export function GroceryView() {
               {secItems.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-center gap-3 rounded-row border border-white/10 bg-white/[0.05] px-3 py-2.5 [backdrop-filter:blur(14px)]"
+                  className="flex items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-2.5 [backdrop-filter:blur(14px)]"
                 >
                   <button
                     onClick={() => toggle(it, true)}
@@ -315,7 +315,7 @@ export function GroceryView() {
                 key={cat}
                 onClick={() => { void setCategory(menuItem.id, cat); void refresh(); setMenuItem(null) }}
                 className={`rounded-input border px-3 py-2 text-left text-[12px] ${
-                  normalizeCategory(menuItem.category) === cat ? 'border-cyan/40 bg-cyan/[0.1] text-cyan' : 'border-white/10 bg-white/[0.04] text-fg-muted'
+                  normalizeCategory(menuItem.category) === cat ? 'border-cyan/40 bg-cyan/[0.1] text-cyan' : 'border-white/10 bg-[rgba(9,11,20,0.45)] text-fg-muted'
                 }`}
               >
                 {CATEGORY_LABEL[cat]}
