@@ -5,8 +5,10 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Field({ label, className = '', ...props }: Props) {
+  // min-w-0 on the label: as a grid/flex item it would otherwise inherit the
+  // input's intrinsic width as its minimum and refuse to fit its column.
   return (
-    <label className="block">
+    <label className="block min-w-0">
       {label != null && (
         <span className="mb-2 block truncate font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-fg-dim">{label}</span>
       )}

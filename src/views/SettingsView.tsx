@@ -251,7 +251,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
       <Card variant="glass">
         <div className={cardLabel}>Cut-ajanjakso</div>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <div>
+          <div className="min-w-0">
             <label className={inputLabelCls}>Alkaa</label>
             <input
               type="date"
@@ -260,7 +260,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
               className={inputCls}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className={inputLabelCls}>Päättyy</label>
             <input
               type="date"

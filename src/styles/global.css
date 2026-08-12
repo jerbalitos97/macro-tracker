@@ -157,6 +157,35 @@ html.scroll-locked, body.scroll-locked {
     user-select: text;
     -webkit-touch-callout: default;
   }
+
+  /* Form controls carry an intrinsic width — `size=20` on a text input is about
+     202px, and a date input about 160px — and as flex/grid items their
+     automatic minimum size is that intrinsic width, not zero. The paired
+     fields in the logging blocks sit in ~150px columns at 390pt and ~115px at
+     320pt, so every one of them is asking for more room than its column has.
+     Blink shrinks them anyway; WebKit honours the intrinsic minimum and lets
+     the control spill out of its track and under the field beside it.
+
+     `min-width: 0` opts every control out of that automatic minimum, and
+     stripping the date field's native appearance is what finally lets iOS
+     Safari size it from its box rather than from its date format. */
+  input,
+  textarea,
+  select {
+    min-width: 0;
+  }
+
+  /* Touch only: dropping the native appearance is what lets iOS size a date
+     field from its box, but on a desktop pointer it would also remove the
+     calendar picker affordance, which is worth keeping there. */
+  @media (pointer: coarse) {
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
 }
 
 /* Opt-in for content worth copying (user-entered notes, share links, IDs). */
