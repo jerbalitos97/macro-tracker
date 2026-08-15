@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { ComputedResult, Settings, WeightEntry } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { computeWeightTrend } from '../lib/weight'
+import { getActiveGoal } from '../lib/goalPeriods'
 import { ProgressBar } from '../components/ProgressBar'
 import { Card } from '../components/ui'
 
@@ -36,6 +37,10 @@ function StatRow({ label, value, sub, accent, warn }: StatRowProps) {
 
 export function HistoryView({ computed, settings, weights }: Props) {
   const todayISO = toISO(new Date())
+  // The header and the projection used to read the legacy settings fields,
+  // which are frozen at the first goal ever set — so this card showed one
+  // period's weights above another period's numbers.
+  const goal = getActiveGoal(settings, todayISO)
 
   const doneDays = computed.days.filter((d) => d.date < todayISO && d.consumed > 0)
   const daysLeft = computed.days.filter((d) => d.date >= todayISO).length
@@ -44,10 +49,17 @@ export function HistoryView({ computed, settings, weights }: Props) {
 
   const totalDone = doneDays.reduce((sum, d) => sum + (d.actualDeficit ?? 0), 0)
   const avgDeficit = doneDays.length > 0 ? totalDone / doneDays.length : 0
+  // What the plan asked of *these* days. The period average (dailyDeficitBase)
+  // is the wrong yardstick once weekendMaintenance makes the plan uneven — a
+  // stretch of mostly weekdays is asked for more than the period average.
+  const plannedForDoneDays =
+    doneDays.length > 0
+      ? doneDays.reduce((sum, d) => sum + d.dailyDeficitBase, 0) / doneDays.length
+      : computed.dailyDeficitBase
 
   const projectedTotal = totalDone + avgDeficit * daysLeft
   const projectedKg = projectedTotal / 7700
-  const projectedEndWeight = settings.startWeight - projectedKg
+  const projectedEndWeight = goal.startWeight - projectedKg
 
   const remainingDeficitNeeded = computed.totalDeficitTarget - totalDone
   const requiredAvgDeficit = daysLeft > 0 ? remainingDeficitNeeded / daysLeft : 0
@@ -61,7 +73,7 @@ export function HistoryView({ computed, settings, weights }: Props) {
       <div className="mb-4">
         <div className="font-display text-[22px] font-bold tracking-[-0.025em] text-text">Trendit</div>
         <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">
-          {formatDateShort(settings.startDate)} – {formatDateShort(settings.endDate)}
+          {formatDateShort(goal.startDate)} – {formatDateShort(goal.endDate)}
         </div>
       </div>
 
@@ -71,17 +83,26 @@ export function HistoryView({ computed, settings, weights }: Props) {
         <div className="mb-1 flex items-end justify-between">
           <div>
             <span className="font-display text-[32px] font-extrabold tabular-nums tracking-[-0.03em] text-text">
-              {settings.startWeight}
+              {goal.startWeight}
             </span>
             <span className="mx-2 text-[16px] text-fg-ghost">→</span>
             <span className="font-display text-[32px] font-extrabold tabular-nums tracking-[-0.03em] text-accent">
-              {settings.targetWeight}
+              {goal.targetWeight}
             </span>
             <span className="text-[14px] text-muted"> kg</span>
           </div>
-          <div className="text-[13px] font-semibold tabular-nums text-accent">
-            −{computed.weightLossKg.toFixed(1)} kg
-          </div>
+          {/* This slot used to print computed.weightLossKg — the *planned*
+              change, i.e. the same 74.2 → 73.2 restated as "−1.0 kg", which
+              read like progress. Show the change actually achieved instead. */}
+          {trend.currentTrend !== null && (
+            <div className="text-right">
+              <div className="text-[13px] font-semibold tabular-nums text-accent">
+                {trend.currentTrend - goal.startWeight > 0 ? '+' : '−'}
+                {Math.abs(trend.currentTrend - goal.startWeight).toFixed(1)} kg
+              </div>
+              <div className="text-[9px] uppercase tracking-[0.1em] text-fg-ghost">tähän asti</div>
+            </div>
+          )}
         </div>
 
         {trend.currentTrend && (
@@ -138,10 +159,10 @@ export function HistoryView({ computed, settings, weights }: Props) {
           <div className={cardLabel}>Luvut</div>
           <StatRow
             label="Keskim. päivävaje"
-            sub={`Tavoite: ${Math.round(computed.dailyDeficitBase)} kcal/pv`}
+            sub={`Tavoite näille päiville: ${Math.round(plannedForDoneDays)} kcal/pv`}
             value={`${Math.round(avgDeficit).toLocaleString('fi-FI')} kcal/pv`}
-            accent={avgDeficit >= computed.dailyDeficitBase}
-            warn={avgDeficit < computed.dailyDeficitBase}
+            accent={avgDeficit >= plannedForDoneDays}
+            warn={avgDeficit < plannedForDoneDays}
           />
           {daysLeft > 0 && Math.abs(requiredAvgDeficit - avgDeficit) > 10 && (
             <StatRow
@@ -158,10 +179,10 @@ export function HistoryView({ computed, settings, weights }: Props) {
                 {projectedEndWeight.toFixed(1)}
                 <span className="text-[14px] font-normal text-muted"> kg</span>
               </span>
-              <span className={`text-[12px] font-semibold ${projectedEndWeight <= settings.targetWeight ? 'text-accent' : 'text-danger'}`}>
-                {projectedEndWeight <= settings.targetWeight
-                  ? `✓ ylitetään ${(settings.targetWeight - projectedEndWeight).toFixed(1)} kg`
-                  : `× jää ${(projectedEndWeight - settings.targetWeight).toFixed(1)} kg vajaaksi`}
+              <span className={`text-[12px] font-semibold ${projectedEndWeight <= goal.targetWeight ? 'text-accent' : 'text-danger'}`}>
+                {projectedEndWeight <= goal.targetWeight
+                  ? `✓ ylitetään ${(goal.targetWeight - projectedEndWeight).toFixed(1)} kg`
+                  : `× jää ${(projectedEndWeight - goal.targetWeight).toFixed(1)} kg vajaaksi`}
               </span>
             </div>
           </div>

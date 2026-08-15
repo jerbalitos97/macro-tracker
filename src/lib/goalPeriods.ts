@@ -2,7 +2,8 @@
 // compat shim. Always read goals via these helpers — never poke
 // settings.targetWeight / settings.startDate / settings.endDate directly.
 
-import type { GoalPeriod, Settings } from '../types'
+import type { GoalPeriod, PeriodType, Settings } from '../types'
+import { daysBetween } from './dates'
 
 /** Synthesise a single 'cut' period from the legacy single-target settings
  *  fields. Used as a fallback when settings.goalPeriods is absent/empty. */
@@ -112,4 +113,58 @@ export function removePeriod(settings: Settings, periodId: number): Settings {
   const next = materializeLegacyIfNeeded(settings)
   const periods = (next.goalPeriods ?? []).filter((p) => p.id !== periodId)
   return { ...next, goalPeriods: periods }
+}
+
+/** Everything a screen needs to talk about "the goal in force right now",
+ *  derived in one place.
+ *
+ *  This exists because the legacy `settings.startDate/endDate/startWeight/
+ *  targetWeight` fields are frozen at whatever the *first* goal was, while
+ *  `computeDays` moved to the active period. Views reading them directly were
+ *  mixing two different goals inside a single card — a period average taken
+ *  from one and a day count taken from the other. Read the goal from here. */
+export interface ActiveGoal {
+  type: PeriodType
+  startDate: string
+  endDate: string
+  startWeight: number
+  targetWeight: number
+  weekendMaintenance: boolean
+  /** Inclusive length of the period in days. */
+  totalDays: number
+  /** Days from the start up to and including today, clamped to the period. */
+  elapsedDays: number
+  /** Days left after today, clamped at zero. */
+  remainingDays: number
+  kgToChange: number
+  totalDeficitKcal: number
+  /** The period average. With weekendMaintenance the per-day plan varies —
+   *  see ComputedDay.dailyDeficitBase for what any given day actually asks. */
+  dailyDeficitKcal: number
+  /** kg per week the period is asking for. */
+  weeklyRateKg: number
+}
+
+export function getActiveGoal(settings: Settings, today: string): ActiveGoal {
+  const p = getActivePeriod(settings, today) ?? legacyPeriod(settings)
+  const totalDays = Math.max(1, daysBetween(p.startDate, p.endDate) + 1)
+  const elapsedDays = Math.max(0, Math.min(totalDays, daysBetween(p.startDate, today) + 1))
+  const kgToChange = p.startWeight - p.targetWeight
+  const plansDeficit = p.type === 'cut' || p.type === 'bulk'
+  const totalDeficitKcal = plansDeficit ? kgToChange * 7700 : 0
+  return {
+    type: p.type,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    startWeight: p.startWeight,
+    targetWeight: p.targetWeight,
+    weekendMaintenance: p.weekendMaintenance ?? false,
+    totalDays,
+    elapsedDays,
+    remainingDays: Math.max(0, totalDays - elapsedDays),
+    kgToChange,
+    totalDeficitKcal,
+    dailyDeficitKcal: totalDeficitKcal / totalDays,
+    weeklyRateKg: (kgToChange / totalDays) * 7,
+  }
 }

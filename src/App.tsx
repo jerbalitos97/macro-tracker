@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
+import { getActiveGoal } from './lib/goalPeriods'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
 import {
   syncSettings, syncMeal, deleteMeal as syncDeleteMeal,
@@ -275,6 +276,8 @@ export default function App() {
   }
 
   const todayISO = toISO(new Date())
+  // The surplus can only be spread inside the goal that is actually running.
+  const goalEndDate = getActiveGoal(settings, todayISO).endDate
 
   // ── Surplus prompt: did yesterday earn extra deficit? ────────
   const surplusOffer = useMemo(() => {
@@ -311,13 +314,13 @@ export default function App() {
       const perDay = Math.floor(surplusOffer.surplus / days)
       for (let i = 0; i < days; i++) {
         const target = addDays(todayISO, i)
-        if (target > settings.endDate) break
+        if (target > goalEndDate) break
         applySurplusToDate(target, perDay, surplusOffer.date)
       }
       acknowledgeSurplus(surplusOffer.date)
       setAckedSurpluses(getAcknowledgedSurpluses())
     },
-    [surplusOffer, todayISO, settings.endDate, applySurplusToDate],
+    [surplusOffer, todayISO, goalEndDate, applySurplusToDate],
   )
 
   const handleSurplusSingle = useCallback(
@@ -401,7 +404,7 @@ export default function App() {
         <SurplusPrompt
           surplusDate={surplusOffer.date}
           surplus={surplusOffer.surplus}
-          cutEndDate={settings.endDate}
+          cutEndDate={goalEndDate}
           onApplySpread={handleSurplusSpread}
           onApplySingle={handleSurplusSingle}
           onDismiss={handleSurplusDismiss}

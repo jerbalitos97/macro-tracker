@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ComputedResult, Settings, WeightEntry } from '../types'
 import { computeWeightTrend } from '../lib/weight'
 import { daysBetween, toISO, addDays, fromISO } from '../lib/dates'
-import { getPeriods, getActivePeriod } from '../lib/goalPeriods'
+import { getPeriods, getActivePeriod, getActiveGoal } from '../lib/goalPeriods'
 import { interpretTrend } from '../lib/trendStatus'
 import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
@@ -34,6 +34,9 @@ export function GoalView({ settings, weights, computed }: Props) {
   const todayISO = toISO(new Date())
   const periods = useMemo(() => getPeriods(settings), [settings])
   const activePeriod = useMemo(() => getActivePeriod(settings, todayISO), [settings, todayISO])
+  // Every date/weight/day-count below comes from here. Reading settings.* directly
+  // would pin the card to the first goal ever set, not the one in force.
+  const goal = useMemo(() => getActiveGoal(settings, todayISO), [settings, todayISO])
   const trendStatus = useMemo(
     () => (activePeriod ? interpretTrend({ period: activePeriod, trend, today: todayISO }) : null),
     [activePeriod, trend, todayISO],
@@ -43,20 +46,20 @@ export function GoalView({ settings, weights, computed }: Props) {
     const { currentTrend, weeklyChange, trendData } = trend
     if (currentTrend === null || trendData.length < 4) return null
 
-    const totalCutDays = daysBetween(settings.startDate, settings.endDate)
-    const elapsedCutDays = Math.max(0, Math.min(totalCutDays, daysBetween(settings.startDate, todayISO)))
-    const remainingDays = Math.max(0, totalCutDays - elapsedCutDays)
+    const totalCutDays = goal.totalDays
+    const elapsedCutDays = goal.elapsedDays
+    const remainingDays = goal.remainingDays
     if (remainingDays <= 0) return null
 
     // Position-based: linear ramp from startWeight to targetWeight across the cut.
     // Where SHOULD you be today, and where ARE you (current trend value)?
-    const totalKgChange = settings.startWeight - settings.targetWeight  // positive = need to lose
+    const totalKgChange = goal.kgToChange  // positive = need to lose
     const expectedWeightToday =
       totalCutDays > 0
-        ? settings.startWeight - totalKgChange * (elapsedCutDays / totalCutDays)
-        : settings.startWeight
+        ? goal.startWeight - totalKgChange * (elapsedCutDays / totalCutDays)
+        : goal.startWeight
     const positionGap = currentTrend - expectedWeightToday   // + = above line (behind), − = below (ahead)
-    const remainingKg = Math.max(0, currentTrend - settings.targetWeight)
+    const remainingKg = Math.max(0, currentTrend - goal.targetWeight)
 
     // Recommendation from position gap. Loosen only when meaningfully below the line.
     let recommendation: Recommendation
@@ -91,11 +94,11 @@ export function GoalView({ settings, weights, computed }: Props) {
       projectedDate,
       recommendation,
     }
-  }, [trend, settings, todayISO])
+  }, [trend, goal, todayISO])
 
   // Progress along the cut (days elapsed / total days)
-  const totalDays = daysBetween(settings.startDate, settings.endDate)
-  const elapsedDays = Math.max(0, Math.min(totalDays, daysBetween(settings.startDate, todayISO)))
+  const totalDays = goal.totalDays
+  const elapsedDays = goal.elapsedDays
   const progressPct = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0
 
   const notEnoughData = trend.trendData.length < 4 || trend.weeklyChange === null
@@ -187,7 +190,7 @@ export function GoalView({ settings, weights, computed }: Props) {
           )}
         </h2>
         <p className="m-0 text-[12px] text-fg-faint">
-          {(activePeriod?.startDate ?? settings.startDate).slice(5).replace('-', '/')} – {(activePeriod?.endDate ?? settings.endDate).slice(5).replace('-', '/')} · {(activePeriod?.startWeight ?? settings.startWeight)} → {(activePeriod?.targetWeight ?? settings.targetWeight)} kg
+          {goal.startDate.slice(5).replace('-', '/')} – {goal.endDate.slice(5).replace('-', '/')} · {goal.startWeight} → {goal.targetWeight} kg
         </p>
       </div>
 
@@ -208,10 +211,10 @@ export function GoalView({ settings, weights, computed }: Props) {
       {/* Chart */}
       <Card variant="glass" className="-mt-1 p-4">
         <GoalChart
-          startDate={activePeriod?.startDate ?? settings.startDate}
-          endDate={activePeriod?.endDate ?? settings.endDate}
-          startWeight={activePeriod?.startWeight ?? settings.startWeight}
-          targetWeight={activePeriod?.targetWeight ?? settings.targetWeight}
+          startDate={goal.startDate}
+          endDate={goal.endDate}
+          startWeight={goal.startWeight}
+          targetWeight={goal.targetWeight}
           trendData={trend.trendData}
           periods={periods}
         />
@@ -416,8 +419,8 @@ export function GoalView({ settings, weights, computed }: Props) {
           >
             <ProjectedDateCard
               projectedDate={analysis.projectedDate}
-              targetDate={settings.endDate}
-              targetWeight={settings.targetWeight}
+              targetDate={goal.endDate}
+              targetWeight={goal.targetWeight}
               currentTrend={analysis.currentTrend}
             />
           </InfoCardWrapper>
@@ -434,8 +437,8 @@ export function GoalView({ settings, weights, computed }: Props) {
 
       <Card variant="glass" className="-mt-2 p-4">
         <DeficitChart
-          startDate={settings.startDate}
-          endDate={settings.endDate}
+          startDate={goal.startDate}
+          endDate={goal.endDate}
           totalDeficitTarget={computed.totalDeficitTarget}
           cumulativePoints={deficit.cumulativePoints}
         />

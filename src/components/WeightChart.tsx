@@ -1,5 +1,6 @@
 import type { Settings, WeightTrend } from '../types'
-import { fromISO, formatDateShort } from '../lib/dates'
+import { fromISO, formatDateShort, toISO } from '../lib/dates'
+import { getActiveGoal } from '../lib/goalPeriods'
 
 interface Props {
   trendData: WeightTrend['trendData']
@@ -7,6 +8,9 @@ interface Props {
 }
 
 export function WeightChart({ trendData, settings }: Props) {
+  // The start/target lines belong to the goal in force, not to whatever the
+  // first goal ever set happened to be.
+  const goal = getActiveGoal(settings, toISO(new Date()))
   if (trendData.length < 2) return null
 
   const w = 380
@@ -16,7 +20,7 @@ export function WeightChart({ trendData, settings }: Props) {
   const innerH = h - pad.top - pad.bottom
 
   const allValues = trendData.flatMap((d) => [d.kg, d.trend])
-  allValues.push(settings.targetWeight, settings.startWeight)
+  allValues.push(goal.targetWeight, goal.startWeight)
   const minY = Math.min(...allValues) - 0.3
   const maxY = Math.max(...allValues) + 0.3
   const yRange = maxY - minY
@@ -36,8 +40,8 @@ export function WeightChart({ trendData, settings }: Props) {
     .map((d, i) => `${i === 0 ? 'M' : 'L'} ${xPos(d.date).toFixed(1)} ${yPos(d.trend).toFixed(1)}`)
     .join(' ')
 
-  const targetY = yPos(settings.targetWeight)
-  const showTarget = settings.targetWeight >= minY && settings.targetWeight <= maxY
+  const targetY = yPos(goal.targetWeight)
+  const showTarget = goal.targetWeight >= minY && goal.targetWeight <= maxY
   const last = trendData[trendData.length - 1]
 
   // Dynamic color refs via CSS custom properties (set in @theme)
@@ -71,7 +75,7 @@ export function WeightChart({ trendData, settings }: Props) {
             stroke={accentColor} strokeWidth="1" strokeDasharray="3,3" opacity="0.5"
           />
           <text x={w - pad.right} y={targetY - 3} fill={accentColor} fontSize="9" textAnchor="end" fontFamily="ui-monospace">
-            tavoite {settings.targetWeight}
+            tavoite {goal.targetWeight}
           </text>
         </>
       )}

@@ -7,7 +7,7 @@ import { Button, Field } from './ui'
 interface Props {
   surplusDate: string      // ISO date of the day the surplus was earned
   surplus: number          // kcal of extra deficit beyond plan
-  cutEndDate: string       // settings.endDate — caps the "pick a day" picker
+  cutEndDate: string       // active goal's endDate — caps the "pick a day" picker
   onApplySpread: (days: number) => void
   onApplySingle: (date: string) => void
   onDismiss: () => void

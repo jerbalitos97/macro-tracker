@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
 import type { WeightEntry, Meal, Settings } from '../types'
-import { toISO, addDays, formatDateShort, daysBetween } from '../lib/dates'
+import { toISO, addDays, formatDateShort } from '../lib/dates'
 import { parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
 import { computeWeightTrend, estimateTdeeAdjustment } from '../lib/weight'
+import { getActiveGoal } from '../lib/goalPeriods'
 import { WeightChart } from '../components/WeightChart'
 import { ProgressBar } from '../components/ProgressBar'
 import { Card, Button, Field } from '../components/ui'
@@ -30,6 +31,10 @@ export function WeightView({
 }: Props) {
   const [form, setForm] = useState({ date: toISO(new Date()), kg: '' })
   const [showAll, setShowAll] = useState(false)
+
+  // The goal in force, not the legacy settings fields — those still hold the
+  // very first cut and would put its target on a later period's chart.
+  const goal = getActiveGoal(settings, toISO(new Date()))
 
   const trend = useMemo(() => computeWeightTrend(weights), [weights])
   const tdeeEval = useMemo(
@@ -60,15 +65,14 @@ export function WeightView({
 
   const projectedDate = useMemo(() => {
     if (!trend.currentTrend || !trend.weeklyChange || trend.weeklyChange >= 0) return null
-    const kgToLose = trend.currentTrend - settings.targetWeight
+    const kgToLose = trend.currentTrend - goal.targetWeight
     if (kgToLose <= 0) return 'saavutettu'
     const weeksNeeded = kgToLose / Math.abs(trend.weeklyChange)
     return addDays(toISO(new Date()), Math.round(weeksNeeded * 7))
-  }, [trend, settings.targetWeight])
+  }, [trend, goal.targetWeight])
 
   const targetWeeklyRate = (
-    ((settings.startWeight - settings.targetWeight) /
-      (daysBetween(settings.startDate, settings.endDate) + 1)) * 7
+    goal.weeklyRateKg
   ).toFixed(2)
 
   return (
@@ -179,11 +183,11 @@ export function WeightView({
       {/* ── Projection ───────────────────────────────────────────────── */}
       {projectedDate && projectedDate !== 'saavutettu' && (
         <Card className="mt-2.5">
-          <div className={cardLabel}>Ennuste tavoitteeseen ({settings.targetWeight} kg)</div>
+          <div className={cardLabel}>Ennuste tavoitteeseen ({goal.targetWeight} kg)</div>
           <div className="text-[16px] font-semibold text-text">{formatDateShort(projectedDate)}</div>
           <div className="mt-1 text-[11px] text-muted">
-            Cut-jakson loppu: {formatDateShort(settings.endDate)}
-            {projectedDate <= settings.endDate
+            Cut-jakson loppu: {formatDateShort(goal.endDate)}
+            {projectedDate <= goal.endDate
               ? <span className="ml-2 text-accent">✓ ehditään</span>
               : <span className="ml-2 text-danger">× ei ehditä nykyisellä tempolla</span>
             }
@@ -204,11 +208,11 @@ export function WeightView({
         <Card className="mt-2.5">
           <div className={cardLabel}>Matka tavoitteeseen</div>
           <div className="flex justify-between text-[12px] text-muted">
-            <span>{settings.startWeight} kg</span>
-            <span>{settings.targetWeight} kg</span>
+            <span>{goal.startWeight} kg</span>
+            <span>{goal.targetWeight} kg</span>
           </div>
           <ProgressBar
-            value={(settings.startWeight - trend.currentTrend) / (settings.startWeight - settings.targetWeight)}
+            value={(goal.startWeight - trend.currentTrend) / (goal.startWeight - goal.targetWeight)}
             color="#22d3ee"
             height={6}
           />

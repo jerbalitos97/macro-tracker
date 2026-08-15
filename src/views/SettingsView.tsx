@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Settings, ComputedResult, DayType, GoalPeriod, PeriodType } from '../types'
-import { daysBetween, toISO } from '../lib/dates'
-import { parsePositiveDecimal, parsePositiveInt, isValidDecimalInput } from '../lib/format'
-import { getPeriods, addPeriod, endActivePeriod, removePeriod, updatePeriod } from '../lib/goalPeriods'
+import { toISO } from '../lib/dates'
+import { parsePositiveInt } from '../lib/format'
+import { getPeriods, getActivePeriod, getActiveGoal, addPeriod, endActivePeriod, removePeriod, updatePeriod } from '../lib/goalPeriods'
 import { useAuth } from '../contexts/AuthContext'
 import { GoalPeriodModal } from '../components/GoalPeriodModal'
-import { Card, Button, Field } from '../components/ui'
+import { Card, Button } from '../components/ui'
 
 const PERIOD_TYPE_LABEL: Record<PeriodType, string> = {
   cut: 'Cut',
@@ -60,18 +60,9 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
   const periods = getPeriods(settings)
   const todayISO = toISO(new Date())
 
-  // Local string state only for decimal weight fields so the user can type
-  // "74," without the comma being stripped mid-input.
-  const [swText, setSwText] = useState(settings.startWeight.toFixed(1))
-  const [twText, setTwText] = useState(settings.targetWeight.toFixed(1))
-
-  // Sync display when settings change from outside (e.g. import)
-  useEffect(() => { setSwText(settings.startWeight.toFixed(1)) }, [settings.startWeight])
-  useEffect(() => { setTwText(settings.targetWeight.toFixed(1)) }, [settings.targetWeight])
-
-  // When the legacy goal fields are edited, mirror the change into the
-  // active period (if one exists) so the active jakso and legacy fields stay
-  // in sync. Other fields (tdee, weeklyPattern, …) pass through unchanged.
+  // When a goal field is edited, mirror the change into the active period (if
+  // one exists) so the active jakso and legacy fields stay in sync. Other
+  // fields (tdee, weeklyPattern, …) pass through unchanged.
   const update = (patch: Partial<Settings>) => {
     let next: Settings = { ...settings, ...patch }
     const goalFields: (keyof Settings)[] = ['startDate', 'endDate', 'startWeight', 'targetWeight']
@@ -93,26 +84,6 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
     setSettings(next)
   }
 
-  const commitStartWeight = () => {
-    const n = parsePositiveDecimal(swText)
-    if (!isNaN(n) && n > 0) {
-      update({ startWeight: n })
-      setSwText(n.toFixed(1))
-    } else {
-      setSwText(settings.startWeight.toFixed(1))
-    }
-  }
-
-  const commitTargetWeight = () => {
-    const n = parsePositiveDecimal(twText)
-    if (!isNaN(n) && n > 0) {
-      update({ targetWeight: n })
-      setTwText(n.toFixed(1))
-    } else {
-      setTwText(settings.targetWeight.toFixed(1))
-    }
-  }
-
   const updateTdee = (key: string, raw: string) => {
     const n = parsePositiveInt(raw)
     if (n > 0) setSettings({ ...settings, tdee: { ...settings.tdee, [key]: n } })
@@ -121,9 +92,17 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
   const updatePattern = (dow: number, val: DayType) =>
     setSettings({ ...settings, weeklyPattern: { ...settings.weeklyPattern, [dow]: val } })
 
-  const totalDays = daysBetween(settings.startDate, settings.endDate) + 1
-  const dailyDeficit = computed.dailyDeficitBase
-  const weeklyTempo = (((settings.startWeight - settings.targetWeight) / totalDays) * 7).toFixed(2)
+  // Everything the summary card shows comes from the goal in force, not from
+  // the frozen legacy settings fields.
+  const activePeriod = getActivePeriod(settings, todayISO)
+  const goal = getActiveGoal(settings, todayISO)
+  const plansDeficit = goal.type === 'cut' || goal.type === 'bulk'
+  // With weekendMaintenance the plan is not flat: weekdays carry the whole
+  // deficit. computed.days already holds the per-day figure, so read the
+  // weekday rate off it rather than recomputing the split here.
+  const weekdayDeficit = goal.weekendMaintenance
+    ? Math.max(0, ...computed.days.map((d) => d.dailyDeficitBase))
+    : 0
 
   const usedKB = (usedBytes / 1024).toFixed(1)
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100)
@@ -145,7 +124,6 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
   // Shared input class for raw <input> / <select> elements that aren't
   // wrapped by the Field primitive.
   const inputCls = 'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]'
-  const inputLabelCls = 'mt-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 
   return (
     <div className="px-4 pb-2 pt-4">
@@ -247,74 +225,55 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
         </div>
       </Card>
 
-      {/* ── Cut-ajanjakso ────────────────────────────────────────────── */}
+      {/* ── Voimassa oleva tavoite ───────────────────────────────────
+          Read-only on purpose. This used to be two editors ("Cut-ajanjakso",
+          "Paino ja vaje") writing to the legacy settings fields — a second
+          way to edit a goal that could not set the period type or the weekend
+          rule, and that showed the *first* goal's numbers while the rest of
+          the app had moved on to the active period. Tapping the period in
+          Tavoitehistoria above is the one editor now; this card just states
+          what is in force. */}
       <Card variant="glass">
-        <div className={cardLabel}>Cut-ajanjakso</div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="min-w-0">
-            <label className={inputLabelCls}>Alkaa</label>
-            <input
-              type="date"
-              value={settings.startDate}
-              onChange={(e) => update({ startDate: e.target.value })}
-              className={inputCls}
-            />
-          </div>
-          <div className="min-w-0">
-            <label className={inputLabelCls}>Päättyy</label>
-            <input
-              type="date"
-              value={settings.endDate}
-              onChange={(e) => update({ endDate: e.target.value })}
-              className={inputCls}
-            />
-          </div>
+        <div className="flex items-baseline justify-between">
+          <div className={cardLabel}>Voimassa oleva tavoite</div>
+          <button
+            onClick={() => activePeriod && setPeriodModal({ mode: 'edit', initial: activePeriod })}
+            disabled={!activePeriod}
+            className="text-[11px] text-accent disabled:opacity-40"
+          >
+            Muokkaa
+          </button>
         </div>
-        <div className="mt-1.5 text-[11px] text-muted">{totalDays} päivää yhteensä</div>
-      </Card>
-
-      {/* ── Paino ja vaje ────────────────────────────────────────────── */}
-      <Card variant="glass" className="mt-2.5">
-        <div className={cardLabel}>Paino ja vaje</div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <Field
-            label="Lähtöpaino (kg)"
-            type="text"
-            inputMode="decimal"
-            value={swText}
-            onChange={(e) => {
-              const v = e.target.value
-              if (isValidDecimalInput(v) || v === '') setSwText(v)
-            }}
-            onBlur={commitStartWeight}
-            placeholder="74,7"
-          />
-          <Field
-            label="Tavoitepaino (kg)"
-            type="text"
-            inputMode="decimal"
-            value={twText}
-            onChange={(e) => {
-              const v = e.target.value
-              if (isValidDecimalInput(v) || v === '') setTwText(v)
-            }}
-            onBlur={commitTargetWeight}
-            placeholder="72,9"
-          />
+        <div className="text-[12px] font-semibold text-text">
+          {PERIOD_TYPE_LABEL[goal.type]} · {goal.startWeight.toFixed(1)} → {goal.targetWeight.toFixed(1)} kg
         </div>
-        <div className="mt-1 rounded-[6px] border border-white/[0.07] bg-black/30 p-2.5">
-          {[
-            ['Pudotus', `${(settings.startWeight - settings.targetWeight).toFixed(1)} kg`, false],
-            ['Kokonaisvaje', `${Math.round((settings.startWeight - settings.targetWeight) * 7700).toLocaleString('fi-FI')} kcal`, false],
-            ['Päivävaje (perus)', `${Math.round(dailyDeficit)} kcal / pv`, true],
-            ['Tempo', `${weeklyTempo} kg / vko`, false],
-          ].map(([label, value, highlight]) => (
-            <div key={label as string} className="mt-1 flex justify-between text-[12px]">
+        <div className="mt-0.5 text-[11px] text-muted">
+          {goal.startDate.slice(5).replace('-', '/')} – {goal.endDate.slice(5).replace('-', '/')} · {goal.totalDays} päivää · päivä {goal.elapsedDays}
+        </div>
+        <div className="mt-2 rounded-[6px] border border-white/[0.07] bg-black/30 p-2.5">
+          {([
+            ['Muutos', `${goal.kgToChange.toFixed(1)} kg`, false],
+            ...(plansDeficit
+              ? ([
+                  ['Kokonaisvaje', `${Math.round(goal.totalDeficitKcal).toLocaleString('fi-FI')} kcal`, false],
+                  goal.weekendMaintenance
+                    ? ['Päivävaje (arki)', `${Math.round(weekdayDeficit)} kcal / pv`, true]
+                    : ['Päivävaje (perus)', `${Math.round(goal.dailyDeficitKcal)} kcal / pv`, true],
+                ] as Array<[string, string, boolean]>)
+              : ([['Vaje', 'ei vajetta — ylläpito', false]] as Array<[string, string, boolean]>)),
+            ['Tempo', `${goal.weeklyRateKg.toFixed(2)} kg / vko`, false],
+          ] as Array<[string, string, boolean]>).map(([label, value, highlight]) => (
+            <div key={label} className="mt-1 flex justify-between text-[12px]">
               <span className="text-muted">{label}</span>
               <span className={`tabular-nums font-semibold ${highlight ? 'text-accent' : 'text-text'}`}>{value}</span>
             </div>
           ))}
         </div>
+        {goal.weekendMaintenance && (
+          <div className="mt-1.5 text-[11px] text-fg-faint">
+            Viikonloput ylläpidolla — koko vaje on jalkautettu arkipäiville.
+          </div>
+        )}
       </Card>
 
       {/* ── TDEE per päivätyyppi ─────────────────────────────────────── */}
@@ -439,7 +398,7 @@ export function SettingsView({ settings, setSettings, computed, usedBytes, onExp
                 : todayISO
               : undefined
           }
-          defaultStartWeight={periodModal.mode === 'create' ? settings.startWeight : undefined}
+          defaultStartWeight={periodModal.mode === 'create' ? goal.targetWeight : undefined}
           onSave={(p) => {
             if (periodModal.mode === 'edit') {
               setSettings(updatePeriod(settings, periodModal.initial.id, p))
