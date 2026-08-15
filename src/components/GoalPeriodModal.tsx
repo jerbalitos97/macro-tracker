@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Target } from 'lucide-react'
+import { Target, Check } from 'lucide-react'
 import type { GoalPeriod, PeriodType } from '../types'
-import { toISO } from '../lib/dates'
+import { toISO, addDays, daysBetween, getWeekdayNum } from '../lib/dates'
 import { Sheet, Field, Chip, Button } from './ui'
 
 type FormState = {
@@ -12,6 +12,7 @@ type FormState = {
   targetWeight: number
   refillWindowWeeks: number
   expectedRefillKg: number
+  weekendMaintenance: boolean
   label: string
 }
 
@@ -53,6 +54,7 @@ export function GoalPeriodModal({
     targetWeight: initial?.targetWeight ?? 73,
     refillWindowWeeks: initial?.refillWindowWeeks ?? 3,
     expectedRefillKg: initial?.expectedRefillKg ?? 1.8,
+    weekendMaintenance: initial?.weekendMaintenance ?? false,
     label: initial?.label ?? '',
   })
 
@@ -64,6 +66,26 @@ export function GoalPeriodModal({
     form.targetWeight > 0
 
   const isRefill = form.type === 'refill'
+  // Maintenance and refill plan no deficit, so there is nothing to move off the
+  // weekend — the toggle only means something for a cut or a bulk.
+  const plansDeficit = form.type === 'cut' || form.type === 'bulk'
+
+  // Preview the trade so the number is visible before saving, not after.
+  const days = form.startDate && form.endDate && form.startDate <= form.endDate
+    ? daysBetween(form.startDate, form.endDate) + 1
+    : 0
+  const weekdayCount = (() => {
+    let n = 0
+    for (let i = 0; i < days; i++) {
+      const d = getWeekdayNum(addDays(form.startDate, i))
+      if (d !== 0 && d !== 6) n++
+    }
+    return n
+  })()
+  const totalKcal = Math.abs(form.startWeight - form.targetWeight) * 7700
+  const flatPerDay = days > 0 ? Math.round(totalKcal / days) : 0
+  const weekdayPerDay = weekdayCount > 0 ? Math.round(totalKcal / weekdayCount) : 0
+  const hasPlan = days > 0 && totalKcal > 0 && weekdayCount > 0
 
   return (
     <Sheet
@@ -149,6 +171,46 @@ export function GoalPeriodModal({
         </div>
       )}
 
+      {plansDeficit && (
+        <div className="mb-1">
+          <button
+            onClick={() => setForm({ ...form, weekendMaintenance: !form.weekendMaintenance })}
+            role="switch"
+            aria-checked={form.weekendMaintenance}
+            className={`flex w-full items-center gap-3 rounded-input border px-3.5 py-3 text-left transition-colors ${
+              form.weekendMaintenance
+                ? 'border-cyan/35 bg-cyan/[0.10]'
+                : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
+            }`}
+          >
+            <span
+              aria-hidden
+              className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border ${
+                form.weekendMaintenance ? 'border-cyan bg-cyan text-bg' : 'border-white/25'
+              }`}
+            >
+              {form.weekendMaintenance && <Check size={13} strokeWidth={3} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-text">
+                Viikonloput ylläpidolla
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-normal text-fg-muted">
+                {/* Until the dates and weights make a real plan there is no
+                    number to preview — "−0 kcal/pv" would just read as broken. */}
+                {!hasPlan
+                  ? form.weekendMaintenance
+                    ? 'La–su syödään TDEE:llä, koko vaje jaetaan arkipäiville.'
+                    : 'Sama vaje joka päivälle, viikonloput mukaan lukien.'
+                  : form.weekendMaintenance
+                    ? `La–su syödään TDEE:llä. Vaje siirtyy arjelle: −${weekdayPerDay.toLocaleString('fi-FI')} kcal/pv ma–pe.`
+                    : `Sama vaje joka päivä: −${flatPerDay.toLocaleString('fi-FI')} kcal/pv.`}
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+
       <Field
         label="Tunniste (valinnainen)"
         type="text"
@@ -168,6 +230,7 @@ export function GoalPeriodModal({
               endDate: form.endDate,
               startWeight: form.startWeight,
               targetWeight: form.targetWeight,
+              weekendMaintenance: plansDeficit ? form.weekendMaintenance : undefined,
               refillWindowWeeks: isRefill ? form.refillWindowWeeks : undefined,
               expectedRefillKg: isRefill ? form.expectedRefillKg : undefined,
               label: form.label || undefined,

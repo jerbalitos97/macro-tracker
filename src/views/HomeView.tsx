@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles } from 'lucide-react'
+import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
 import { DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
 import { getPrefs, savePrefsLocal, pullPrefs, syncPrefsCloud, applyOrder } from '../lib/uiPrefs'
+import { exportAll } from '../lib/exportData'
+import type { ExportOutcome } from '../lib/exportData'
 
 interface Tool {
   /** Stable key for the saved order — never rename these. */
@@ -77,10 +79,61 @@ export function HomeView({ setView }: Props) {
         ))}
       </div>
 
+      {/* Export */}
+      <ExportButton />
+
       {/* Footer */}
       <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
         Pidä pohjassa ja vedä järjestääksesi · asennettavissa PWA:na
       </div>
+    </div>
+  )
+}
+
+const OUTCOME_TEXT: Record<ExportOutcome, string> = {
+  shared: 'Jaettu',
+  downloaded: 'Ladattu',
+  cancelled: 'Peruttu',
+  'no-data': 'Ei vielä dataa vietäväksi',
+  failed: 'Vienti ei onnistunut',
+}
+
+function ExportButton() {
+  const [busy, setBusy] = useState(false)
+  const [outcome, setOutcome] = useState<ExportOutcome | null>(null)
+
+  const run = async () => {
+    setBusy(true)
+    setOutcome(null)
+    const r = await exportAll()
+    setOutcome(r)
+    setBusy(false)
+    window.setTimeout(() => setOutcome(null), 4000)
+  }
+
+  const bad = outcome === 'failed' || outcome === 'no-data'
+
+  return (
+    <div>
+      <button
+        onClick={run}
+        disabled={busy}
+        className="flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-3.5 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-dim [backdrop-filter:blur(14px)] disabled:opacity-60"
+      >
+        <Download size={15} />
+        {busy ? 'Kootaan…' : 'Vie tavoite- ja tulosdata'}
+      </button>
+      {outcome && (
+        <p
+          role="status"
+          className={`mt-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] ${
+            bad ? 'text-danger' : 'text-fg-muted'
+          }`}
+        >
+          {bad ? <AlertCircle size={12} /> : <Check size={12} />}
+          {OUTCOME_TEXT[outcome]}
+        </p>
+      )}
     </div>
   )
 }

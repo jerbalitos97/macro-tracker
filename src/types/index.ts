@@ -37,6 +37,10 @@ export interface GoalPeriod {
   expectedRefillKg?: number
   /** Free-form label shown in history. */
   label?: string
+  /** Saturdays and Sundays are eaten at TDEE and the period's whole deficit is
+   *  carried by the weekdays instead. Cut/bulk only — maintenance and refill
+   *  plan no deficit to redistribute. */
+  weekendMaintenance?: boolean
   createdAt: string
 }
 
@@ -48,6 +52,9 @@ export interface Settings {
   tdee: TdeeMap
   weeklyPattern: Record<number, DayType>
   proteinTarget: number
+  /** Legacy fallback for accounts with no goal periods yet — see
+   *  GoalPeriod.weekendMaintenance. */
+  weekendMaintenance?: boolean
   /**
    * Goal history. When present, this is the source of truth and the legacy
    * startDate/endDate/startWeight/targetWeight fields are ignored. When

@@ -27,6 +27,34 @@ function periodDailyDeficit(p: GoalPeriod): number {
   return (kg * 7700) / dur
 }
 
+/** Saturday and Sunday, in getWeekdayNum terms (0 = Sunday). */
+const WEEKEND_DOWS = [0, 6]
+
+/** The planned deficit for each day of the period.
+ *
+ *  Normally that's the same number every day. With `weekendMaintenance` the
+ *  weekend days plan no deficit at all and the period's whole target is carried
+ *  by the weekdays — so a Mon–Fri day runs deeper (7/5 of the flat rate for a
+ *  whole-week period) and Sat/Sun sit at TDEE. The total over the period is
+ *  identical either way; only its distribution changes. */
+function plannedDeficits(
+  startISO: string,
+  total: number,
+  flatPerDay: number,
+  weekendMaintenance: boolean,
+): number[] {
+  const flat = Array.from({ length: total }, () => flatPerDay)
+  if (!weekendMaintenance || flatPerDay === 0) return flat
+
+  const dows = Array.from({ length: total }, (_, i) => getWeekdayNum(addDays(startISO, i)))
+  const weekdayCount = dows.filter((d) => !WEEKEND_DOWS.includes(d)).length
+  // A period made entirely of weekends has nowhere to move the deficit to.
+  if (weekdayCount === 0) return flat
+
+  const perWeekday = (flatPerDay * total) / weekdayCount
+  return dows.map((d) => (WEEKEND_DOWS.includes(d) ? 0 : perWeekday))
+}
+
 export function computeDays(
   settings: Settings,
   events: SpecialEvent[],
@@ -52,9 +80,17 @@ export function computeDays(
     ? periodDailyDeficit(activePeriod)
     : totalDeficitTarget / total
 
+  // `dailyDeficitBase` stays the period average — cumulative targets and the
+  // "planned vs actual" comparisons are all built on it. What varies per day is
+  // where that average is spent.
+  const weekendMaintenance =
+    activePeriod?.weekendMaintenance ?? settings.weekendMaintenance ?? false
+  const deficits = plannedDeficits(fallbackStart, total, dailyDeficitBase, weekendMaintenance)
+
   for (let i = 0; i < total; i++) {
     const date = addDays(fallbackStart, i)
     const dow = getWeekdayNum(date)
+    const dayDeficit = deficits[i]
 
     const eventsOnDay = events.filter((e) => e.date === date)
     const eventExcessKcal = eventsOnDay.reduce((s, e) => s + Number(e.excessKcal), 0)
@@ -106,7 +142,7 @@ export function computeDays(
       // which fails the diff > 0 / diff < 0 guards above).
       budget =
         baseTdee -
-        dailyDeficitBase +
+        dayDeficit +
         eventExcessKcal -
         preBufferReduction +
         extraKcal +
@@ -121,7 +157,7 @@ export function computeDays(
         note = `${note} · treeni +${extraKcal}`
       }
     } else {
-      budget = baseTdee - dailyDeficitBase - preBufferReduction + extraKcal + adjKcal
+      budget = baseTdee - dayDeficit - preBufferReduction + extraKcal + adjKcal
       if (preBufferReduction > 0) note = `pre-buffer −${preBufferReduction}`
       if (extraKcal > 0) {
         note = note ? `${note} · treeni +${extraKcal}` : `treeni +${extraKcal}`
@@ -155,7 +191,7 @@ export function computeDays(
       events: eventsOnDay,
       adjustment: adjustmentOnDay,
       note,
-      dailyDeficitBase: Math.round(dailyDeficitBase),
+      dailyDeficitBase: Math.round(dayDeficit),
     })
   }
 
