@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Check, GripVertical, Flame } from 'lucide-react'
+import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
@@ -7,11 +7,18 @@ import { ExerciseSetSheet } from './ExerciseSetSheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
+import { GATE_LABEL, REGION_LABEL } from '../../lib/gates'
+import type { GateState } from '../../lib/gates'
 
 interface Props {
   workout: Workout
   onChange: (w: Workout) => void   // every change autosaves the draft upstream
   onFinish: () => void
+  /** Opens the day-assessment sheet mid-session. */
+  onEditCheck?: () => void
+  /** Re-resolve one slot to a chosen state, when a symptom shows up in the
+   *  warm-up rather than at the door. */
+  onSwapVariant?: (exerciseId: string, state: GateState) => void
   onExit: () => void               // leave but keep the draft
 }
 
@@ -33,7 +40,7 @@ interface TileProps {
   onMove: (delta: -1 | 1) => void
 }
 
-function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove }: TileProps) {
+function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap }: TileProps & { onSwap?: () => void }) {
   const done = exerciseDone(ex)
 
   return (
@@ -70,12 +77,37 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
           </button>
 
           <div className="pr-7">
-            <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+            <div
+              className={`line-clamp-2 font-display text-[14px] font-semibold leading-tight ${
+                ex.resolution?.unavailable ? 'text-fg-ghost line-through' : 'text-text'
+              }`}
+            >
               {ex.name}
             </div>
             <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
-              {blockSummary(ex)}
+              {ex.resolution?.unavailable === 'env'
+                ? 'ei mahdollinen täällä'
+                : ex.resolution?.unavailable === 'gate'
+                  ? 'pois tänään'
+                  : blockSummary(ex)}
             </div>
+            {/* Where the variant came from. Without it a substituted movement
+                looks like the plan changed by itself. */}
+            {(ex.resolution?.gateRegion || ex.resolution?.envFallback) && (
+              <div
+                onClick={onSwap ? (e) => { e.stopPropagation(); onSwap() } : undefined}
+                className={`mt-1 truncate font-mono text-[9px] tracking-[0.04em] text-accent/80 ${onSwap ? 'underline decoration-dotted underline-offset-2' : ''}`}
+              >
+                {[
+                  ex.resolution.gateRegion &&
+                    `${REGION_LABEL[ex.resolution.gateRegion].toLowerCase()}portti · ${GATE_LABEL[ex.resolution.gateState ?? 'develop']}`,
+                  ex.resolution.envFallback && 'paikka',
+                  ex.resolution.source === 'manual' && 'käsin',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -83,7 +115,9 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
   )
 }
 
-export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
+export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
+  const [swapFor, setSwapFor] = useState<string | null>(null)
+  const escalated = (workout.assessments ?? []).some((a) => a.gateOutput === 'escalate')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
@@ -152,6 +186,27 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
         </div>
       </div>
 
+      {escalated && (
+        <div className="mb-3 flex items-start gap-2.5 rounded-row border border-danger/30 bg-danger/[0.08] px-4 py-3">
+          <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-danger" />
+          <div>
+            <p className="m-0 text-[13px] font-bold text-danger">Varaa aika ammattilaiselle</p>
+            <p className="m-0 mt-0.5 text-[11px] leading-relaxed text-fg-muted">
+              Alueen kuormittavat liikkeet on jätetty pois tästä sessiosta.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {onEditCheck && (
+        <button
+          onClick={onEditCheck}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+        >
+          <SlidersHorizontal size={13} /> Muokkaa päiväarviota
+        </button>
+      )}
+
       {/* Warm-up tick. Only a fact — that it was done — recorded per session
           so the log can say whether it happens, without asking anyone to write
           the routine down again. */}
@@ -172,6 +227,32 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
         </span>
       </button>
 
+      {/* Manual variant swap */}
+      {swapFor && onSwapVariant && (() => {
+        const ex = workout.exercises.find((e) => e.id === swapFor)
+        const region = ex?.resolution?.gateRegion
+        const states: GateState[] = ['develop', 'hybrid', 'treat', 'rest']
+        return (
+          <Sheet open onClose={() => setSwapFor(null)} title={`Vaihda variantti${region ? ` · ${REGION_LABEL[region]}` : ''}`}>
+            <p className="mb-3 text-[11px] leading-relaxed text-fg-muted">
+              {ex?.resolution?.baseName ?? ex?.name}. Käsin tehty vaihto kirjautuu lokiin, jotta
+              jälkikäteen näkyy että variantti ei tullut portista.
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {states.map((st) => (
+                <Button
+                  key={st}
+                  variant={ex?.resolution?.gateState === st ? 'primary' : 'action'}
+                  onClick={() => { onSwapVariant(swapFor, st); setSwapFor(null) }}
+                >
+                  {GATE_LABEL[st]}
+                </Button>
+              ))}
+            </div>
+          </Sheet>
+        )
+      })()}
+
       {/* Exercise blocks */}
       <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">
         {workout.exercises.map((ex) => (
@@ -183,6 +264,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
             onOpen={() => setOpenId(ex.id)}
             onToggleDone={() => toggleExerciseDone(ex)}
             onMove={(d) => moveExercise(ex.id, d)}
+            onSwap={ex.resolution?.gateRegion && onSwapVariant ? () => setSwapFor(ex.id) : undefined}
           />
         ))}
 

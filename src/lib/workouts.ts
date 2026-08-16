@@ -2,6 +2,8 @@
 // Supabase (workout_templates / workouts tables) with localStorage as the
 // offline cache; the autosaved in-progress draft remains device-local.
 import { supabase } from './supabase'
+import type { Assessment, BodyRegion, GateState } from './gates'
+import type { Capability } from './locations'
 
 const K_TEMPLATES = 'mimir.workouts.templates:v1'
 const K_HISTORY   = 'mimir.workouts.history:v1'
@@ -24,6 +26,52 @@ export interface IntervalConfig {
   perSide: boolean
 }
 
+/** What a movement needs from the room, and what to do when the room does not
+ *  have it.
+ *
+ *  Substitution principle: when external load is missing, intensity is kept by
+ *  a harder leverage or a slower tempo — never by adding reps. Heavy load is
+ *  not replaceable for maximal strength (Schoenfeld 2017), and piling on reps
+ *  would steer the same movement into an endurance adaptation, which is the
+ *  opposite of what these blocks are for. */
+export interface EnvRequirement {
+  requires: Capability[]
+  /** null means the movement simply is not possible here. */
+  fallback: Prescription | null
+}
+
+/** One prescription: a movement at a given intensity. Used both for gate
+ *  variants and for environment fallbacks, because they are the same thing —
+ *  "do this instead" — arrived at for different reasons. */
+export interface Prescription {
+  name: string
+  sets: number
+  /** A number or a range; the logger seeds from the low end of a range. */
+  reps?: number | RepRange
+  holdSeconds?: number
+  tempo?: string
+  note?: string
+  /** A variant can need different kit from the movement it replaces — the
+   *  loaded split squat needs weight, the treat variant needs an anchor. So
+   *  the requirement lives on the prescription, not only on the slot. */
+  env?: EnvRequirement
+}
+
+/** Gate control: which body region decides this movement's intensity, and what
+ *  it becomes in each state. */
+export interface GateSpec {
+  bodyRegion: BodyRegion
+  variants: {
+    /** Always present: the gate has to have something to develop towards. */
+    develop: Prescription
+    /** null = the movement is left out in this state. Any state below develop
+     *  can drop a movement — depth jumps have no treat version worth doing. */
+    hybrid?: Prescription | null
+    treat?: Prescription | null
+    rest?: Prescription | null
+  }
+}
+
 /** One exercise as defined in a template (the plan / defaults). */
 export interface TemplateExercise {
   id: string
@@ -33,6 +81,14 @@ export interface TemplateExercise {
   defaultWeight?: number    // kg
   defaultDuration?: number  // seconds
   interval?: IntervalConfig // mobility exercises only
+  tempo?: string
+  note?: string
+  /** Optional and independent of each other: a movement can need equipment
+   *  *and* be gated on a body region. Env resolves first (which movement),
+   *  then the gate (at what intensity). Absent on every pre-existing template,
+   *  which therefore behaves exactly as before. */
+  env?: EnvRequirement
+  gate?: GateSpec
 }
 
 export interface WorkoutTemplate {
@@ -42,6 +98,11 @@ export interface WorkoutTemplate {
   color?: string            // hex accent shown on tiles and in the logger
   position?: number         // manual order within its kind; undefined = unsorted
   exercises: TemplateExercise[]
+  /** Free-form planning note carried with the template. */
+  note?: string
+  /** Retired templates keep their history but leave the pickers. Null or
+   *  absent means active. */
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -63,11 +124,31 @@ export interface SetEntry {
   done?: boolean     // checked off in the logger
 }
 
+/** Why a logged exercise looks the way it does. Written at resolution time so
+ *  a session can be read back months later and the variant explained. */
+export interface Resolution {
+  /** The template's own name for the slot, before any substitution. */
+  baseName: string
+  gateRegion?: BodyRegion
+  gateState?: GateState
+  /** The room forced the fallback prescription. */
+  envFallback?: boolean
+  /** Present when the movement is not being done: 'env' = not possible here,
+   *  'gate' = off today. The row still renders, struck through — a silent
+   *  disappearance is indistinguishable from forgetting it. */
+  unavailable?: 'env' | 'gate'
+  /** 'manual' once the user overrode the resolved variant mid-session. */
+  source: 'asked' | 'manual' | 'inferred'
+}
+
 export interface LoggedExercise {
   id: string
   name: string
   sets: SetEntry[]
   interval?: IntervalConfig // present when the exercise is clocked, not counted
+  tempo?: string
+  note?: string
+  resolution?: Resolution
 }
 
 /** An exercise counts as done once every set has been checked off. */
@@ -96,6 +177,11 @@ export interface Workout {
   /** Ticked at the top of the logger. Only a fact that it happened — the
    *  routine itself lives in lib/warmup.ts and is not copied per session. */
   warmupDone?: boolean
+  /** Where it was done — resolves which movements were possible. */
+  locationId?: string
+  /** The day's readiness readings and what each gate decided. Kept on the
+   *  session so a variant can be traced to the number that caused it. */
+  assessments?: Assessment[]
   createdAt: string
   updatedAt: string
 }
@@ -137,9 +223,35 @@ export function sortTemplates(list: WorkoutTemplate[]): WorkoutTemplate[] {
   })
 }
 
+/** Every template, archived included. Callers that offer a choice should use
+ *  activeTemplates(); this is for the archive view and the export. */
 export function getTemplates(): WorkoutTemplate[] {
   const arr = read<WorkoutTemplate[]>(K_TEMPLATES, [])
   return Array.isArray(arr) ? sortTemplates(arr) : []
+}
+
+export const isArchived = (t: WorkoutTemplate): boolean => Boolean(t.archivedAt)
+
+/** Templates a session can be started from. */
+export function activeTemplates(): WorkoutTemplate[] {
+  return getTemplates().filter((t) => !isArchived(t))
+}
+
+export function archivedTemplates(): WorkoutTemplate[] {
+  return getTemplates()
+    .filter(isArchived)
+    .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''))
+}
+
+/** Retire a template. Its logged sessions are untouched — a workout records
+ *  what was done, not what the template currently says. */
+export function setArchived(id: string, archived: boolean): WorkoutTemplate[] {
+  const now = new Date().toISOString()
+  const next = getTemplates().map((t) =>
+    t.id === id ? { ...t, archivedAt: archived ? now : null, updatedAt: now } : t,
+  )
+  write(K_TEMPLATES, sortTemplates(next))
+  return sortTemplates(next)
 }
 
 export function saveTemplate(t: WorkoutTemplate): WorkoutTemplate[] {
@@ -177,6 +289,8 @@ interface TemplateRow {
   color: string | null
   position: number | null
   exercises: TemplateExercise[]
+  note: string | null
+  archived_at: string | null
   created_at: string
   updated_at: string
 }
@@ -188,6 +302,8 @@ const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   color: r.color ?? undefined,
   position: r.position ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
+  note: r.note ?? undefined,
+  archivedAt: r.archived_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -225,6 +341,8 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       color: t.color ?? null,
       position: t.position ?? null,
       exercises: t.exercises,
+      note: t.note ?? null,
+      archived_at: t.archivedAt ?? null,
       created_at: t.createdAt,
       updated_at: t.updatedAt,
     })
@@ -272,6 +390,8 @@ interface WorkoutRow {
   exercises: LoggedExercise[]
   completed: boolean
   warmup_done: boolean | null
+  location_id: string | null
+  assessments: Assessment[] | null
   created_at: string
   updated_at: string
 }
@@ -285,6 +405,8 @@ const fromWorkoutRow = (r: WorkoutRow): Workout => ({
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   completed: r.completed,
   warmupDone: r.warmup_done ?? undefined,
+  locationId: r.location_id ?? undefined,
+  assessments: Array.isArray(r.assessments) ? r.assessments : undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -323,6 +445,8 @@ export function syncWorkoutCloud(userId: string, w: Workout): void {
       exercises: w.exercises,
       completed: w.completed,
       warmup_done: w.warmupDone ?? false,
+      location_id: w.locationId ?? null,
+      assessments: w.assessments ?? [],
       created_at: w.createdAt,
       updated_at: w.updatedAt,
     })

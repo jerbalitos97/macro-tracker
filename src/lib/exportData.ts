@@ -39,6 +39,7 @@ import { getTemplates, getWorkouts, getDraft } from './workouts'
 import { getBlocks, blockForDate } from './blocks'
 import { getWarmup } from './warmup'
 import { getRestLog } from './restTimer'
+import { getLocations } from './locations'
 import { getPrefs } from './uiPrefs'
 import { getAcknowledgedSurpluses } from './surplusAck'
 import { listHabits, listEntries } from './habits'
@@ -46,7 +47,7 @@ import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -64,6 +65,8 @@ const MAPPED_KEYS = [
   'mimir.workouts.restLog:v1',         // restLog
   'mimir.workouts.restTimer:v1',       // activeRest (transient; swept for completeness)
   'friday.uiPrefs:v1',                 // uiPrefs
+  'mimir.workouts.locations:v1',       // trainingLocations
+  'mimir.workouts.lastLocation:v1',    // (transient: which chip is preselected)
 ]
 
 const README: Record<string, string> = {
@@ -92,8 +95,28 @@ const README: Record<string, string> = {
     'superseded by goalPeriods when those exist.',
   workouts:
     'Completed sessions: exercises, sets, reps, weights, timestamps. warmupDone is ' +
-    'the per-session tick that a warm-up happened.',
-  workoutTemplates: 'Reusable session plans the workouts were started from.',
+    'the per-session tick that a warm-up happened. locationId says where, and ' +
+    'assessments what the body reported that day. Each exercise carries a ' +
+    'resolution: baseName is the slot the template asked for, gateRegion/gateState ' +
+    'why this variant, envFallback whether the room forced a substitute, and ' +
+    'unavailable whether it was dropped (env = impossible here, gate = off today). ' +
+    'That is what makes variant-versus-result analysable after the fact.',
+  workoutTemplates:
+    'Reusable session plans. archivedAt marks a retired template — retired, not ' +
+    'deleted, so old sessions still point at something. An exercise may carry env ' +
+    '(what the room must provide, and the substitute when it does not) and gate ' +
+    '(which body region sets its intensity, and the variant per state).',
+  trainingLocations:
+    'Where sessions happen, as five capability flags. The condition gate resolves ' +
+    'against these before any health gate runs: the room decides which movements ' +
+    'exist, the body decides how hard.',
+  assessments:
+    'Daily readiness readings, one per body region per session. score is 0–10, ' +
+    'gateOutput is what the gate decided (develop/hybrid/treat/rest/escalate) and ' +
+    'source says whether it was asked, entered by hand, or inferred from silence. ' +
+    'Thresholds are relative to the region\'s own 14-day median, so a score is only ' +
+    'meaningful next to its baseline. escalate means a red flag was ticked and the ' +
+    'app stopped prescribing — it is not a severity level.',
   workoutDraft: 'A session in progress at export time, if any.',
   trainingBlocks:
     'Mesocycles: named date ranges with an intent (base/strength/skill/peak/deload) ' +
@@ -142,6 +165,8 @@ export interface ExportBundle {
   wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
+  trainingLocations: unknown[]
+  assessments: unknown[]
   protein: {
     target: number
     recommended: number
@@ -323,6 +348,11 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     wealth,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
+    trainingLocations: getLocations(),
+    // Flattened out of the sessions as their own series, because that is how
+    // the gates read them: baseline, trend and 24h response are properties of
+    // the region over time, not of any one workout.
+    assessments: getWorkouts().flatMap((w) => w.assessments ?? []),
     protein: proteinSummary(data, computed.days, trend.currentTrend),
     raw: {
       meals: data.meals ?? [],

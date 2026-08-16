@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical, Archive, RotateCcw } from 'lucide-react'
 import { Card, Button, Sheet, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WorkoutTools } from '../components/workout/WorkoutTools'
+import { DailyCheckSheet } from '../components/workout/DailyCheckSheet'
+import { deriveRegionHistory, assessmentsFrom, ALL_REGIONS } from '../lib/gates'
+import type { BodyRegion, GateStates, RegionHistory, LoadDay } from '../lib/gates'
+import { getLastLocationId, setLastLocationId, locationById } from '../lib/locations'
+import type { TrainingLocation } from '../lib/locations'
+import { resolveExercises, reresolveExercise } from '../lib/sessionResolve'
+import { ensureV2Templates } from '../lib/seedTemplates'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
@@ -11,11 +18,11 @@ import type { Settings, TrainingBurn } from '../types'
 import { computeLoggableBurn } from '../lib/energy'
 import { useAuth } from '../contexts/AuthContext'
 import {
-  getTemplates, saveTemplate, deleteTemplate, reorderTemplates,
+  getTemplates, archivedTemplates, setArchived, saveTemplate, deleteTemplate, reorderTemplates,
   pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
   pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
-  getDraft, saveDraft, clearDraft, newWorkout,
+  getDraft, saveDraft, clearDraft, newWorkout, lastEntryForExercise,
 } from '../lib/workouts'
 import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
 import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
@@ -154,6 +161,11 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
   const [selectedDay, setSelectedDay] = useState<string>(todayISO)
 
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
+  // The gate flow lives between picking a template and logging: a session is
+  // never created until the room and the body have both been resolved.
+  const [pendingTemplate, setPendingTemplate] = useState<WorkoutTemplate | null | undefined>(undefined)
+  const [editCheck, setEditCheck] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
   const [notifyState, setNotifyState] = useState<NotifyPermission>(() => notifyPermission())
 
   // Refresh templates and history from the cloud when logged in.
@@ -184,9 +196,72 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
   }, [session, screen, pastEdit, user])
 
   // ── Session lifecycle ────────────────────────────────────────────
+  // Every past assessment, and the days that loaded each region — the two
+  // inputs the gates derive baseline, trend and 24h response from.
+  const assessmentLog = useMemo(
+    () => workouts.flatMap((w) => w.assessments ?? []),
+    [workouts],
+  )
+  const loadDays: LoadDay[] = useMemo(
+    () =>
+      workouts
+        .filter((w) => w.completed)
+        .map((w) => {
+          const regions = [
+            ...new Set(
+              w.exercises
+                .map((e) => e.resolution?.gateRegion)
+                .filter((r): r is BodyRegion => Boolean(r)),
+            ),
+          ]
+          // Sessions logged before gates existed have no region marks; treating
+          // them as loading everything is closer to the truth than treating
+          // them as loading nothing.
+          return { date: w.date, regions: regions.length > 0 ? regions : ('all' as const) }
+        }),
+    [workouts],
+  )
+  const histories = useMemo(() => {
+    const out = {} as Record<BodyRegion, RegionHistory>
+    for (const r of ALL_REGIONS) out[r] = deriveRegionHistory(assessmentLog, r, todayISO, loadDays)
+    return out
+  }, [assessmentLog, todayISO, loadDays])
+
+  // Create the v2 templates once and retire what they replace.
+  useEffect(() => {
+    const r = ensureV2Templates(user?.id)
+    if (r.created > 0) setTemplates(getTemplates())
+  }, [user])
+
+  /** Step one: choose the template, then ask the day. */
   const startWorkout = (template?: WorkoutTemplate) => {
     setPicking(null)
-    const w = newWorkout(todayISO, template)
+    setPendingTemplate(template ?? null)
+  }
+
+  /** Step two: the room and the body are known, so the session can be built. */
+  const beginResolved = (
+    template: WorkoutTemplate | null,
+    location: TrainingLocation | null,
+    gates: GateStates,
+    redFlags: Parameters<typeof assessmentsFrom>[2],
+  ) => {
+    const base = newWorkout(todayISO, template ?? undefined)
+    const w: Workout = {
+      ...base,
+      locationId: location?.id,
+      assessments: assessmentsFrom(gates, todayISO, redFlags),
+      exercises: template
+        ? resolveExercises({
+            template,
+            location,
+            gates,
+            lastSetsFor: (name) => lastEntryForExercise(name)?.sets ?? null,
+          })
+        : base.exercises,
+    }
+    if (location) setLastLocationId(location.id)
+    setPendingTemplate(undefined)
     setSession(w)
     saveDraft(w)
     setDraft(w)
@@ -292,6 +367,21 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           workout={session}
           onChange={setSession}
           onFinish={finishWorkout}
+          onEditCheck={() => setEditCheck(true)}
+          onSwapVariant={(exerciseId, state) => {
+            const tpl = templates.find((t) => t.id === session.templateId)
+            const target = session.exercises.find((e) => e.id === exerciseId)
+            const te = tpl?.exercises.find((x) => x.name === target?.resolution?.baseName)
+            if (!te) return
+            const rebuilt = reresolveExercise(te, locationById(session.locationId), state)
+            const next: Workout = {
+              ...session,
+              exercises: session.exercises.map((e) => (e.id === exerciseId ? { ...rebuilt, id: e.id } : e)),
+              updatedAt: new Date().toISOString(),
+            }
+            setSession(next)
+            saveDraft(next)
+          }}
           onExit={exitLogging}
         />
         <WorkoutTools workoutId={session?.id ?? draft?.id} />
@@ -415,7 +505,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
             <div className={sectionLabel}>Aloita pohjasta</div>
             <div className="grid grid-cols-2 gap-3">
               {KINDS.map((k) => {
-                const count = templates.filter((t) => templateKind(t) === k.id).length
+                const count = templates.filter((t) => templateKind(t) === k.id && !t.archivedAt).length
                 return (
                   <button
                     key={k.id}
@@ -447,7 +537,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           </button>
 
           {KINDS.map((k) => {
-            const group = templates.filter((t) => templateKind(t) === k.id)
+            const group = templates.filter((t) => templateKind(t) === k.id && !t.archivedAt)
             return (
               <div key={k.id}>
                 <div className={sectionLabel}>{k.label}</div>
@@ -466,6 +556,13 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               </div>
             )
           })}
+
+          <button
+            onClick={() => setShowArchive(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+          >
+            <Archive size={14} /> Arkisto ({archivedTemplates().length})
+          </button>
         </div>
       )}
 
@@ -709,9 +806,101 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       })()}
 
       {/* Template picker for the chosen category */}
+      {pendingTemplate !== undefined && (
+        <DailyCheckSheet
+          histories={histories}
+          defaultLocationId={getLastLocationId()}
+          onCancel={() => setPendingTemplate(undefined)}
+          onStart={({ location, check, gates }) =>
+            beginResolved(pendingTemplate, location, gates, check.redFlags)
+          }
+        />
+      )}
+
+      {editCheck && session && (
+        <DailyCheckSheet
+          histories={histories}
+          defaultLocationId={session.locationId ?? getLastLocationId()}
+          expandAll
+          onCancel={() => setEditCheck(false)}
+          onStart={({ location, check, gates }) => {
+            // Re-resolving mid-session keeps the sets already logged for slots
+            // whose variant did not change; the rest are rebuilt.
+            const tpl = templates.find((t) => t.id === session.templateId) ?? null
+            const next: Workout = {
+              ...session,
+              locationId: location?.id ?? session.locationId,
+              assessments: assessmentsFrom(gates, todayISO, check.redFlags),
+              exercises: tpl
+                ? resolveExercises({ template: tpl, location, gates }).map((re) => {
+                    const prev = session.exercises.find(
+                      (e) => e.resolution?.baseName === re.resolution?.baseName,
+                    )
+                    const sameVariant = prev && prev.name === re.name
+                    return sameVariant ? { ...re, id: prev.id, sets: prev.sets } : re
+                  })
+                : session.exercises,
+              updatedAt: new Date().toISOString(),
+            }
+            setSession(next)
+            saveDraft(next)
+                    setEditCheck(false)
+          }}
+        />
+      )}
+
+      {showArchive && (() => {
+        const arch = archivedTemplates()
+        return (
+          <Sheet open onClose={() => setShowArchive(false)} title={<><Archive size={14} />Arkisto</>}>
+            <p className="mb-3 text-[11px] leading-relaxed text-fg-muted">
+              Arkistoitu pohja ei näy valinnoissa, mutta siitä aloitetut treenit säilyvät
+              koskemattomina — treeni on tallenne siitä mitä tehtiin, ei siitä mitä pohja sanoo.
+            </p>
+            {arch.length === 0 ? (
+              <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] text-fg-faint">
+                Arkisto on tyhjä.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {arch.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-3"
+                  >
+                    <span
+                      aria-hidden
+                      className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                      style={{ backgroundColor: t.color ?? DEFAULT_TEMPLATE_COLOR }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] text-text">{t.name}</div>
+                      <div className="font-mono text-[10px] text-fg-faint">
+                        arkistoitu {t.archivedAt ? fromISO(t.archivedAt.slice(0, 10)).toLocaleDateString('fi-FI') : '—'}
+                      </div>
+                    </div>
+                    <Button
+                      variant="action"
+                      onClick={() => {
+                        const next = setArchived(t.id, false)
+                        setTemplates(next)
+                        const restored = next.find((x) => x.id === t.id)
+                        if (user && restored) syncTemplateCloud(user.id, restored)
+                      }}
+                    >
+                      <RotateCcw size={13} /> Palauta
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Sheet>
+        )
+      })()}
+
       {picking && (() => {
         const kind = KINDS.find((k) => k.id === picking)!
-        const group = templates.filter((t) => templateKind(t) === picking)
+        const group = templates.filter((t) => templateKind(t) === picking && !t.archivedAt)
         return (
           <Sheet
             open
