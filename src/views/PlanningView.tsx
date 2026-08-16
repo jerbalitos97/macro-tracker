@@ -3,17 +3,17 @@ import { CalendarRange, Plus, AlertTriangle, Check, Wand2, Trash2, CheckCircle2,
 import type { DayType, GoalPeriod, Settings, WeightEntry } from '../types'
 import type { TrainingBlock } from '../lib/blocks'
 import {
-  getBlocks, pullBlocks, newBlock, saveBlockLocal, deleteBlockLocal,
+  getBlocks, pullBlocks, newBlock, saveBlockLocal, deleteBlockLocal, blockForDate,
   syncBlockCloud, deleteBlockCloud,
 } from '../lib/blocks'
 import { computeWeightTrend } from '../lib/weight'
-import { parsePositiveInt } from '../lib/format'
 import {
   getPeriods, addPeriod, updatePeriod, removePeriod, endActivePeriod, getActiveGoal,
 } from '../lib/goalPeriods'
 import { BlockEditorSheet } from '../components/workout/BlockEditorSheet'
 import {
   INTENTS, intentOf, buildBlockPlans, findClashes, plannedWeeklyLossKg, targetWeightFor,
+  recommendProtein,
 } from '../lib/planning'
 import type { Clash } from '../lib/planning'
 import { toISO, formatDateShort, daysBetween, addDays, getWeekdayNum } from '../lib/dates'
@@ -123,6 +123,20 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
   })()
   const goalWeekdayDeficit =
     goal.weekendMaintenance && weekdayCount > 0 ? goal.totalDeficitKcal / weekdayCount : 0
+
+  // Protein moves with both the training block and how hard the nutrition
+  // phase is pushing, so it is derived rather than typed — but it stays
+  // overridable, because eating above the number on purpose is a legitimate
+  // way to cover the days that fall short.
+  const protein = recommendProtein({
+    bodyWeightKg: bodyWeight,
+    intent: (() => {
+      const b = blockForDate(blocks, todayISO)
+      return b ? intentOf(b) : null
+    })(),
+    periodType: goal.type,
+    plannedWeeklyLossKg: goal.weeklyRateKg,
+  })
 
   const relax = (c: Clash) => {
     if (c.suggestedTargetWeight === null) return
@@ -399,20 +413,17 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         <Card variant="glass">
           <div className={cardLabel}>TDEE per päivätyyppi</div>
           {(['rest', 'single', 'double', 'volleyball'] as const).map((key) => (
-            <div key={key} className="mt-2 flex items-center justify-between gap-3">
-              <label className="text-[12px] text-muted">{TDEE_LABELS[key]}</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={settings.tdee[key]}
-                onChange={(e) => {
-                  const n = parsePositiveInt(e.target.value)
-                  if (n > 0) setSettings({ ...settings, tdee: { ...settings.tdee, [key]: n } })
-                }}
-                className={`${inputCls} w-[100px]`}
-                style={{ marginTop: 0, marginBottom: 0 }}
-              />
-            </div>
+            <NumField
+              key={key}
+              id={`tdee-${key}`}
+              label={TDEE_LABELS[key]}
+              value={settings.tdee[key]}
+              min={800}
+              max={8000}
+              onCommit={(n) =>
+                n != null && setSettings({ ...settings, tdee: { ...settings.tdee, [key]: n } })
+              }
+            />
           ))}
         </Card>
 
@@ -453,42 +464,24 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             Käytetään treenin kulutusarvioon. Ilman pituutta ja ikää arvio putoaa
             karkeampaan vakiokaavaan.
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-[12px] text-muted" htmlFor="height-cm">Pituus (cm)</label>
-            <input
-              id="height-cm"
-              type="text"
-              inputMode="numeric"
-              value={settings.heightCm ?? ''}
-              placeholder="—"
-              onChange={(e) => {
-                const raw = e.target.value.trim()
-                if (raw === '') return setSettings({ ...settings, heightCm: undefined })
-                const n = parsePositiveInt(raw)
-                if (n > 0) setSettings({ ...settings, heightCm: n })
-              }}
-              className={`${inputCls} w-[110px]`}
-              style={{ marginTop: 0, marginBottom: 0 }}
-            />
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <label className="text-[12px] text-muted" htmlFor="birth-year">Syntymävuosi</label>
-            <input
-              id="birth-year"
-              type="text"
-              inputMode="numeric"
-              value={settings.birthYear ?? ''}
-              placeholder="—"
-              onChange={(e) => {
-                const raw = e.target.value.trim()
-                if (raw === '') return setSettings({ ...settings, birthYear: undefined })
-                const n = parsePositiveInt(raw)
-                if (n > 1900) setSettings({ ...settings, birthYear: n })
-              }}
-              className={`${inputCls} w-[110px]`}
-              style={{ marginTop: 0, marginBottom: 0 }}
-            />
-          </div>
+          <NumField
+            id="height-cm"
+            label="Pituus (cm)"
+            value={settings.heightCm}
+            min={100}
+            max={250}
+            allowEmpty
+            onCommit={(n) => setSettings({ ...settings, heightCm: n })}
+          />
+          <NumField
+            id="birth-year"
+            label="Syntymävuosi"
+            value={settings.birthYear}
+            min={1900}
+            max={new Date().getFullYear()}
+            allowEmpty
+            onCommit={(n) => setSettings({ ...settings, birthYear: n })}
+          />
           <div className="mt-2 flex items-center justify-between gap-3">
             <label className="text-[12px] text-muted" htmlFor="sex">Perusaineenvaihdunnan kaava</label>
             <select
@@ -511,17 +504,53 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         </Card>
 
         <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Proteiinitavoite (g/pv)</div>
-          <input
-            type="text"
-            inputMode="numeric"
+          <div className={cardLabel}>Proteiinitavoite</div>
+          <NumField
+            id="protein-target"
+            label="Tavoite (g/pv)"
             value={settings.proteinTarget}
-            onChange={(e) => {
-              const n = parsePositiveInt(e.target.value)
-              if (n > 0) setSettings({ ...settings, proteinTarget: n })
-            }}
-            className={inputCls}
+            min={30}
+            max={500}
+            onCommit={(n) => n != null && setSettings({ ...settings, proteinTarget: n })}
           />
+
+          <div className="mt-2 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
+            <div className="flex items-baseline justify-between text-[12px]">
+              <span className="text-muted">Suositus</span>
+              <span className="tabular-nums font-semibold text-accent">
+                {protein.grams} g/pv
+                <span className="ml-1 font-normal text-fg-faint">({protein.gramsPerKg} g/kg)</span>
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-col gap-0.5">
+              {protein.reasons.map((r) => (
+                <div key={r} className="text-[10px] leading-snug text-fg-faint">· {r}</div>
+              ))}
+            </div>
+            {settings.proteinTarget !== protein.grams && (
+              <Button
+                variant="action"
+                className="mt-2.5 w-full"
+                onClick={() => setSettings({ ...settings, proteinTarget: protein.grams })}
+              >
+                Ota suositus käyttöön
+              </Button>
+            )}
+          </div>
+
+          {settings.proteinTarget > protein.grams && (
+            <p className="m-0 mt-2 text-[11px] leading-relaxed text-fg-faint">
+              Tavoitteesi on {settings.proteinTarget - protein.grams} g suosituksen yli. Jos se on
+              tarkoituksellinen puskuri niitä päiviä varten jolloin proteiini jää vajaaksi, se
+              toimii — keskiarvo on se mikä ratkaisee, ei yksittäinen päivä.
+            </p>
+          )}
+          {settings.proteinTarget < protein.grams && (
+            <p className="m-0 mt-2 text-[11px] leading-relaxed text-fg-faint">
+              Tavoitteesi on {protein.grams - settings.proteinTarget} g suosituksen alle. Vajeella
+              proteiini on se mikä estää kehoa ottamasta energiavajetta lihaksesta.
+            </p>
+          )}
         </Card>
       </div>
 
@@ -794,6 +823,65 @@ function ClashCard({
           Muokkaa
         </Button>
       </div>
+    </div>
+  )
+}
+
+/** A numeric field that keeps what you typed while you type it.
+ *
+ *  Validating inside onChange looks harmless and is not: a controlled input
+ *  whose parent rejects the intermediate value can never receive one. Typing
+ *  "1996" into a field guarded by `if (n > 1900)` fails at "1", so the field
+ *  is simply unusable. The draft lives here and is validated on blur. */
+function NumField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  allowEmpty = false,
+  onCommit,
+}: {
+  id: string
+  label: string
+  value: number | undefined
+  min: number
+  max: number
+  allowEmpty?: boolean
+  onCommit: (n: number | undefined) => void
+}) {
+  const [text, setText] = useState(value != null ? String(value) : '')
+  useEffect(() => { setText(value != null ? String(value) : '') }, [value])
+
+  const commit = () => {
+    const raw = text.trim()
+    if (raw === '') {
+      if (allowEmpty) return onCommit(undefined)
+      return setText(value != null ? String(value) : '')
+    }
+    const n = Number(raw)
+    // Out of range reverts rather than clamping: silently turning 19 into 1900
+    // would look like the field accepted what was typed.
+    if (!Number.isFinite(n) || n < min || n > max) {
+      return setText(value != null ? String(value) : '')
+    }
+    onCommit(Math.round(n))
+  }
+
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3">
+      <label className="text-[12px] text-muted" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        value={text}
+        placeholder={allowEmpty ? '—' : undefined}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+        className="w-[110px] rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]"
+      />
     </div>
   )
 }

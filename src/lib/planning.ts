@@ -12,7 +12,7 @@
 // block gains an intent that says what it is for, and this module compares
 // them and says when the combination does not work.
 
-import type { GoalPeriod, Settings } from '../types'
+import type { GoalPeriod, PeriodType, Settings } from '../types'
 import type { TrainingBlock } from './blocks'
 import { getPeriods } from './goalPeriods'
 import { daysBetween } from './dates'
@@ -221,6 +221,70 @@ export function buildBlockPlans(
       proteinTargetG: Math.round(bodyWeightKg * spec.proteinPerKg),
     }
   })
+}
+
+// ── Protein ────────────────────────────────────────────────────────────────
+// Two things raise the requirement above a maintenance baseline, and they
+// stack: hard training, and a calorie deficit. Training is carried by the
+// block's intent (a max-strength block asks more than a base block). The
+// deficit matters because protein is what stops the body meeting an energy
+// shortfall by taking apart muscle, so the deeper the cut the more is needed —
+// which is why the recommendation moves with the *planned rate*, not merely
+// with the fact that a cut is running.
+//
+// Capped at 2.6 g/kg: above that there is no evidence of further benefit, and
+// a target nobody can eat is a target that gets ignored.
+const PROTEIN_CAP_PER_KG = 2.6
+
+export interface ProteinAdvice {
+  gramsPerKg: number
+  grams: number
+  /** Plain-language reasons, in the order they were applied. */
+  reasons: string[]
+}
+
+export function recommendProtein(args: {
+  bodyWeightKg: number
+  intent: BlockIntent | null
+  periodType: PeriodType | null
+  /** kg/week the period plans to lose; 0 or negative for maintenance/bulk. */
+  plannedWeeklyLossKg: number
+}): ProteinAdvice {
+  const { bodyWeightKg, intent, periodType, plannedWeeklyLossKg } = args
+  const reasons: string[] = []
+
+  const base = intent ? INTENTS[intent].proteinPerKg : 1.8
+  reasons.push(
+    intent
+      ? `${INTENTS[intent].label}: ${base.toFixed(1)} g/kg`
+      : `Ei aktiivista blokkia: perustaso ${base.toFixed(1)} g/kg`,
+  )
+
+  let perKg = base
+  if (periodType === 'cut' && plannedWeeklyLossKg > 0) {
+    // Scale with how aggressive the cut is, as a share of body weight per week:
+    // 0.3 %/vko → +0.2, 0.7 %/vko → +0.5, clamped either side.
+    const pctPerWeek = (plannedWeeklyLossKg / bodyWeightKg) * 100
+    const add = Math.min(0.5, Math.max(0.2, 0.2 + ((pctPerWeek - 0.3) / 0.4) * 0.3))
+    perKg += add
+    reasons.push(`Vaje ${pctPerWeek.toFixed(2)} %/vko: +${add.toFixed(1)} g/kg`)
+  } else if (periodType === 'bulk') {
+    perKg += 0.1
+    reasons.push('Bulk: +0,1 g/kg')
+  } else if (periodType) {
+    reasons.push(`${periodType}: ei lisäystä`)
+  }
+
+  if (perKg > PROTEIN_CAP_PER_KG) {
+    perKg = PROTEIN_CAP_PER_KG
+    reasons.push(`Katto ${PROTEIN_CAP_PER_KG} g/kg`)
+  }
+
+  return {
+    gramsPerKg: Math.round(perKg * 100) / 100,
+    grams: Math.round(bodyWeightKg * perKg),
+    reasons,
+  }
 }
 
 /** The target weight a cut spanning `days` may aim for without exceeding what

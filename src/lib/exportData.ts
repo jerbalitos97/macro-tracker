@@ -32,10 +32,11 @@
 import type { AppData, ComputedDay } from '../types'
 import { loadData } from './storage'
 import { computeDays } from './compute'
-import { getPeriods } from './goalPeriods'
+import { getPeriods, getActiveGoal } from './goalPeriods'
+import { recommendProtein, intentOf } from './planning'
 import { computeWeightTrend } from './weight'
 import { getTemplates, getWorkouts, getDraft } from './workouts'
-import { getBlocks } from './blocks'
+import { getBlocks, blockForDate } from './blocks'
 import { getWarmup } from './warmup'
 import { getRestLog } from './restTimer'
 import { getPrefs } from './uiPrefs'
@@ -45,7 +46,7 @@ import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -71,8 +72,9 @@ const README: Record<string, string> = {
     'pattern; plannedDeficit is what the plan asked of that day (0 on weekends when ' +
     'weekendMaintenance is on); budget = tdee − plannedDeficit ± events, buffers, ' +
     'training and manual adjustments. eaten/protein are logged food. burned is ' +
-    'logged training. actualDeficit = tdee + extraKcal − (eaten − burned), and is ' +
-    'null on days with nothing logged — those are gaps, not zeros.',
+    'logged training. proteinTarget is the target in force and proteinVsTarget the ' +
+    'shortfall or surplus that day. actualDeficit = tdee + extraKcal − (eaten − ' +
+    'burned), and is null on days with nothing logged — those are gaps, not zeros.',
   weightTrend:
     '7-day moving average of morning weights. trend is the smoothed value, kg the ' +
     'raw reading. Judge progress on trend; raw weight moves with water and food. ' +
@@ -104,6 +106,13 @@ const README: Record<string, string> = {
   habits: 'Habit definitions and their daily entries (cloud-stored).',
   wealth: 'Assets, their valuations over time, and the wealth goal (cloud-stored).',
   uiPrefs: 'Saved UI arrangement, e.g. the order of tools on the launcher.',
+  protein:
+    'target is the figure in force; recommended is what the active training block and ' +
+    'nutrition phase call for, with the reasoning. A target set above the recommendation ' +
+    'is usually a deliberate buffer for days that fall short — judge adherence on ' +
+    'averageIntake, not on any single day. daysMetTarget counts days at or above target ' +
+    'among days with food logged. Per-day figures are on days[].proteinTarget / ' +
+    'proteinVsTarget.',
   surplusAcknowledged: 'Days whose surplus prompt was answered, so it is not re-offered.',
   raw:
     'The unjoined logs the day rows were built from. raw.unmapped holds any local ' +
@@ -133,10 +142,21 @@ export interface ExportBundle {
   wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
+  protein: {
+    target: number
+    recommended: number
+    recommendedPerKg: number
+    recommendationReasons: string[]
+    bodyWeightKg: number | null
+    loggedDays: number
+    daysMetTarget: number
+    averageIntake: number | null
+    averagePerKg: number | null
+  }
   raw: Record<string, unknown>
 }
 
-function dayRow(d: ComputedDay): Record<string, unknown> {
+function dayRow(d: ComputedDay, proteinTarget: number): Record<string, unknown> {
   return {
     date: d.date,
     weekday: ['su', 'ma', 'ti', 'ke', 'to', 'pe', 'la'][d.dow],
@@ -147,6 +167,8 @@ function dayRow(d: ComputedDay): Record<string, unknown> {
     budget: d.budget,
     eaten: d.consumed,
     protein: d.protein,
+    proteinTarget: proteinTarget,
+    proteinVsTarget: d.consumed > 0 ? Math.round(d.protein - proteinTarget) : null,
     burned: d.burnKcal,
     extraKcal: d.extraKcal,
     preBufferReduction: d.preBufferReduction,
@@ -161,6 +183,47 @@ function dayRow(d: ComputedDay): Record<string, unknown> {
         ? Math.round((d.actualDeficit ?? 0) - d.dailyDeficitBase)
         : null,
     note: d.note || null,
+  }
+}
+
+/** Protein: what was asked for, what is recommended, and what actually went in.
+ *  Logged protein was already exported per day, but the target was only a
+ *  single number buried in settings and the recommendation existed nowhere —
+ *  so adherence could not be judged from the file alone. */
+function proteinSummary(
+  data: AppData,
+  days: ComputedDay[],
+  bodyWeightKg: number | null,
+): ExportBundle['protein'] {
+  const target = data.settings.proteinTarget
+  const today = toISO(new Date())
+  const goal = getActiveGoal(data.settings, today)
+  const block = blockForDate(getBlocks(), today)
+  const weight = bodyWeightKg ?? goal.startWeight
+
+  const advice = recommendProtein({
+    bodyWeightKg: weight,
+    intent: block ? intentOf(block) : null,
+    periodType: goal.type,
+    plannedWeeklyLossKg: goal.weeklyRateKg,
+  })
+
+  const logged = days.filter((d) => d.consumed > 0)
+  const totalProtein = logged.reduce((sum, d) => sum + d.protein, 0)
+
+  return {
+    target,
+    recommended: advice.grams,
+    recommendedPerKg: advice.gramsPerKg,
+    recommendationReasons: advice.reasons,
+    bodyWeightKg: bodyWeightKg == null ? null : Math.round(bodyWeightKg * 100) / 100,
+    loggedDays: logged.length,
+    daysMetTarget: logged.filter((d) => d.protein >= target).length,
+    averageIntake: logged.length > 0 ? Math.round(totalProtein / logged.length) : null,
+    averagePerKg:
+      logged.length > 0 && weight > 0
+        ? Math.round((totalProtein / logged.length / weight) * 100) / 100
+        : null,
   }
 }
 
@@ -242,7 +305,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     app: 'Friday',
-    days: computed.days.map(dayRow),
+    days: computed.days.map((d) => dayRow(d, data.settings.proteinTarget)),
     weightTrend: trend.trendData.map((t) => ({
       date: t.date,
       kg: t.kg,
@@ -260,6 +323,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     wealth,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
+    protein: proteinSummary(data, computed.days, trend.currentTrend),
     raw: {
       meals: data.meals ?? [],
       weights: data.weights ?? [],
