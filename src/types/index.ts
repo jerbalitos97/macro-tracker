@@ -56,6 +56,12 @@ export interface Settings {
   tdee: TdeeMap
   weeklyPattern: Record<number, DayType>
   proteinTarget: number
+  /** Body metrics used to estimate what a logged workout cost. Optional:
+   *  without height and age the estimator falls back to a cruder constant and
+   *  says so. See lib/energy.ts. */
+  heightCm?: number
+  birthYear?: number
+  sex?: 'male' | 'female'
   /** Legacy fallback for accounts with no goal periods yet — see
    *  GoalPeriod.weekendMaintenance. */
   weekendMaintenance?: boolean

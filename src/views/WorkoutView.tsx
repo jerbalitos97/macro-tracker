@@ -7,6 +7,8 @@ import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
 import { toISO, fromISO } from '../lib/dates'
+import type { Settings, TrainingBurn } from '../types'
+import { computeLoggableBurn } from '../lib/energy'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getTemplates, saveTemplate, deleteTemplate, reorderTemplates,
@@ -113,7 +115,16 @@ function TemplateGroup({ group, onOpen, onDelete, onReorder }: GroupProps) {
   )
 }
 
-export function WorkoutView() {
+interface Props {
+  settings: Settings
+  /** Burns already recorded, so a session is never counted twice. */
+  burns: TrainingBurn[]
+  /** Latest smoothed body weight; without it no estimate can be made. */
+  bodyWeightKg: number | null
+  onAddBurn: (burn: { kcal: number; note: string }, date: string) => void
+}
+
+export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props) {
   const todayISO = toISO(new Date())
   const { user } = useAuth()
 
@@ -298,6 +309,25 @@ export function WorkoutView() {
       <>
         <WorkoutSummary
           workout={viewing}
+          burn={
+            bodyWeightKg
+              ? computeLoggableBurn({
+                  workout: viewing,
+                  sameDayWorkouts: workouts.filter((w) => w.date === viewing.date),
+                  settings,
+                  burns,
+                  body: {
+                    weightKg: bodyWeightKg,
+                    heightCm: settings.heightCm,
+                    age: settings.birthYear
+                      ? new Date().getFullYear() - settings.birthYear
+                      : undefined,
+                    sex: settings.sex,
+                  },
+                })
+              : null
+          }
+          onLogBurn={(kcal) => onAddBurn({ kcal, note: viewing.name || 'Treeni' }, viewing.date)}
           onDelete={(id) => {
             setWorkouts(deleteWorkout(id))
             if (user) deleteWorkoutCloud(user.id, id)

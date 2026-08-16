@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
+import { computeWeightTrend } from './lib/weight'
 import { getActiveGoal } from './lib/goalPeriods'
 import { compensationTag } from './lib/compensation'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
@@ -483,7 +484,16 @@ export default function App() {
 
       {view === 'workout' && (
         <m.div key={view} {...viewMotion}>
-          <WorkoutView />
+          <WorkoutView
+            settings={settings}
+            burns={burns}
+            bodyWeightKg={computeWeightTrend(weights).currentTrend}
+            onAddBurn={(burn, date) => {
+              const b = { ...burn, id: Date.now(), date }
+              setBurns((prev) => [...prev, b])
+              if (user) syncBurn(user.id, b)
+            }}
+          />
         </m.div>
       )}
 

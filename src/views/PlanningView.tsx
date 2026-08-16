@@ -444,6 +444,72 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           ))}
         </Card>
 
+        {/* Height, birth year and sex are here for one reason: they let the
+            workout burn estimate use your own resting rate instead of the
+            generic 1 kcal/kg/h constant, which runs high for most people. */}
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Kehon mitat</div>
+          <div className="mb-2 text-[11px] leading-relaxed text-muted">
+            Käytetään treenin kulutusarvioon. Ilman pituutta ja ikää arvio putoaa
+            karkeampaan vakiokaavaan.
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-[12px] text-muted" htmlFor="height-cm">Pituus (cm)</label>
+            <input
+              id="height-cm"
+              type="text"
+              inputMode="numeric"
+              value={settings.heightCm ?? ''}
+              placeholder="—"
+              onChange={(e) => {
+                const raw = e.target.value.trim()
+                if (raw === '') return setSettings({ ...settings, heightCm: undefined })
+                const n = parsePositiveInt(raw)
+                if (n > 0) setSettings({ ...settings, heightCm: n })
+              }}
+              className={`${inputCls} w-[110px]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <label className="text-[12px] text-muted" htmlFor="birth-year">Syntymävuosi</label>
+            <input
+              id="birth-year"
+              type="text"
+              inputMode="numeric"
+              value={settings.birthYear ?? ''}
+              placeholder="—"
+              onChange={(e) => {
+                const raw = e.target.value.trim()
+                if (raw === '') return setSettings({ ...settings, birthYear: undefined })
+                const n = parsePositiveInt(raw)
+                if (n > 1900) setSettings({ ...settings, birthYear: n })
+              }}
+              className={`${inputCls} w-[110px]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <label className="text-[12px] text-muted" htmlFor="sex">Perusaineenvaihdunnan kaava</label>
+            <select
+              id="sex"
+              value={settings.sex ?? ''}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  sex: e.target.value === '' ? undefined : (e.target.value as 'male' | 'female'),
+                })
+              }
+              className={`${inputCls} w-[110px]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
+            >
+              <option value="">Ei asetettu</option>
+              <option value="male">Mies</option>
+              <option value="female">Nainen</option>
+            </select>
+          </div>
+        </Card>
+
         <Card variant="glass" className="mt-2.5">
           <div className={cardLabel}>Proteiinitavoite (g/pv)</div>
           <input
