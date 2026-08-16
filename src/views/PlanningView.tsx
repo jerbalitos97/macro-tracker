@@ -74,6 +74,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
     | null
   >(null)
   const [blockEdit, setBlockEdit] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
+  const [tab, setTab] = useState<'season' | 'basics'>('season')
 
   const saveBlock = (b: TrainingBlock) => {
     setBlocks(saveBlockLocal(b))
@@ -128,12 +129,10 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
   // phase is pushing, so it is derived rather than typed — but it stays
   // overridable, because eating above the number on purpose is a legitimate
   // way to cover the days that fall short.
+  const todayBlock = blockForDate(blocks, todayISO)
   const protein = recommendProtein({
     bodyWeightKg: bodyWeight,
-    intent: (() => {
-      const b = blockForDate(blocks, todayISO)
-      return b ? intentOf(b) : null
-    })(),
+    intent: todayBlock ? intentOf(todayBlock) : null,
     periodType: goal.type,
     plannedWeeklyLossKg: goal.weeklyRateKg,
   })
@@ -158,11 +157,77 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         <h1 className="m-0 font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">
           Suunnittelu
         </h1>
-        <p className="m-0 mt-1 text-[12px] leading-relaxed text-fg-faint">
-          Treeniblokit ja ravintojaksot samalla aikajanalla. Ne pysyvät erillisinä — blokki ja
-          ravintovaihe kulkevat oikeasti eri kelloilla — mutta täällä ne katsotaan yhdessä.
-        </p>
       </div>
+
+      {/* One long scroll mixed "what is in force today" with settings touched
+          twice a year. Two tabs separate them; the data and the mechanisms
+          behind them are unchanged. */}
+      <div role="tablist" className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
+        {([['season', 'Kausi'], ['basics', 'Perusarvot']] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`rounded-[10px] py-2 font-mono text-[11px] uppercase tracking-[0.08em] !min-h-0 ${
+              tab === id ? 'bg-white/[0.10] text-text' : 'text-fg-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'season' && (
+      <>
+      {/* ── What is in force today ────────────────────────────────
+          Block, nutrition phase and the day's asks in one place. Everything
+          here is derived, so it moves the moment any input does: change the
+          block, log a weigh-in, edit the period — this card is the proof. */}
+      <Card variant="glass">
+        <div className={cardLabel}>Voimassa tänään</div>
+        <div className="flex flex-col gap-2">
+          <NowRow
+            k="Treeniblokki"
+            v={todayBlock ? (todayBlock.name || INTENTS[intentOf(todayBlock)].label) : 'ei blokkia'}
+            sub={todayBlock ? INTENTS[intentOf(todayBlock)].label : undefined}
+            color={todayBlock?.color}
+          />
+          <NowRow
+            k="Ravintovaihe"
+            v={`${PERIOD_TYPE_LABEL[goal.type]} · ${goal.startWeight.toFixed(1)} → ${goal.targetWeight.toFixed(1)} kg`}
+            sub={`${formatDateShort(goal.startDate)} – ${formatDateShort(goal.endDate)} · päivä ${goal.elapsedDays}/${goal.totalDays}`}
+            color={PERIOD_COLOR[goal.type]}
+          />
+          <NowRow
+            k="Tahti"
+            v={goal.weeklyRateKg > 0 ? `−${goal.weeklyRateKg.toFixed(2)} kg/vko` : 'ylläpito'}
+            sub={
+              todayBlock
+                ? INTENTS[intentOf(todayBlock)].maxWeeklyLossPct === null
+                  ? 'blokki ei siedä vajetta'
+                  : `blokin katto ${((bodyWeight * (INTENTS[intentOf(todayBlock)].maxWeeklyLossPct ?? 0)) / 100).toFixed(2)} kg/vko`
+                : undefined
+            }
+          />
+          <NowRow
+            k="Proteiini"
+            v={`${settings.proteinTarget} g/pv`}
+            sub={
+              settings.proteinTarget === protein.grams
+                ? `suositus ${protein.grams} g (${protein.gramsPerKg} g/kg)`
+                : `suositus ${protein.grams} g — omasi ${settings.proteinTarget > protein.grams ? '+' : '−'}${Math.abs(settings.proteinTarget - protein.grams)} g`
+            }
+          />
+          <NowRow k="Paino laskennassa" v={`${bodyWeight.toFixed(1)} kg`} sub="7 pv liukuva keskiarvo" />
+        </div>
+        {clashes.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-1.5 rounded-[8px] border border-danger/25 bg-danger/[0.06] px-3 py-2 text-[11px] text-danger">
+            <AlertTriangle size={12} className="flex-shrink-0" />
+            {clashes.length} ristiriita{clashes.length === 1 ? '' : 'a'} alla
+          </div>
+        )}
+      </Card>
 
       <Timeline periods={periods} blocks={blocks} todayISO={todayISO} />
 
@@ -370,15 +435,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </div>
         </Card>
 
+        {/* The identity of the active period is already in "Voimassa tänään"
+            at the top; what is left here is the arithmetic it implies. */}
         <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Voimassa oleva tavoite</div>
-          <div className="text-[12px] font-semibold text-text">
-            {PERIOD_TYPE_LABEL[goal.type]} · {goal.startWeight.toFixed(1)} → {goal.targetWeight.toFixed(1)} kg
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted">
-            {formatDateShort(goal.startDate)} – {formatDateShort(goal.endDate)} · {goal.totalDays} päivää · päivä {goal.elapsedDays}
-          </div>
-          <div className="mt-2 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
+          <div className={cardLabel}>Mitä aktiivinen jakso vaatii</div>
+          <div className="rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
             <Row k="Muutos" v={`${goal.kgToChange.toFixed(1)} kg`} />
             {goalPlansDeficit ? (
               <>
@@ -401,6 +462,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         </Card>
       </div>
 
+      </>
+      )}
+
+      {tab === 'basics' && (
+      <>
       {/* ── Physiology ────────────────────────────────────────────
           TDEE, the weekly rhythm and the protein target decide every daily
           budget, so they belong with the planning rather than in an
@@ -575,6 +641,9 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </p>
         </div>
       </details>
+
+      </>
+      )}
 
       {modal?.mode === 'create-for-block' && (
         <GoalPeriodModal
@@ -882,6 +951,32 @@ function NumField({
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
         className="w-[110px] rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]"
       />
+    </div>
+  )
+}
+
+function NowRow({
+  k,
+  v,
+  sub,
+  color,
+}: {
+  k: string
+  v: string
+  sub?: string
+  color?: string
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div
+        className="mt-[3px] h-7 w-1 flex-shrink-0 rounded-sm"
+        style={{ backgroundColor: color ?? 'rgba(255,255,255,0.14)' }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">{k}</div>
+        <div className="truncate text-[13px] font-semibold text-text">{v}</div>
+        {sub && <div className="truncate text-[10px] text-fg-faint">{sub}</div>}
+      </div>
     </div>
   )
 }
