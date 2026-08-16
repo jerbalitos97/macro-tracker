@@ -1,5 +1,37 @@
 # Deployment
 
+**Tuotanto päivittyy automaattisesti, kun `main`-haaraan pushataan.** Käsin
+buildaamista tai `vercel --prod`-komentoa ei tarvita.
+
+Automaatti vaatii yhden kertaluontoisen kytkennän — valitse jompikumpi, älä
+molempia (muuten jokainen push deployaa kahdesti):
+
+**A. Vercelin oma Git-integraatio (suositeltu, ei salaisuuksia)**
+Vercel → projekti → Settings → Git → Connect `jerbalitos97/macro-tracker`.
+Tämän jälkeen Vercel buildaa ja julkaisee jokaisen `main`-pushin itse, ja
+`.github/workflows/deploy.yml` jää lepäämään. Aseta lisäksi repositoryyn
+muuttuja `DEPLOY_TARGET=vercel-git` (Settings → Secrets and variables →
+Actions → Variables), niin workflow ei edes käynnisty.
+
+**B. GitHub Actions (`.github/workflows/deploy.yml`, jo repossa)**
+Lisää kolme salaisuutta (Settings → Secrets and variables → Actions):
+
+| Secret | Mistä |
+| --- | --- |
+| `VERCEL_TOKEN` | vercel.com/account/tokens |
+| `VERCEL_ORG_ID` | `.vercel/project.json` (`vercel link`) |
+| `VERCEL_PROJECT_ID` | sama tiedosto |
+
+Workflow tarkistaa tokenin olemassaolon ensin, joten ilman salaisuuksia se
+ohittaa deployn siististi eikä kaadu punaiseksi.
+
+Muista bumpata `public/sw.js`:n `CACHE`-versio kun julkaiset — service worker
+tarjoilee vanhaa buildia kunnes cachen nimi vaihtuu.
+
+---
+
+## Muut alustat
+
 Kaikki alla olevat vaatii vain `npm run build` → staattisten tiedostojen jako `dist/`-kansiosta.
 
 ---
@@ -37,7 +69,7 @@ Vite-config: lisää `base: '/repo-nimi/'` jos ei ole root-domain.
 
 ---
 
-## Vercel (ilmainen)
+## Vercel käsin (varajärjestelmä, jos automaatti on rikki)
 
 ```sh
 npm install -g vercel

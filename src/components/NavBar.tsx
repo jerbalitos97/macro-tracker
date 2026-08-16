@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Target, Wallet, Dumbbell, ShoppingBasket } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type View =
@@ -7,8 +7,7 @@ type View =
   | 'habits'
   | 'calendar'
   | 'weight'
-  | 'history'
-  | 'goal'
+  | 'analysis'
   | 'settings'
   | 'wealth'
   | 'wealth-settings'
@@ -29,8 +28,8 @@ const FITNESS_TABS: Tab[] = [
   { id: 'today',    label: 'Tänään',    Icon: Home },
   { id: 'calendar', label: 'Kalenteri', Icon: CalendarDays },
   { id: 'weight',   label: 'Paino',     Icon: TrendingDown },
-  { id: 'history',  label: 'Trendit',   Icon: BarChart2 },
-  { id: 'goal',     label: 'Tavoite',   Icon: Target },
+  // Trendit and Tavoite were the same question asked twice — one tab now.
+  { id: 'analysis', label: 'Analyysi',  Icon: BarChart2 },
   { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
 

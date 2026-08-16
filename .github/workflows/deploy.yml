@@ -1,0 +1,66 @@
+name: Deploy
+
+# Every push to main goes live. No local build, no `vercel --prod` by hand.
+#
+# The job is guarded on VERCEL_TOKEN being present so that this file is inert
+# until the secrets exist — and stays inert if you connect Vercel's own Git
+# integration instead, which deploys on push without any secrets at all. Use
+# one or the other, never both, or every push deploys twice.
+#
+# To use this workflow, add three repository secrets
+# (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN       vercel.com/account/tokens
+#   VERCEL_ORG_ID      from .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID  same file
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  vercel:
+    if: ${{ vars.DEPLOY_TARGET != 'vercel-git' }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check for deploy credentials
+        id: creds
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN is not set — skipping deploy. Add the three secrets listed in .github/workflows/deploy.yml, or connect Vercel's Git integration instead."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.creds.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.creds.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.creds.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Typecheck and build
+        if: steps.creds.outputs.ready == 'true'
+        run: npm run build
+
+      - name: Deploy to production
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          npm i --no-save vercel@latest
+          npx vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+          npx vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          npx vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"

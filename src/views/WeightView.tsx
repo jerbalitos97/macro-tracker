@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
-import type { WeightEntry, Meal, Settings } from '../types'
-import { toISO, addDays, formatDateShort } from '../lib/dates'
+import type { WeightEntry } from '../types'
+import { toISO, formatDateShort } from '../lib/dates'
 import { parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
-import { computeWeightTrend, estimateTdeeAdjustment } from '../lib/weight'
-import { getActiveGoal } from '../lib/goalPeriods'
-import { WeightChart } from '../components/WeightChart'
-import { ProgressBar } from '../components/ProgressBar'
+import { computeWeightTrend } from '../lib/weight'
+import { analyzeBloat } from '../lib/bloat'
 import { Card, Button, Field } from '../components/ui'
+
+// Logging only. Everything that judges progress — target lines, projections,
+// the TDEE check, the deficit arithmetic — moved to Analyysi, so this screen
+// answers exactly two questions: what have I recorded, and which of those
+// readings is the current average built from.
 
 const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
@@ -17,30 +20,14 @@ interface Props {
   onAddWeight: (w: Omit<WeightEntry, 'id'>) => void
   onDeleteWeight: (id: number) => void
   onToggleExclude: (id: number) => void
-  settings: Settings
-  meals: Meal[]
 }
 
-export function WeightView({
-  weights,
-  onAddWeight,
-  onDeleteWeight,
-  onToggleExclude,
-  settings,
-  meals,
-}: Props) {
+export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclude }: Props) {
   const [form, setForm] = useState({ date: toISO(new Date()), kg: '' })
   const [showAll, setShowAll] = useState(false)
 
-  // The goal in force, not the legacy settings fields — those still hold the
-  // very first cut and would put its target on a later period's chart.
-  const goal = getActiveGoal(settings, toISO(new Date()))
-
   const trend = useMemo(() => computeWeightTrend(weights), [weights])
-  const tdeeEval = useMemo(
-    () => estimateTdeeAdjustment(weights, meals, settings),
-    [weights, meals, settings]
-  )
+  const bloat = useMemo(() => analyzeBloat(weights, trend), [weights, trend])
 
   const handleAdd = () => {
     const kg = parsePositiveDecimal(form.kg)
@@ -52,9 +39,8 @@ export function WeightView({
   const sortedWeights = [...weights].sort((a, b) => b.date.localeCompare(a.date))
   const displayedWeights = showAll ? sortedWeights : sortedWeights.slice(0, 10)
 
-  // IDs currently feeding the displayed "Liukuva keskiarvo (7 pv)" — the latest
-  // 7 non-excluded entries. Highlight those so the user sees which weigh-ins
-  // are actively shaping the number.
+  // The latest 7 non-excluded entries — exactly what the displayed average is
+  // built from, highlighted so it is never a mystery which readings move it.
   const activeAvgIds = useMemo(() => {
     const lastSeven = [...weights]
       .filter((w) => !w.excludeFromTrend)
@@ -63,28 +49,16 @@ export function WeightView({
     return new Set(lastSeven.map((w) => w.id))
   }, [weights])
 
-  const projectedDate = useMemo(() => {
-    if (!trend.currentTrend || !trend.weeklyChange || trend.weeklyChange >= 0) return null
-    const kgToLose = trend.currentTrend - goal.targetWeight
-    if (kgToLose <= 0) return 'saavutettu'
-    const weeksNeeded = kgToLose / Math.abs(trend.weeklyChange)
-    return addDays(toISO(new Date()), Math.round(weeksNeeded * 7))
-  }, [trend, goal.targetWeight])
-
-  const targetWeeklyRate = (
-    goal.weeklyRateKg
-  ).toFixed(2)
-
   return (
     <div className="px-4 pb-2 pt-4">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="mb-4">
         <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">Paino</div>
-        <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">7 pv liukuva trendi</div>
+        <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">Kirjaukset ja keskiarvo</div>
       </div>
 
-      {/* ── Trend card ──────────────────────────────────────────────── */}
+      {/* ── Current average ─────────────────────────────────────────── */}
       <Card variant="glass">
         <div className={cardLabel}>Liukuva keskiarvo (7 pv)</div>
         {trend.currentTrend ? (
@@ -101,17 +75,18 @@ export function WeightView({
                   {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
                   <span className="text-[11px] font-normal text-muted"> kg/vko</span>
                 </div>
-                <div className="mt-0.5 text-[10px] text-fg-ghost">
-                  tavoite −{targetWeeklyRate} kg/vko
-                </div>
+                <div className="mt-0.5 text-[10px] text-fg-ghost">14 pv:n muutos</div>
               </div>
             )}
           </div>
         ) : (
           <div className="mt-1 text-[13px] leading-relaxed text-fg-ghost">
-            Kirjaa vähintään 2 päivän paino<br />aloittaaksesi trendin.
+            Kirjaa vähintään 2 päivän paino<br />aloittaaksesi keskiarvon.
           </div>
         )}
+        <p className="m-0 mt-3 border-t border-white/[0.06] pt-2.5 text-[11px] leading-relaxed text-fg-ghost">
+          Vertailu tavoitteeseen, ennusteet ja kulutusarvio ovat Analyysi-välilehdellä.
+        </p>
       </Card>
 
       {/* ── Add weight form ──────────────────────────────────────────── */}
@@ -147,78 +122,6 @@ export function WeightView({
         </Button>
       </Card>
 
-      {/* ── TDEE evaluation ──────────────────────────────────────────── */}
-      {tdeeEval && (
-        <Card
-          className={`mt-2.5 ${
-            tdeeEval.ready && tdeeEval.significantError
-              ? 'border-accent/20 bg-accent/[0.04]'
-              : ''
-          }`}
-        >
-          <div className={cardLabel}>TDEE-arviointi</div>
-          {!tdeeEval.ready ? (
-            <div className="text-[12px] leading-relaxed text-muted">{tdeeEval.message}</div>
-          ) : tdeeEval.significantError ? (
-            <>
-              <div className="mb-2.5 text-[13px] leading-relaxed text-accent">
-                Trendi ei vastaa TDEE-arvioita. Suositus:{' '}
-                {tdeeEval.direction === 'lower' ? 'laske' : 'nosta'} TDEE:tä noin{' '}
-                <strong>{Math.abs(Math.round(tdeeEval.tdeeError))} kcal</strong> kaikissa päivätyypeissä.
-              </div>
-              <div className="text-[11px] leading-relaxed text-muted">
-                Implikoitu vaje (paino): {Math.round(tdeeEval.trendImpliedDailyDeficit)} kcal/pv<br />
-                Oletettu vaje (TDEE): {Math.round(tdeeEval.assumedDailyDeficit)} kcal/pv<br />
-                Ero: {tdeeEval.tdeeError > 0 ? '+' : ''}{Math.round(tdeeEval.tdeeError)} kcal/pv
-              </div>
-            </>
-          ) : (
-            <div className="text-[13px] text-accent">
-              ✓ TDEE-arvio matchää painotrendin kanssa (ero alle 100 kcal/pv).
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ── Projection ───────────────────────────────────────────────── */}
-      {projectedDate && projectedDate !== 'saavutettu' && (
-        <Card className="mt-2.5">
-          <div className={cardLabel}>Ennuste tavoitteeseen ({goal.targetWeight} kg)</div>
-          <div className="text-[16px] font-semibold text-text">{formatDateShort(projectedDate)}</div>
-          <div className="mt-1 text-[11px] text-muted">
-            Cut-jakson loppu: {formatDateShort(goal.endDate)}
-            {projectedDate <= goal.endDate
-              ? <span className="ml-2 text-accent">✓ ehditään</span>
-              : <span className="ml-2 text-danger">× ei ehditä nykyisellä tempolla</span>
-            }
-          </div>
-        </Card>
-      )}
-
-      {/* ── Chart ────────────────────────────────────────────────────── */}
-      {trend.trendData.length >= 3 && (
-        <Card className="mt-2.5">
-          <div className={cardLabel}>Trendi</div>
-          <WeightChart trendData={trend.trendData} settings={settings} />
-        </Card>
-      )}
-
-      {/* ── Progress bar to target ───────────────────────────────────── */}
-      {trend.currentTrend && (
-        <Card className="mt-2.5">
-          <div className={cardLabel}>Matka tavoitteeseen</div>
-          <div className="flex justify-between text-[12px] text-muted">
-            <span>{goal.startWeight} kg</span>
-            <span>{goal.targetWeight} kg</span>
-          </div>
-          <ProgressBar
-            value={(goal.startWeight - trend.currentTrend) / (goal.startWeight - goal.targetWeight)}
-            color="#22d3ee"
-            height={6}
-          />
-        </Card>
-      )}
-
       {/* ── Weight log ───────────────────────────────────────────────── */}
       {weights.length > 0 && (
         <div className="mt-[18px]">
@@ -231,6 +134,11 @@ export function WeightView({
           <div className="list-stagger">
             {displayedWeights.map((w) => {
               const inAvg = activeAvgIds.has(w.id)
+              // A reading well above its own 7-day average is a swing, not a
+              // gain. Marking it here stops a heavy Sunday reading from
+              // reading as a setback — the pattern itself is measured in
+              // Analyysi under "Viikkorytmi ja turvotus".
+              const swing = bloat.spikeDates.has(w.date) && !w.excludeFromTrend
               return (
                 <div
                   key={w.id}
@@ -249,7 +157,7 @@ export function WeightView({
                       }}
                     />
                     <div>
-                      <div className={`text-[15px] font-[650] tabular-nums tracking-[-0.01em] ${inAvg ? 'text-text' : 'text-text'}`}>
+                      <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
                         {w.kg.toFixed(1)}
                         <span className="ml-1 text-[11px] font-normal text-fg-faint">kg</span>
                         {w.excludeFromTrend ? (
@@ -262,7 +170,10 @@ export function WeightView({
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-px text-[10px] text-fg-ghost">{formatDateShort(w.date)}</div>
+                      <div className="mt-px text-[10px] text-fg-ghost">
+                        {formatDateShort(w.date)}
+                        {swing && <span className="ml-2 text-[9px] text-fg-faint">· turvotuspiikki</span>}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -275,11 +186,12 @@ export function WeightView({
                       }`}
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >
-                      {w.excludeFromTrend ? '+ trendi' : '− trendi'}
+                      {w.excludeFromTrend ? '+ keskiarvo' : '− keskiarvo'}
                     </button>
                     <button
                       className="icon-btn flex items-center justify-center rounded-md p-1.5 text-fg-ghost"
                       onClick={() => onDeleteWeight(w.id)}
+                      aria-label="Poista kirjaus"
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >
                       <Trash2 size={13} />

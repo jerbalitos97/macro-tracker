@@ -3,6 +3,7 @@ import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingB
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
 import { getActiveGoal } from './lib/goalPeriods'
+import { compensationTag } from './lib/compensation'
 import { loadData, saveData, exportJSON, importJSON, storageUsedBytes } from './lib/storage'
 import {
   syncSettings, syncMeal, deleteMeal as syncDeleteMeal,
@@ -35,8 +36,7 @@ import { sharedListIdFromUrl } from './lib/grocery'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
-import { HistoryView } from './views/HistoryView'
-import { GoalView } from './views/GoalView'
+import { AnalysisView } from './views/AnalysisView'
 import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
 import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion/react'
@@ -304,6 +304,33 @@ export default function App() {
         : { id: Date.now() + Math.floor(Math.random() * 1000), date, kcal: newKcal, note: tag }
       setAdjustments((prev) => [...prev.filter((a) => a.date !== date), updated])
       syncAdjustment(user.id, updated)
+    },
+    [user, adjustments],
+  )
+
+  // Shared by the analysis screen's tasoitus suggestion and by settling a
+  // single past day from the calendar: write a signed kcal spread across
+  // future days as daily adjustments, each tagged with what it came from so
+  // the source day can show itself as settled.
+  const applyRollout = useCallback(
+    (days: Array<{ date: string; kcal: number }>, sourceKey: string) => {
+      const tag = compensationTag(sourceKey)
+      const written: DailyAdjustment[] = []
+      let acc = [...adjustments]
+      days.forEach((d, i) => {
+        const existing = acc.find((a) => a.date === d.date)
+        const kcal = (existing?.kcal ?? 0) + d.kcal
+        const note = existing?.note?.includes(tag)
+          ? existing.note
+          : [existing?.note, tag].filter(Boolean).join(' · ')
+        const a: DailyAdjustment = existing
+          ? { ...existing, kcal, note }
+          : { id: Date.now() + i, date: d.date, kcal, note }
+        acc = [...acc.filter((x) => x.date !== d.date), a]
+        written.push(a)
+      })
+      setAdjustments(acc)
+      if (user) written.forEach((a) => syncAdjustment(user.id, a))
     },
     [user, adjustments],
   )
@@ -624,6 +651,9 @@ export default function App() {
               setAdjustments((prev) => prev.filter((a) => a.id !== id))
               if (user) syncDeleteAdjustment(user.id, id)
             }}
+            adjustments={adjustments}
+            goalEndDate={goalEndDate}
+            onApplyRollout={applyRollout}
             meals={meals}
             burns={burns}
             onAddMealOnDate={(meal, date) => {
@@ -675,21 +705,19 @@ export default function App() {
                 }),
               )
             }}
-            settings={settings}
-            meals={meals}
           />
         </m.div>
       )}
 
-      {view === 'history' && (
+      {view === 'analysis' && (
         <m.div key={view} {...viewMotion}>
-          <HistoryView computed={computed} settings={settings} weights={weights} />
-        </m.div>
-      )}
-
-      {view === 'goal' && (
-        <m.div key={view} {...viewMotion}>
-          <GoalView settings={settings} weights={weights} computed={computed} />
+          <AnalysisView
+            computed={computed}
+            settings={settings}
+            weights={weights}
+            meals={meals}
+            onApplyRollout={applyRollout}
+          />
         </m.div>
       )}
 

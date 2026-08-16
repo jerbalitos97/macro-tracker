@@ -1,4 +1,5 @@
 import type { ComputedDay } from '../types'
+import { stripTags } from '../lib/compensation'
 
 interface Props {
   day: ComputedDay
@@ -39,7 +40,7 @@ export function DayBreakdown({ day }: Props) {
       ))}
       {day.adjustment && day.adjustment.kcal !== 0 && (
         <div className={row}>
-          <span className={label}>Säätö{day.adjustment.note ? ` · ${day.adjustment.note}` : ''}</span>
+          <span className={label}>Säätö{stripTags(day.adjustment.note) ? ` · ${stripTags(day.adjustment.note)}` : ''}</span>
           <span className={`${val} ${day.adjustment.kcal > 0 ? 'text-protein' : 'text-danger'}`}>
             {day.adjustment.kcal > 0 ? '+' : '−'}{Math.abs(day.adjustment.kcal)}
           </span>

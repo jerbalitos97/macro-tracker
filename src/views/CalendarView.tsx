@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2, Plus, Flame, X } from 'lucide-react'
-import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout, Meal, TrainingBurn } from '../types'
+import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2, Plus, Flame, X, Check, CornerDownRight } from 'lucide-react'
+import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout, Meal, TrainingBurn, DailyAdjustment } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { parsePositiveInt, parsePositiveDecimal } from '../lib/format'
+import { dayDelta, isCompensated, compensatedKcal } from '../lib/compensation'
+import { RolloutModal } from '../components/RolloutModal'
 import { CalendarGrid } from '../components/CalendarGrid'
 import { DayBreakdown } from '../components/DayBreakdown'
 import { MealRow } from '../components/MealRow'
@@ -32,6 +34,10 @@ interface Props {
   extras: ExtraWorkout[]
   meals: Meal[]
   burns: TrainingBurn[]
+  adjustments: DailyAdjustment[]
+  /** Last date a rollout may place an adjustment on — the goal period's end. */
+  goalEndDate: string
+  onApplyRollout: (days: Array<{ date: string; kcal: number }>, sourceKey: string) => void
   onAddEvent: (ev: Omit<SpecialEvent, 'id'>) => void
   onDeleteEvent: (id: number) => void
   onAddExtra: (ex: Omit<ExtraWorkout, 'id'>) => void
@@ -53,6 +59,9 @@ export function CalendarView({
   extras,
   meals,
   burns,
+  adjustments,
+  goalEndDate,
+  onApplyRollout,
   onAddEvent,
   onDeleteEvent,
   onAddExtra,
@@ -65,6 +74,7 @@ export function CalendarView({
   onDeleteBurn,
 }: Props) {
   const [modalType, setModalType] = useState<'event' | 'extra' | 'adjustment' | null>(null)
+  const [rolloutFor, setRolloutFor] = useState<{ date: string; delta: number } | null>(null)
   const [showMealForm, setShowMealForm] = useState(false)
   const [showBurnForm, setShowBurnForm] = useState(false)
   const [mealForm, setMealForm] = useState({ kcal: '', protein: '' })
@@ -147,6 +157,12 @@ export function CalendarView({
           <div className="mt-3.5 border-t border-white/[0.1] pt-3.5">
             <DayBreakdown day={selectedDay} />
           </div>
+          <SettleRow
+            day={selectedDay}
+            todayISO={todayISO}
+            adjustments={adjustments}
+            onSettle={(delta) => setRolloutFor({ date: selectedDay.date, delta })}
+          />
           {selectedDay.events.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {selectedDay.events.map((e) => (
@@ -311,6 +327,25 @@ export function CalendarView({
           onClose={() => setModalType(null)}
         />
       )}
+      {rolloutFor && (
+        <RolloutModal
+          title={`Jalkauta ${formatDateShort(rolloutFor.date)}`}
+          description={
+            rolloutFor.delta < 0
+              ? `Päivä jäi ${Math.abs(rolloutFor.delta).toLocaleString('fi-FI')} kcal suunnitelmastaan. Tämä kuittaa eron tulevilta päiviltä tiukentamalla niiden budjettia.`
+              : `Päivä ylitti suunnitelmansa ${rolloutFor.delta.toLocaleString('fi-FI')} kcal:lla. Tämä jakaa ylimäärän tuleville päiville, jolloin niiden budjetti löystyy.`
+          }
+          totalKcal={rolloutFor.delta}
+          suggestedDays={3}
+          fromDate={todayISO > rolloutFor.date ? todayISO : rolloutFor.date}
+          lastDate={goalEndDate}
+          onApply={(days) => {
+            onApplyRollout(days, rolloutFor.date)
+            setRolloutFor(null)
+          }}
+          onClose={() => setRolloutFor(null)}
+        />
+      )}
       {modalType === 'adjustment' && (
         <AdjustmentModal
           date={selectedDate}
@@ -333,6 +368,58 @@ export function CalendarView({
           }
           onClose={() => setModalType(null)}
         />
+      )}
+    </div>
+  )
+}
+
+// A past day that came in over or under its plan can be settled onto future
+// days without leaving the calendar. Once settled, the button reports it —
+// the marker is derived from the adjustments themselves, so deleting them
+// un-settles the day, and it is the same on every device.
+function SettleRow({
+  day,
+  todayISO,
+  adjustments,
+  onSettle,
+}: {
+  day: ComputedDay
+  todayISO: string
+  adjustments: DailyAdjustment[]
+  onSettle: (delta: number) => void
+}) {
+  if (day.date >= todayISO) return null
+  const delta = dayDelta(day)
+  if (delta === null || Math.abs(delta) < 50) return null
+
+  const done = isCompensated(adjustments, day.date)
+  const settled = compensatedKcal(adjustments, day.date)
+  const short = delta < 0
+
+  return (
+    <div className="mt-3 border-t border-white/[0.1] pt-3">
+      <div className="mb-2 flex items-baseline justify-between text-xs">
+        <span className="text-muted">Ero suunnitelmaan</span>
+        <span className={`tabular-nums font-semibold ${short ? 'text-danger' : 'text-protein'}`}>
+          {delta > 0 ? '+' : ''}{delta.toLocaleString('fi-FI')} kcal
+        </span>
+      </div>
+      {done ? (
+        <div className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[rgba(100,200,120,0.28)] bg-[rgba(100,200,120,0.08)] px-4 py-[11px] text-[12px] text-[#7fd694]">
+          <Check size={14} />
+          {short ? 'Vaje kompensoitu' : 'Ylimeno kompensoitu'}
+          <span className="text-[10px] text-[#7fd694]/70">
+            ({settled > 0 ? '+' : ''}{settled.toLocaleString('fi-FI')} kcal)
+          </span>
+        </div>
+      ) : (
+        <button
+          onClick={() => onSettle(delta)}
+          className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/[0.14] bg-white/[0.03] px-4 py-[11px] text-[12px] text-text"
+        >
+          <CornerDownRight size={14} />
+          Jalkauta ero tuleville päiville
+        </button>
       )}
     </div>
   )
