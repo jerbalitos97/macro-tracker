@@ -18,6 +18,11 @@ export interface TrainingBlock {
   endDate: string
   color: string
   note?: string
+  /** What the block is for — drives what deficit it tolerates. See
+   *  lib/planning.ts. Absent on blocks created before intents existed; those
+   *  read as 'other'. Typed as string here so blocks.ts stays free of a
+   *  dependency on planning.ts, which imports from it. */
+  intent?: string
   createdAt: string
   updatedAt: string
 }
@@ -65,6 +70,7 @@ export function newBlock(startDate: string, weeks = 6): TrainingBlock {
     startDate,
     endDate: addDays(startDate, weeks * 7 - 1),
     color: BLOCK_COLORS[0],
+    intent: 'base',
     createdAt: now,
     updatedAt: now,
   }
@@ -78,6 +84,7 @@ interface BlockRow {
   end_date: string
   color: string | null
   note: string | null
+  intent: string | null
   created_at: string
   updated_at: string
 }
@@ -89,6 +96,7 @@ const fromRow = (r: BlockRow): TrainingBlock => ({
   endDate: r.end_date,
   color: r.color ?? BLOCK_COLORS[0],
   note: r.note ?? undefined,
+  intent: r.intent ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -124,6 +132,7 @@ export function syncBlockCloud(userId: string, b: TrainingBlock): void {
       end_date: b.endDate,
       color: b.color,
       note: b.note ?? null,
+      intent: b.intent ?? null,
       created_at: b.createdAt,
       updated_at: b.updatedAt,
     })

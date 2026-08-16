@@ -37,6 +37,7 @@ import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
 import { WeightView } from './views/WeightView'
 import { AnalysisView } from './views/AnalysisView'
+import { PlanningView } from './views/PlanningView'
 import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
 import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion/react'
@@ -706,6 +707,12 @@ export default function App() {
               )
             }}
           />
+        </m.div>
+      )}
+
+      {view === 'planning' && (
+        <m.div key={view} {...viewMotion}>
+          <PlanningView settings={settings} setSettings={setSettings} weights={weights} />
         </m.div>
       )}
 

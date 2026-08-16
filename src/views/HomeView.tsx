@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle } from 'lucide-react'
+import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
@@ -25,6 +25,7 @@ const TOOLS: Tool[] = [
   { id: 'wealth',  label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
   { id: 'workout', label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
   { id: 'grocery', label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
+  { id: 'plan',    label: 'Suunnittelu',      Icon: CalendarRange,  color: '#e8b85a', target: 'planning' },
   { id: 'friday',  label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
 ]
 

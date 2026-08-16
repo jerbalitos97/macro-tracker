@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ComputedResult, Settings, WeightEntry, Meal, TdeeEvalResult } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { computeWeightTrend, estimateTdeeAdjustment } from '../lib/weight'
 import { buildAnalysis } from '../lib/analysis'
 import { analyzeBloat } from '../lib/bloat'
-import { getPeriods } from '../lib/goalPeriods'
+import { getPeriods, getActivePeriod, getPeriodForDate } from '../lib/goalPeriods'
+import { getBlocks, pullBlocks, blockForDate } from '../lib/blocks'
+import type { TrainingBlock } from '../lib/blocks'
+import { INTENTS, intentOf, plannedWeeklyLossKg } from '../lib/planning'
+import { useAuth } from '../contexts/AuthContext'
 import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
 import { RolloutModal } from '../components/RolloutModal'
@@ -48,8 +52,17 @@ interface Props {
 }
 
 export function AnalysisView({ computed, settings, weights, meals, onApplyRollout }: Props) {
+  const { user } = useAuth()
   const todayISO = toISO(new Date())
   const [showRollout, setShowRollout] = useState(false)
+  const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
+
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    pullBlocks(user.id).then((b) => { if (alive) setBlocks(b) })
+    return () => { alive = false }
+  }, [user])
 
   const trend = useMemo(() => computeWeightTrend(weights), [weights])
   const a = useMemo(
@@ -61,6 +74,11 @@ export function AnalysisView({ computed, settings, weights, meals, onApplyRollou
   const periods = useMemo(() => getPeriods(settings), [settings])
 
   const goal = a.goal
+  const activeBlock = blockForDate(blocks, todayISO)
+  // The period covering *today*, not merely the one flagged active — a period
+  // planned for a future block is active but says nothing about this week's
+  // training. Fall back to the active one when today sits between periods.
+  const periodNow = getPeriodForDate(settings, todayISO) ?? getActivePeriod(settings, todayISO)
   const progressPct = goal.totalDays > 0 ? (goal.elapsedDays / goal.totalDays) * 100 : 0
   const tone = TONE[a.headline.tone]
 
@@ -122,6 +140,14 @@ export function AnalysisView({ computed, settings, weights, meals, onApplyRollou
           </dl>
         )}
       </div>
+
+      {activeBlock && (
+        <BlockFitCard
+          block={activeBlock}
+          plannedKg={periodNow ? plannedWeeklyLossKg(periodNow) : 0}
+          bodyWeight={a.currentTrend ?? goal.startWeight}
+        />
+      )}
 
       <Explain summary="Miksi sijainti ja vauhti voivat kertoa eri asiaa">
         <p className="m-0 mb-1.5">
@@ -538,5 +564,60 @@ function TdeeCard({ tdee }: { tdee: TdeeEvalResult | null }) {
         )}
       </div>
     </Card>
+  )
+}
+
+/** What the training block currently running asks of the nutrition plan. Not a
+ *  verdict of its own — it is one line of context under the verdict, because
+ *  the app already learned what happens when three cards each declare how it
+ *  is going. Planning and fixing happen in Suunnittelu. */
+function BlockFitCard({
+  block,
+  plannedKg,
+  bodyWeight,
+}: {
+  block: TrainingBlock
+  plannedKg: number
+  bodyWeight: number
+}) {
+  const intent = intentOf(block)
+  const spec = INTENTS[intent]
+  const allowedKg = spec.maxWeeklyLossPct === null ? null : (bodyWeight * spec.maxWeeklyLossPct) / 100
+  const over = allowedKg === null ? plannedKg > 0 : plannedKg > allowedKg
+
+  return (
+    <div
+      className="mt-2.5 rounded-panel border px-3.5 py-3"
+      style={{
+        borderColor: over ? 'rgba(232,184,90,0.25)' : 'rgba(255,255,255,0.10)',
+        backgroundColor: over ? 'rgba(232,184,90,0.05)' : 'rgba(9,11,20,0.45)',
+      }}
+    >
+      <div className="flex items-start gap-2.5">
+        <div
+          className="mt-0.5 h-7 w-1 flex-shrink-0 rounded-sm"
+          style={{ backgroundColor: block.color }}
+        />
+        <div className="min-w-0">
+          <div className="text-[12px] font-semibold text-text">
+            {block.name || spec.label}
+            <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">
+              {spec.label}
+            </span>
+          </div>
+          <div className="mt-1 text-[11px] leading-relaxed text-fg-muted">
+            {allowedKg === null ? (
+              <>Kilpailupiikki — ravinto ylläpidolle. Jakso suunnittelee {signed(-plannedKg, 2)} kg/vko.</>
+            ) : (
+              <>
+                Blokki kestää enintään {allowedKg.toFixed(2)} kg/vko, jakso pyytää{' '}
+                {plannedKg.toFixed(2)} kg/vko.
+              </>
+            )}
+            {over && <span className="text-accent"> Säädä Suunnittelu-työkalussa.</span>}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

@@ -85,9 +85,18 @@ export function addPeriod(
   period: Omit<GoalPeriod, 'id' | 'status' | 'createdAt'>,
 ): Settings {
   const next = materializeLegacyIfNeeded(settings)
-  // Auto-retire any current active so only one is ever active at a time.
+  // Auto-retire any current active so only one is ever active at a time. Its
+  // end date moves only when the new period starts *before* it would have
+  // finished — otherwise planning a future period would silently stretch the
+  // outgoing one to meet it.
   let periods = (next.goalPeriods ?? []).map((p) =>
-    p.status === 'active' ? { ...p, status: 'retired' as const, endDate: period.startDate } : p,
+    p.status === 'active'
+      ? {
+          ...p,
+          status: 'retired' as const,
+          endDate: period.startDate < p.endDate ? period.startDate : p.endDate,
+        }
+      : p,
   )
   const created: GoalPeriod = {
     ...period,

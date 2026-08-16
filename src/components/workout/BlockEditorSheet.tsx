@@ -3,6 +3,8 @@ import { Trash2, Check } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import { BLOCK_COLORS, findOverlap } from '../../lib/blocks'
 import type { TrainingBlock } from '../../lib/blocks'
+import { INTENTS, INTENT_ORDER, intentOf } from '../../lib/planning'
+import type { BlockIntent } from '../../lib/planning'
 import { daysBetween } from '../../lib/dates'
 
 interface Props {
@@ -25,6 +27,10 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
   const [endDate, setEndDate] = useState(block.endDate)
   const [color, setColor] = useState(block.color)
   const [note, setNote] = useState(block.note ?? '')
+  // A block used to be a coloured date range with a name — nothing a nutrition
+  // plan could read. The intent is what makes the two plannable against each
+  // other at all.
+  const [intent, setIntent] = useState<BlockIntent>(intentOf(block))
   const [error, setError] = useState<string | null>(null)
 
   const lengthDays = endDate >= startDate ? daysBetween(startDate, endDate) + 1 : 0
@@ -43,6 +49,7 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
       startDate,
       endDate,
       color,
+      intent,
       note: note.trim() || undefined,
       updatedAt: new Date().toISOString(),
     })
@@ -88,6 +95,32 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
 
         <div className="font-mono text-[11px] text-fg-muted">
           Pituus: {lengthDays} päivää ({weeks} vk)
+        </div>
+
+        <div>
+          <label className={label}>Mitä blokki tavoittelee</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {INTENT_ORDER.map((k) => (
+              <button
+                key={k}
+                onClick={() => setIntent(k)}
+                aria-pressed={intent === k}
+                className={`rounded-input border px-3 py-2 text-left !min-h-0 !min-w-0 ${
+                  intent === k
+                    ? 'border-accent/45 bg-accent/[0.10] text-text'
+                    : 'border-white/10 bg-black/[0.35] text-fg-muted'
+                }`}
+              >
+                <span className="block text-[12px] font-semibold">{INTENTS[k].label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-fg-faint">
+            {INTENTS[intent].blurb}{' '}
+            {INTENTS[intent].maxWeeklyLossPct === null
+              ? 'Ravinto ajetaan ylläpidolla.'
+              : `Kestää enintään noin ${INTENTS[intent].maxWeeklyLossPct} % kehonpainosta viikossa pudotusta.`}
+          </p>
         </div>
 
         <div>

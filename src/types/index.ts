@@ -37,6 +37,10 @@ export interface GoalPeriod {
   expectedRefillKg?: number
   /** Free-form label shown in history. */
   label?: string
+  /** The training block this period was planned against, when it was created
+   *  from the planner. Deliberately a soft link: the two keep their own dates,
+   *  because a block and a nutrition phase honestly run to different clocks. */
+  blockId?: string
   /** Saturdays and Sundays are eaten at TDEE and the period's whole deficit is
    *  carried by the weekdays instead. Cut/bulk only — maintenance and refill
    *  plan no deficit to redistribute. */

@@ -19,7 +19,14 @@ type FormState = {
 interface Props {
   initial?: GoalPeriod
   defaultStartDate?: string
+  defaultEndDate?: string
   defaultStartWeight?: number
+  defaultTargetWeight?: number
+  defaultType?: PeriodType
+  defaultLabel?: string
+  /** Set when the period is being planned against a training block, so the
+   *  link survives the save. The two keep their own dates on purpose. */
+  blockId?: string
   onSave: (period: Omit<GoalPeriod, 'id' | 'status' | 'createdAt'>) => void
   onClose: () => void
 }
@@ -41,21 +48,26 @@ const TYPE_HINT: Record<PeriodType, string> = {
 export function GoalPeriodModal({
   initial,
   defaultStartDate,
+  defaultEndDate,
   defaultStartWeight,
+  defaultTargetWeight,
+  defaultType,
+  defaultLabel,
+  blockId,
   onSave,
   onClose,
 }: Props) {
   const today = toISO(new Date())
   const [form, setForm] = useState<FormState>({
-    type: initial?.type ?? 'cut',
+    type: initial?.type ?? defaultType ?? 'cut',
     startDate: initial?.startDate ?? defaultStartDate ?? today,
-    endDate: initial?.endDate ?? today,
+    endDate: initial?.endDate ?? defaultEndDate ?? today,
     startWeight: initial?.startWeight ?? defaultStartWeight ?? 75,
-    targetWeight: initial?.targetWeight ?? 73,
+    targetWeight: initial?.targetWeight ?? defaultTargetWeight ?? 73,
     refillWindowWeeks: initial?.refillWindowWeeks ?? 3,
     expectedRefillKg: initial?.expectedRefillKg ?? 1.8,
     weekendMaintenance: initial?.weekendMaintenance ?? false,
-    label: initial?.label ?? '',
+    label: initial?.label ?? defaultLabel ?? '',
   })
 
   const valid =
@@ -234,6 +246,7 @@ export function GoalPeriodModal({
               refillWindowWeeks: isRefill ? form.refillWindowWeeks : undefined,
               expectedRefillKg: isRefill ? form.expectedRefillKg : undefined,
               label: form.label || undefined,
+              blockId: blockId ?? initial?.blockId,
             })
           }
         >

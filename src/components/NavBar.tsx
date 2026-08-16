@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type View =
@@ -13,6 +13,7 @@ type View =
   | 'wealth-settings'
   | 'workout'
   | 'grocery'
+  | 'planning'
 
 interface Tab {
   id: View
@@ -49,6 +50,13 @@ const WORKOUT_TABS: Tab[] = [
   { id: 'workout', label: 'Workout', Icon: Dumbbell },
 ]
 
+// Planning spans both Fitness and Workout, so it hangs off the launcher rather
+// than living inside either tool's tab set.
+const PLANNING_TABS: Tab[] = [
+  { id: 'home',     label: 'Koti',         Icon: LayoutGrid },
+  { id: 'planning', label: 'Suunnittelu',  Icon: CalendarRange },
+]
+
 const GROCERY_TABS: Tab[] = [
   { id: 'home',    label: 'Koti',    Icon: LayoutGrid },
   { id: 'grocery', label: 'Grocery', Icon: ShoppingBasket },
@@ -59,6 +67,7 @@ function tabsForView(v: View): Tab[] {
   if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
   if (v === 'workout') return WORKOUT_TABS
   if (v === 'grocery') return GROCERY_TABS
+  if (v === 'planning') return PLANNING_TABS
   return FITNESS_TABS
 }
 

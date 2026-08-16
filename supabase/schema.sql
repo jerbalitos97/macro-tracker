@@ -251,9 +251,15 @@ create table if not exists workout_blocks (
   end_date   text not null,                       -- YYYY-MM-DD, inclusive
   color      text,
   note       text,
+  -- What the block is for: base / strength / skill / peak / deload / other.
+  -- Drives how much deficit the block tolerates (src/lib/planning.ts).
+  -- Nullable — blocks predating intents read as 'other'.
+  intent     text,
   created_at text not null,
   updated_at text not null
 );
+
+alter table workout_blocks add column if not exists intent text;
 
 alter table workout_blocks enable row level security;
 
