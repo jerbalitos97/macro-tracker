@@ -10,11 +10,20 @@ const label = 'mb-1 block font-mono text-[9px] font-medium uppercase tracking-[0
 const input =
   'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-sm text-text [color-scheme:dark]'
 
-/** Floating warm-up button + routine sheet, shown on every workout screen.
- *  The routine is editable: moves can be added, changed and removed. */
-export function WarmupFab() {
+/** The warm-up routine sheet. The floating button that opens it now lives in
+ *  WorkoutTools, which offers the rest timer alongside it. */
+export function WarmupFab({
+  open: openProp,
+  onClose: onCloseProp,
+}: { open?: boolean; onClose?: () => void } = {}) {
   const { user } = useAuth()
-  const [open, setOpen] = useState(false)
+  // Controlled when WorkoutTools drives it, self-managed otherwise.
+  const [openSelf, setOpenSelf] = useState(false)
+  const open = openProp ?? openSelf
+  const setOpen = (v: boolean) => {
+    if (openProp === undefined) setOpenSelf(v)
+    else if (!v) onCloseProp?.()
+  }
   const [editing, setEditing] = useState(false)
   const [moves, setMoves] = useState<WarmupMove[]>(() => getWarmup())
   const [draft, setDraft] = useState<WarmupMove[]>([])
@@ -60,13 +69,15 @@ export function WarmupFab() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Lämmittely"
-        className="active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[rgba(9,11,20,0.54)] text-accent transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)]"
-      >
-        <Flame size={20} />
-      </button>
+      {openProp === undefined && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Lämmittely"
+          className="active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[rgba(9,11,20,0.54)] text-accent transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)]"
+        >
+          <Flame size={20} />
+        </button>
+      )}
 
       <Sheet
         open={open}

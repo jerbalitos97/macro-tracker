@@ -81,7 +81,7 @@ export function HomeView({ setView }: Props) {
       </div>
 
       {/* Export */}
-      <ExportButton />
+      <ExportButton userId={user?.id} />
 
       {/* Footer */}
       <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
@@ -99,14 +99,14 @@ const OUTCOME_TEXT: Record<ExportOutcome, string> = {
   failed: 'Vienti ei onnistunut',
 }
 
-function ExportButton() {
+function ExportButton({ userId }: { userId?: string }) {
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<ExportOutcome | null>(null)
 
   const run = async () => {
     setBusy(true)
     setOutcome(null)
-    const r = await exportAll()
+    const r = await exportAll(userId)
     setOutcome(r)
     setBusy(false)
     window.setTimeout(() => setOutcome(null), 4000)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Check, GripVertical } from 'lucide-react'
+import { ChevronLeft, Plus, Check, GripVertical, Flame } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
@@ -151,6 +151,26 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Warm-up tick. Only a fact — that it was done — recorded per session
+          so the log can say whether it happens, without asking anyone to write
+          the routine down again. */}
+      <button
+        onClick={() =>
+          onChange({ ...workout, warmupDone: !workout.warmupDone, updatedAt: new Date().toISOString() })
+        }
+        aria-pressed={workout.warmupDone === true}
+        className={`mb-3 flex w-full items-center gap-2.5 rounded-row border px-4 py-3 text-left transition-colors ${
+          workout.warmupDone
+            ? 'border-[rgba(100,200,120,0.30)] bg-[rgba(100,200,120,0.08)] text-[#7fd694]'
+            : 'border-dashed border-white/[0.16] bg-transparent text-fg-muted'
+        }`}
+      >
+        {workout.warmupDone ? <Check size={16} /> : <Flame size={16} />}
+        <span className="flex-1 text-[13px]">
+          {workout.warmupDone ? 'Lämmittely tehty' : 'Merkitse lämmittely tehdyksi'}
+        </span>
+      </button>
 
       {/* Exercise blocks */}
       <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">

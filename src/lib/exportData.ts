@@ -1,25 +1,69 @@
-// One file containing everything needed to reason about goals and results.
+// One file containing everything the app knows.
 //
 // The raw logs alone are awkward to analyse — the interesting facts for any
 // given day are spread across meals, burns, adjustments, events and the goal
 // period in force at the time. So the export leads with `days`: one row per
 // day with all of that already joined and the plan-vs-actual arithmetic done.
-// The raw collections follow, so nothing is lost and any number can be traced
-// back to what produced it.
+// The structured collections follow, so nothing is lost and any number can be
+// traced back to what produced it.
 //
-// `_readme` travels inside the file. Whoever opens it — a person, or an
-// assistant being asked to look for patterns — can read what each field means
-// without the app.
+// ─────────────────────────────────────────────────────────────────────────
+// COMPLETENESS IS A REQUIREMENT, NOT AN INTENTION.
+//
+// This file is what gets handed to an assistant for analysis, so anything the
+// app stores and this file omits is invisible in that conversation — and the
+// omission is silent, which is the dangerous part. Remembering to add each new
+// store here is exactly the kind of promise that gets broken, so it is not
+// relied on:
+//
+//   · Every localStorage key is swept at export time. Anything not claimed by
+//     a named section below lands in `raw.unmapped` verbatim. A store added
+//     later and never registered here still ships — worse-labelled than it
+//     could be, but present.
+//   · Cloud-only collections (habits, wealth) cannot be swept that way, so
+//     they are fetched explicitly. When a new cloud table appears, add it to
+//     `fetchCloud` — and note that the sweep will not cover it for you.
+//   · SENSITIVE_KEYS never ship. The auth session holds a bearer token; a file
+//     meant to be shared must not carry it.
+//
+// If you add a store and do nothing else, the data is still here. If you add a
+// store and register it below, it is here *and* named.
+// ─────────────────────────────────────────────────────────────────────────
 import type { AppData, ComputedDay } from '../types'
 import { loadData } from './storage'
 import { computeDays } from './compute'
 import { getPeriods } from './goalPeriods'
 import { computeWeightTrend } from './weight'
-import { getTemplates, getWorkouts } from './workouts'
+import { getTemplates, getWorkouts, getDraft } from './workouts'
 import { getBlocks } from './blocks'
+import { getWarmup } from './warmup'
+import { getRestLog } from './restTimer'
+import { getPrefs } from './uiPrefs'
+import { getAcknowledgedSurpluses } from './surplusAck'
+import { listHabits, listEntries } from './habits'
+import { listAssets, listAllValues } from './wealth/assets'
+import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
+
+/** Never exported. The auth session carries a bearer token. */
+const SENSITIVE_KEYS = ['makrot:session']
+
+/** localStorage keys already represented by a named section. Anything else is
+ *  swept into raw.unmapped rather than dropped. */
+const MAPPED_KEYS = [
+  'cutdata:v1',                        // settings, meals, weights, burns, events, extras, adjustments
+  'cutdata:surplus-ack:v1',            // surplusAcknowledged
+  'mimir.workouts.history:v1',         // workouts
+  'mimir.workouts.templates:v1',       // workoutTemplates
+  'mimir.workouts.draft:v1',           // workoutDraft
+  'mimir.workouts.blocks:v1',          // trainingBlocks
+  'mimir.workouts.warmup:v1',          // warmupRoutine
+  'mimir.workouts.restLog:v1',         // restLog
+  'mimir.workouts.restTimer:v1',       // activeRest (transient; swept for completeness)
+  'friday.uiPrefs:v1',                 // uiPrefs
+]
 
 const README: Record<string, string> = {
   days:
@@ -31,22 +75,43 @@ const README: Record<string, string> = {
     'null on days with nothing logged — those are gaps, not zeros.',
   weightTrend:
     '7-day moving average of morning weights. trend is the smoothed value, kg the ' +
-    'raw reading. Judge progress on trend; raw weight moves with water and food.',
+    'raw reading. Judge progress on trend; raw weight moves with water and food. ' +
+    'Weekend readings are deliberately kept in: every 7-day window spans exactly ' +
+    'one weekend, so the water cancels out of any comparison between two points.',
   goalPeriods:
     'The goal history. type is cut/maintenance/refill/bulk, status active/achieved/' +
     'ended. weekendMaintenance means the period pushed its whole deficit onto ' +
-    'weekdays and ate at maintenance on Sat/Sun.',
+    'weekdays and ate at maintenance on Sat/Sun. blockId links a period to the ' +
+    'training block it was planned against.',
   settings:
     'tdee is kcal by day type; weeklyPattern maps weekday (0=Sunday) to day type. ' +
-    'The top-level startDate/endDate/startWeight/targetWeight are the legacy goal ' +
-    'fields, superseded by goalPeriods when those exist.',
-  workouts: 'Completed training sessions: exercises, sets, reps, weights, timestamps.',
+    'heightCm/birthYear/sex feed the workout burn estimate. The top-level ' +
+    'startDate/endDate/startWeight/targetWeight are the legacy goal fields, ' +
+    'superseded by goalPeriods when those exist.',
+  workouts:
+    'Completed sessions: exercises, sets, reps, weights, timestamps. warmupDone is ' +
+    'the per-session tick that a warm-up happened.',
   workoutTemplates: 'Reusable session plans the workouts were started from.',
-  trainingBlocks: 'Mesocycles: named date ranges with an intent, e.g. a strength block.',
-  raw: 'The unjoined logs the day rows were built from, for tracing any number back.',
+  workoutDraft: 'A session in progress at export time, if any.',
+  trainingBlocks:
+    'Mesocycles: named date ranges with an intent (base/strength/skill/peak/deload) ' +
+    'that sets how much deficit the block tolerates.',
+  warmupRoutine: 'The warm-up routine itself — one list, not copied per session.',
+  restLog:
+    'Rest periods timed between sets: seconds is the rest actually taken, targetSec ' +
+    'what was aimed for. The timer counts up and ends manually, so seconds > ' +
+    'targetSec is normal and meaningful.',
+  habits: 'Habit definitions and their daily entries (cloud-stored).',
+  wealth: 'Assets, their valuations over time, and the wealth goal (cloud-stored).',
+  uiPrefs: 'Saved UI arrangement, e.g. the order of tools on the launcher.',
+  surplusAcknowledged: 'Days whose surplus prompt was answered, so it is not re-offered.',
+  raw:
+    'The unjoined logs the day rows were built from. raw.unmapped holds any local ' +
+    'store that has no named section above — present so that nothing the app saves ' +
+    'is ever silently missing from this file.',
   notIncluded:
-    'Habit tracking and the wealth tool live in separate stores and are not part of ' +
-    'this export.',
+    'The authentication session is deliberately excluded: it holds a bearer token ' +
+    'and this file is meant to be shareable.',
 }
 
 export interface ExportBundle {
@@ -60,7 +125,14 @@ export interface ExportBundle {
   settings: unknown
   workouts: unknown[]
   workoutTemplates: unknown[]
+  workoutDraft: unknown
   trainingBlocks: unknown[]
+  warmupRoutine: unknown[]
+  restLog: unknown[]
+  habits: { definitions: unknown[]; entries: unknown[] } | null
+  wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
+  uiPrefs: unknown
+  surplusAcknowledged: string[]
   raw: Record<string, unknown>
 }
 
@@ -92,7 +164,65 @@ function dayRow(d: ComputedDay): Record<string, unknown> {
   }
 }
 
-export function buildExport(): ExportBundle | null {
+/** Every localStorage key that no named section claims. This is the safety
+ *  net: a store added later and never registered still reaches the file. */
+function sweepUnmapped(): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  let n = 0
+  try {
+    n = localStorage.length
+  } catch {
+    return out
+  }
+  for (let i = 0; i < n; i++) {
+    const key = localStorage.key(i)
+    if (!key) continue
+    if (SENSITIVE_KEYS.includes(key)) continue
+    if (MAPPED_KEYS.includes(key)) continue
+    const raw = localStorage.getItem(key)
+    if (raw == null) continue
+    try {
+      out[key] = JSON.parse(raw)
+    } catch {
+      out[key] = raw
+    }
+  }
+  return out
+}
+
+/** Cloud-only collections. The localStorage sweep cannot reach these, so any
+ *  new cloud table has to be added here by hand. */
+async function fetchCloud(userId: string | undefined): Promise<{
+  habits: ExportBundle['habits']
+  wealth: ExportBundle['wealth']
+}> {
+  const [habits, wealth] = await Promise.all([
+    (async () => {
+      if (!userId) return null
+      try {
+        const [definitions, entries] = await Promise.all([listHabits(userId), listEntries(userId)])
+        return { definitions, entries }
+      } catch {
+        return null
+      }
+    })(),
+    (async () => {
+      try {
+        const [assets, values, settings] = await Promise.all([
+          listAssets(),
+          listAllValues(),
+          getWealthSettings(),
+        ])
+        return { assets, values, settings }
+      } catch {
+        return null
+      }
+    })(),
+  ])
+  return { habits, wealth }
+}
+
+export async function buildExport(userId?: string): Promise<ExportBundle | null> {
   const data: AppData | null = loadData()
   if (!data) return null
 
@@ -105,6 +235,7 @@ export function buildExport(): ExportBundle | null {
     data.adjustments ?? [],
   )
   const trend = computeWeightTrend(data.weights ?? [])
+  const { habits, wealth } = await fetchCloud(userId)
 
   return {
     _readme: README,
@@ -121,7 +252,14 @@ export function buildExport(): ExportBundle | null {
     settings: data.settings,
     workouts: getWorkouts(),
     workoutTemplates: getTemplates(),
+    workoutDraft: getDraft(),
     trainingBlocks: getBlocks(),
+    warmupRoutine: getWarmup(),
+    restLog: getRestLog(),
+    habits,
+    wealth,
+    uiPrefs: getPrefs(),
+    surplusAcknowledged: [...getAcknowledgedSurpluses()],
     raw: {
       meals: data.meals ?? [],
       weights: data.weights ?? [],
@@ -129,6 +267,7 @@ export function buildExport(): ExportBundle | null {
       specialEvents: data.events ?? [],
       extraWorkouts: data.extras ?? [],
       dailyAdjustments: data.adjustments ?? [],
+      unmapped: sweepUnmapped(),
     },
   }
 }
@@ -138,8 +277,8 @@ export type ExportOutcome = 'shared' | 'downloaded' | 'no-data' | 'cancelled' | 
 /** Hands the file to the OS share sheet where that exists — on an installed
  *  PWA that is the only route to Files, AirDrop or another app — and falls back
  *  to a plain download elsewhere. */
-export async function exportAll(): Promise<ExportOutcome> {
-  const bundle = buildExport()
+export async function exportAll(userId?: string): Promise<ExportOutcome> {
+  const bundle = await buildExport(userId)
   if (!bundle) return 'no-data'
 
   const json = JSON.stringify(bundle, null, 2)

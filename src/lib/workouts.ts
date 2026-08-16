@@ -93,6 +93,9 @@ export interface Workout {
   color?: string          // inherited from the template it was started from
   exercises: LoggedExercise[]
   completed: boolean
+  /** Ticked at the top of the logger. Only a fact that it happened — the
+   *  routine itself lives in lib/warmup.ts and is not copied per session. */
+  warmupDone?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -268,6 +271,7 @@ interface WorkoutRow {
   color: string | null
   exercises: LoggedExercise[]
   completed: boolean
+  warmup_done: boolean | null
   created_at: string
   updated_at: string
 }
@@ -280,6 +284,7 @@ const fromWorkoutRow = (r: WorkoutRow): Workout => ({
   color: r.color ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   completed: r.completed,
+  warmupDone: r.warmup_done ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 })
@@ -317,6 +322,7 @@ export function syncWorkoutCloud(userId: string, w: Workout): void {
       color: w.color ?? null,
       exercises: w.exercises,
       completed: w.completed,
+      warmup_done: w.warmupDone ?? false,
       created_at: w.createdAt,
       updated_at: w.updatedAt,
     })

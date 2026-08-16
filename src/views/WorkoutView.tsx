@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical } from 'lucide-react'
 import { Card, Button, Sheet, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
-import { WarmupFab } from '../components/workout/WarmupSheet'
+import { WorkoutTools } from '../components/workout/WorkoutTools'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
@@ -294,7 +294,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onFinish={finishWorkout}
           onExit={exitLogging}
         />
-        <WarmupFab />
+        <WorkoutTools workoutId={session?.id ?? draft?.id} />
         {success && <WorkoutSuccess onDone={() => { setSuccess(false); setScreen('summary') }} />}
       </>
     )
@@ -335,7 +335,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onEdit={() => startEditPast(viewing)}
           onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
         />
-        <WarmupFab />
+        <WorkoutTools workoutId={session?.id ?? draft?.id} />
       </>
     )
   }
@@ -348,7 +348,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onSave={handleSaveTemplate}
           onCancel={() => { setEditing(null); setScreen('home') }}
         />
-        <WarmupFab />
+        <WorkoutTools workoutId={session?.id ?? draft?.id} />
       </>
     )
   }
@@ -752,7 +752,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
         )
       })()}
 
-      <WarmupFab />
+      <WorkoutTools workoutId={session?.id ?? draft?.id} />
     </div>
   )
 }

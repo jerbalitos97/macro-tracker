@@ -201,9 +201,14 @@ create table if not exists workouts (
   color       text,                                -- inherited from the template
   exercises   jsonb not null default '[]'::jsonb,  -- LoggedExercise[]
   completed   boolean not null default true,
+  -- Warm-up ticked off at the top of the logger. Just the fact, not the
+  -- routine — that lives client-side in lib/warmup.ts.
+  warmup_done boolean not null default false,
   created_at  text not null,                       -- ISO timestamp (client format)
   updated_at  text not null
 );
+
+alter table workouts add column if not exists warmup_done boolean not null default false;
 
 alter table workouts enable row level security;
 
