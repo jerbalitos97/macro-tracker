@@ -31,7 +31,6 @@ const FITNESS_TABS: Tab[] = [
   { id: 'weight',   label: 'Paino',     Icon: TrendingDown },
   // Trendit and Tavoite were the same question asked twice — one tab now.
   { id: 'analysis', label: 'Analyysi',  Icon: BarChart2 },
-  { id: 'settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
 
 const HABIT_TABS: Tab[] = [
@@ -55,6 +54,10 @@ const WORKOUT_TABS: Tab[] = [
 const PLANNING_TABS: Tab[] = [
   { id: 'home',     label: 'Koti',         Icon: LayoutGrid },
   { id: 'planning', label: 'Suunnittelu',  Icon: CalendarRange },
+  // App-level settings — backup, storage, account. They are not part of any
+  // one tool, and they sit next to the planner because that is where someone
+  // goes to configure rather than to log.
+  { id: 'settings', label: 'Asetukset',    Icon: SlidersHorizontal },
 ]
 
 const GROCERY_TABS: Tab[] = [
@@ -67,7 +70,7 @@ function tabsForView(v: View): Tab[] {
   if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
   if (v === 'workout') return WORKOUT_TABS
   if (v === 'grocery') return GROCERY_TABS
-  if (v === 'planning') return PLANNING_TABS
+  if (v === 'planning' || v === 'settings') return PLANNING_TABS
   return FITNESS_TABS
 }
 

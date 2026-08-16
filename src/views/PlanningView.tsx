@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarRange, Plus, AlertTriangle, Check, Wand2 } from 'lucide-react'
-import type { GoalPeriod, Settings, WeightEntry } from '../types'
+import { CalendarRange, Plus, AlertTriangle, Check, Wand2, Trash2, CheckCircle2, Layers, ChevronRight } from 'lucide-react'
+import type { DayType, GoalPeriod, Settings, WeightEntry } from '../types'
 import type { TrainingBlock } from '../lib/blocks'
-import { getBlocks, pullBlocks } from '../lib/blocks'
+import {
+  getBlocks, pullBlocks, newBlock, saveBlockLocal, deleteBlockLocal,
+  syncBlockCloud, deleteBlockCloud,
+} from '../lib/blocks'
 import { computeWeightTrend } from '../lib/weight'
-import { getPeriods, addPeriod, updatePeriod } from '../lib/goalPeriods'
+import { parsePositiveInt } from '../lib/format'
+import {
+  getPeriods, addPeriod, updatePeriod, removePeriod, endActivePeriod, getActiveGoal,
+} from '../lib/goalPeriods'
+import { BlockEditorSheet } from '../components/workout/BlockEditorSheet'
 import {
   INTENTS, intentOf, buildBlockPlans, findClashes, plannedWeeklyLossKg, targetWeightFor,
 } from '../lib/planning'
 import type { Clash } from '../lib/planning'
-import { toISO, formatDateShort, daysBetween, addDays } from '../lib/dates'
+import { toISO, formatDateShort, daysBetween, addDays, getWeekdayNum } from '../lib/dates'
 import { GoalPeriodModal } from '../components/GoalPeriodModal'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, Button } from '../components/ui'
@@ -21,6 +28,27 @@ import { Card, Button } from '../components/ui'
 // make the fix a button rather than a note to self.
 
 const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const inputCls =
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]'
+
+const PERIOD_TYPE_LABEL: Record<string, string> = {
+  cut: 'Cut',
+  maintenance: 'Maintenance',
+  refill: 'Refill',
+  bulk: 'Bulk',
+}
+
+const TDEE_LABELS: Record<string, string> = {
+  rest: 'Lepo',
+  single: '1 treeni',
+  double: '2 treeniä',
+  volleyball: 'Volleyball',
+}
+
+const DOW_NAMES: Record<number, string> = {
+  1: 'Maanantai', 2: 'Tiistai', 3: 'Keskiviikko',
+  4: 'Torstai', 5: 'Perjantai', 6: 'Lauantai', 0: 'Sunnuntai',
+}
 
 const PERIOD_COLOR: Record<string, string> = {
   cut: '#22d3ee',
@@ -41,9 +69,22 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
   const [modal, setModal] = useState<
     | { mode: 'create-for-block'; block: TrainingBlock }
+    | { mode: 'create' }
     | { mode: 'edit'; initial: GoalPeriod }
     | null
   >(null)
+  const [blockEdit, setBlockEdit] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
+
+  const saveBlock = (b: TrainingBlock) => {
+    setBlocks(saveBlockLocal(b))
+    if (user) syncBlockCloud(user.id, b)
+    setBlockEdit(null)
+  }
+  const removeBlock = (id: string) => {
+    setBlocks(deleteBlockLocal(id))
+    if (user) deleteBlockCloud(user.id, id)
+    setBlockEdit(null)
+  }
 
   useEffect(() => {
     if (!user) return
@@ -66,6 +107,22 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
     () => buildBlockPlans(settings, blocks, bodyWeight),
     [settings, blocks, bodyWeight],
   )
+
+  // What the goal in force actually asks for, in the numbers you'd want before
+  // changing it. This card used to live in Fitness → Asetukset; it belongs
+  // with the plan it describes.
+  const goal = getActiveGoal(settings, todayISO)
+  const goalPlansDeficit = goal.type === 'cut' || goal.type === 'bulk'
+  const weekdayCount = (() => {
+    let n = 0
+    for (let i = 0; i < goal.totalDays; i++) {
+      const d = getWeekdayNum(addDays(goal.startDate, i))
+      if (d !== 0 && d !== 6) n++
+    }
+    return n
+  })()
+  const goalWeekdayDeficit =
+    goal.weekendMaintenance && weekdayCount > 0 ? goal.totalDeficitKcal / weekdayCount : 0
 
   const relax = (c: Clash) => {
     if (c.suggestedTargetWeight === null) return
@@ -129,20 +186,24 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
           Blokit
         </h2>
-        {plans.length === 0 ? (
-          <Card variant="glass" className="px-4 py-3.5">
-            <p className="m-0 text-[12px] text-fg-muted">
-              Blokit luodaan Workout-työkalun kalenterista.
-            </p>
-          </Card>
-        ) : (
+        <div className="flex flex-col gap-2.5">
+          {plans.length === 0 && (
+            <Card variant="glass" className="px-4 py-3.5">
+              <p className="m-0 text-[12px] text-fg-muted">
+                Ei blokkeja vielä. Luo ensimmäinen alta — ne näkyvät sen jälkeen väreinä Workout-kalenterissa.
+              </p>
+            </Card>
+          )}
           <div className="flex flex-col gap-2.5">
             {plans.map((p) => {
               const days = daysBetween(p.block.startDate, p.block.endDate) + 1
               const past = p.block.endDate < todayISO
               return (
                 <Card key={p.block.id} variant="glass" className={past ? 'opacity-55' : ''}>
-                  <div className="flex items-start gap-2.5">
+                  <button
+                    onClick={() => setBlockEdit({ block: p.block, isNew: false })}
+                    className="flex w-full items-start gap-2.5 text-left !min-h-0 !min-w-0"
+                  >
                     <div
                       className="mt-0.5 h-8 w-1 flex-shrink-0 rounded-sm"
                       style={{ backgroundColor: p.block.color }}
@@ -155,7 +216,8 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                         {p.spec.label} · {formatDateShort(p.block.startDate)} – {formatDateShort(p.block.endDate)} · {days} pv
                       </div>
                     </div>
-                  </div>
+                    <ChevronRight size={15} className="mt-1 flex-shrink-0 text-fg-faint" />
+                  </button>
 
                   <div className="mt-2.5 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
                     <Row
@@ -187,7 +249,214 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
               )
             })}
           </div>
-        )}
+          <Button
+            variant="action"
+            className="w-full"
+            onClick={() =>
+              setBlockEdit({
+                block: newBlock(
+                  blocks.length > 0
+                    ? addDays(blocks.reduce((a, b) => (a.endDate >= b.endDate ? a : b)).endDate, 1)
+                    : todayISO,
+                ),
+                isNew: true,
+              })
+            }
+          >
+            <Layers size={13} />
+            Uusi blokki
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Nutrition periods ─────────────────────────────────── */}
+      <div>
+        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
+          Ravintojaksot
+        </h2>
+        <Card variant="glass">
+          <div className="flex items-baseline justify-between">
+            <div className={cardLabel}>Historia</div>
+            <div className="text-[10px] text-fg-ghost">
+              {periods.length} jakso{periods.length === 1 ? '' : 'a'}
+            </div>
+          </div>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {periods.map((p) => {
+              const isActive = p.status === 'active'
+              const color = PERIOD_COLOR[p.type] ?? '#22d3ee'
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setModal({ mode: 'edit', initial: p })}
+                  role="button"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-3 py-2.5"
+                  style={{
+                    backgroundColor: isActive ? `${color}14` : 'rgba(255,255,255,0.03)',
+                    borderColor: isActive ? `${color}55` : 'rgba(255,255,255,0.05)',
+                  }}
+                >
+                  <div
+                    className="h-7 w-1 flex-shrink-0 rounded-sm"
+                    style={{ backgroundColor: color, opacity: isActive ? 1 : 0.4 }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-1.5 text-[12px] font-semibold text-text">
+                      <span>{PERIOD_TYPE_LABEL[p.type]}</span>
+                      <span className="font-normal text-fg-muted">
+                        {p.startWeight.toFixed(1)} → {p.targetWeight.toFixed(1)} kg
+                      </span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[10px] text-fg-faint">
+                      {formatDateShort(p.startDate)} – {formatDateShort(p.endDate)}
+                    </div>
+                    {p.label && (
+                      <div className="mt-0.5 truncate text-[10px] text-fg-ghost">{p.label}</div>
+                    )}
+                  </div>
+                  <div
+                    className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-faint"
+                    style={{ color: isActive ? color : undefined }}
+                  >
+                    {p.status === 'active' ? 'Aktiivinen' : p.status === 'achieved' ? 'Saavutettu' : 'Päätetty'}
+                  </div>
+                  {!isActive && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm('Poistetaanko tämä tavoitejakso historiasta?')) {
+                          setSettings(removePeriod(settings, p.id))
+                        }
+                      }}
+                      className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost"
+                      aria-label="Poista jakso"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            <Button
+              variant="action"
+              onClick={() => {
+                if (!window.confirm('Päätetään nykyinen tavoite? Voit avata uuden jakson sen jälkeen.')) return
+                setSettings(endActivePeriod(settings, todayISO, 'achieved'))
+              }}
+            >
+              <CheckCircle2 size={13} />
+              Päätä nykyinen
+            </Button>
+            <Button variant="action" className="text-accent" onClick={() => setModal({ mode: 'create' })}>
+              <Plus size={13} />
+              Aseta uusi
+            </Button>
+          </div>
+        </Card>
+
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Voimassa oleva tavoite</div>
+          <div className="text-[12px] font-semibold text-text">
+            {PERIOD_TYPE_LABEL[goal.type]} · {goal.startWeight.toFixed(1)} → {goal.targetWeight.toFixed(1)} kg
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted">
+            {formatDateShort(goal.startDate)} – {formatDateShort(goal.endDate)} · {goal.totalDays} päivää · päivä {goal.elapsedDays}
+          </div>
+          <div className="mt-2 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
+            <Row k="Muutos" v={`${goal.kgToChange.toFixed(1)} kg`} />
+            {goalPlansDeficit ? (
+              <>
+                <Row k="Kokonaisvaje" v={`${Math.round(goal.totalDeficitKcal).toLocaleString('fi-FI')} kcal`} />
+                <Row
+                  k={goal.weekendMaintenance ? 'Päivävaje (arki)' : 'Päivävaje (perus)'}
+                  v={`${Math.round(goal.weekendMaintenance ? goalWeekdayDeficit : goal.dailyDeficitKcal)} kcal / pv`}
+                />
+              </>
+            ) : (
+              <Row k="Vaje" v="ei vajetta — ylläpito" />
+            )}
+            <Row k="Tempo" v={`${goal.weeklyRateKg.toFixed(2)} kg / vko`} />
+          </div>
+          {goal.weekendMaintenance && (
+            <p className="m-0 mt-1.5 text-[11px] text-fg-faint">
+              Viikonloput ylläpidolla — koko vaje on jalkautettu arkipäiville.
+            </p>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Physiology ────────────────────────────────────────────
+          TDEE, the weekly rhythm and the protein target decide every daily
+          budget, so they belong with the planning rather than in an
+          app-settings drawer. */}
+      <div>
+        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
+          Perusarvot
+        </h2>
+
+        <Card variant="glass">
+          <div className={cardLabel}>TDEE per päivätyyppi</div>
+          {(['rest', 'single', 'double', 'volleyball'] as const).map((key) => (
+            <div key={key} className="mt-2 flex items-center justify-between gap-3">
+              <label className="text-[12px] text-muted">{TDEE_LABELS[key]}</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={settings.tdee[key]}
+                onChange={(e) => {
+                  const n = parsePositiveInt(e.target.value)
+                  if (n > 0) setSettings({ ...settings, tdee: { ...settings.tdee, [key]: n } })
+                }}
+                className={`${inputCls} w-[100px]`}
+                style={{ marginTop: 0, marginBottom: 0 }}
+              />
+            </div>
+          ))}
+        </Card>
+
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Viikkorytmi</div>
+          <div className="mb-2 text-[11px] text-muted">
+            Mitä päivätyyppiä kukin viikonpäivä oletusarvoisesti on
+          </div>
+          {([1, 2, 3, 4, 5, 6, 0] as number[]).map((dow) => (
+            <div key={dow} className="mt-1.5 flex items-center justify-between gap-3">
+              <label className="text-[12px] text-muted">{DOW_NAMES[dow]}</label>
+              <select
+                value={settings.weeklyPattern[dow]}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weeklyPattern: { ...settings.weeklyPattern, [dow]: e.target.value as DayType },
+                  })
+                }
+                className={`${inputCls} w-[140px]`}
+                style={{ marginTop: 0, marginBottom: 0 }}
+              >
+                <option value="rest">Lepo</option>
+                <option value="single">1 treeni</option>
+                <option value="double">2 treeniä</option>
+                <option value="volleyball">Volleyball</option>
+              </select>
+            </div>
+          ))}
+        </Card>
+
+        <Card variant="glass" className="mt-2.5">
+          <div className={cardLabel}>Proteiinitavoite (g/pv)</div>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={settings.proteinTarget}
+            onChange={(e) => {
+              const n = parsePositiveInt(e.target.value)
+              if (n > 0) setSettings({ ...settings, proteinTarget: n })
+            }}
+            className={inputCls}
+          />
+        </Card>
       </div>
 
       <details>
@@ -238,6 +507,31 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             setModal(null)
           }}
           onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.mode === 'create' && (
+        <GoalPeriodModal
+          defaultStartDate={
+            periods.length > 0
+              ? periods.reduce((a, b) => (a.endDate >= b.endDate ? a : b)).endDate
+              : todayISO
+          }
+          defaultStartWeight={Math.round(bodyWeight * 10) / 10}
+          onSave={(p) => {
+            setSettings(addPeriod(settings, p))
+            setModal(null)
+          }}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {blockEdit && (
+        <BlockEditorSheet
+          block={blockEdit.block}
+          all={blocks}
+          isNew={blockEdit.isNew}
+          onSave={saveBlock}
+          onDelete={() => removeBlock(blockEdit.block.id)}
+          onClose={() => setBlockEdit(null)}
         />
       )}
       {modal?.mode === 'edit' && (
@@ -368,11 +662,13 @@ function Timeline({
             ))}
           </div>
 
-          <div className="mt-1 flex justify-between font-mono text-[8px] text-fg-ghost">
-            <span>{formatDateShort(from)}</span>
-            <span>{formatDateShort(to)}</span>
-          </div>
         </div>
+      </div>
+      {/* Outside the scroller: inside it the right-hand date sat at the far end
+          of the scrollable width and got clipped by the viewport. */}
+      <div className="mt-1 flex justify-between font-mono text-[8px] text-fg-ghost">
+        <span>{formatDateShort(from)}</span>
+        <span>{formatDateShort(to)}</span>
       </div>
       <div className="mt-2 flex gap-3 border-t border-white/[0.06] pt-2 font-mono text-[9px] uppercase tracking-[0.06em] text-fg-ghost">
         <span>ylä: ravinto</span>

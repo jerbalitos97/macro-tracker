@@ -732,8 +732,6 @@ export default function App() {
         <m.div key={view} {...viewMotion}>
           <SettingsView
             settings={settings}
-            setSettings={setSettings}
-            computed={computed}
             usedBytes={usedBytes}
             onExport={handleExport}
             onImport={handleImport}

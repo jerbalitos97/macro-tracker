@@ -6,7 +6,7 @@ import { WarmupFab } from '../components/workout/WarmupSheet'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
-import { toISO, fromISO, addDays } from '../lib/dates'
+import { toISO, fromISO } from '../lib/dates'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getTemplates, saveTemplate, deleteTemplate, reorderTemplates,
@@ -17,15 +17,13 @@ import {
 } from '../lib/workouts'
 import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
 import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
-import { BlockEditorSheet } from '../components/workout/BlockEditorSheet'
 import {
-  getBlocks, saveBlockLocal, deleteBlockLocal, newBlock,
-  pullBlocks, syncBlockCloud, deleteBlockCloud,
+  getBlocks, pullBlocks,
   blockForDate, blockStatus, BLOCK_ENDING_SOON_DAYS,
 } from '../lib/blocks'
 import type { TrainingBlock } from '../lib/blocks'
 import {
-  notifyPermission, requestNotifyPermission, maybeNotifyBlockEnding, resetNotifyGuard,
+  notifyPermission, requestNotifyPermission, maybeNotifyBlockEnding,
 } from '../lib/blockNotify'
 import type { NotifyPermission } from '../lib/blockNotify'
 
@@ -145,7 +143,6 @@ export function WorkoutView() {
   const [selectedDay, setSelectedDay] = useState<string>(todayISO)
 
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
-  const [editingBlock, setEditingBlock] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
   const [notifyState, setNotifyState] = useState<NotifyPermission>(() => notifyPermission())
 
   // Refresh templates and history from the cloud when logged in.
@@ -239,20 +236,6 @@ export function WorkoutView() {
 
   // ── Training blocks ──────────────────────────────────────────────
   const status = blockStatus(blocks, todayISO)
-
-  const handleSaveBlock = (b: TrainingBlock) => {
-    setBlocks(saveBlockLocal(b))
-    if (user) syncBlockCloud(user.id, b)
-    // A changed block means a fresh countdown — let today's reminder fire again.
-    resetNotifyGuard()
-    setEditingBlock(null)
-  }
-
-  const handleDeleteBlock = (id: string) => {
-    setBlocks(deleteBlockLocal(id))
-    if (user) deleteBlockCloud(user.id, id)
-    resetNotifyGuard()
-  }
 
   // Fire the once-a-day reminder on open and whenever the app returns to the
   // foreground. iOS can't schedule notifications for a closed web app, so this
@@ -560,13 +543,14 @@ export function WorkoutView() {
                 </p>
               )}
 
-              {/* Block list */}
+              {/* Block list — read-only here. This calendar records what was
+                  done; blocks are planned in Suunnittelu, against the
+                  nutrition periods they have to coexist with. */}
               <div className="mt-3 flex flex-col gap-1.5">
                 {blocks.map((b) => (
-                  <button
+                  <div
                     key={b.id}
-                    onClick={() => setEditingBlock({ block: b, isNew: false })}
-                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-2.5 text-left"
+                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-2.5"
                   >
                     <span aria-hidden className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: b.color }} />
                     <span className="min-w-0 flex-1 truncate text-[13px] text-text">{b.name}</span>
@@ -575,18 +559,12 @@ export function WorkoutView() {
                       –
                       {fromISO(b.endDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
                     </span>
-                    <ChevronRight size={15} className="flex-shrink-0 text-fg-faint" />
-                  </button>
+                  </div>
                 ))}
-                <button
-                  onClick={() => setEditingBlock({
-                    block: newBlock(status.current ? addDays(status.current.endDate, 1) : selectedDay),
-                    isNew: true,
-                  })}
-                  className="flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
-                >
-                  <Layers size={14} /> Uusi blokki
-                </button>
+                <p className="mt-1 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-ghost">
+                  <Layers size={12} className="mt-0.5 flex-shrink-0" />
+                  Blokit luodaan ja muokataan Suunnittelu-työkalussa.
+                </p>
               </div>
             </section>
 
@@ -743,18 +721,6 @@ export function WorkoutView() {
           </Sheet>
         )
       })()}
-
-      {/* Block editor */}
-      {editingBlock && (
-        <BlockEditorSheet
-          block={editingBlock.block}
-          all={blocks}
-          isNew={editingBlock.isNew}
-          onSave={handleSaveBlock}
-          onDelete={() => handleDeleteBlock(editingBlock.block.id)}
-          onClose={() => setEditingBlock(null)}
-        />
-      )}
 
       <WarmupFab />
     </div>
