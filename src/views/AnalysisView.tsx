@@ -314,7 +314,7 @@ export function AnalysisView({ computed, settings, weights, meals, onApplyRollou
           }
           totalKcal={a.recovery.kind === 'tighten' ? -Math.abs(a.recovery.totalKcal) : Math.abs(a.recovery.totalKcal)}
           suggestedDays={a.recovery.daysNeeded}
-          fromDate={todayISO}
+          earliestStart={todayISO}
           lastDate={goal.endDate}
           onApply={(days) => {
             onApplyRollout(days, `tasoitus-${todayISO}`)

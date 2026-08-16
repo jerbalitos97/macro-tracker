@@ -53,8 +53,8 @@ export interface RolloutDay {
   kcal: number
 }
 
-/** Spread `totalKcal` across `days` days starting the day after `fromDate`,
- *  stopping at `lastDate`. The sign of totalKcal carries through: negative
+/** Spread `totalKcal` across `days` days beginning on `startDate` (inclusive)
+ *  and stopping at `lastDate`. The sign of totalKcal carries through: negative
  *  tightens the budget (more deficit), positive loosens it.
  *
  *  The rounding puts the remainder on the first day rather than letting it
@@ -62,12 +62,12 @@ export interface RolloutDay {
 export function planRollout(
   totalKcal: number,
   days: number,
-  fromDate: string,
+  startDate: string,
   lastDate: string,
 ): RolloutDay[] {
   const out: RolloutDay[] = []
-  for (let i = 1; i <= days; i++) {
-    const date = addDays(fromDate, i)
+  for (let i = 0; i < days; i++) {
+    const date = addDays(startDate, i)
     if (date > lastDate) break
     out.push({ date, kcal: 0 })
   }

@@ -337,7 +337,7 @@ export function CalendarView({
           }
           totalKcal={rolloutFor.delta}
           suggestedDays={3}
-          fromDate={todayISO > rolloutFor.date ? todayISO : rolloutFor.date}
+          earliestStart={todayISO}
           lastDate={goalEndDate}
           onApply={(days) => {
             onApplyRollout(days, rolloutFor.date)
@@ -396,14 +396,10 @@ function SettleRow({
   const settled = compensatedKcal(adjustments, day.date)
   const short = delta < 0
 
+  // DayBreakdown already prints "Ero suunnitelmaan" just above, so this only
+  // adds the action for it.
   return (
-    <div className="mt-3 border-t border-white/[0.1] pt-3">
-      <div className="mb-2 flex items-baseline justify-between text-xs">
-        <span className="text-muted">Ero suunnitelmaan</span>
-        <span className={`tabular-nums font-semibold ${short ? 'text-danger' : 'text-protein'}`}>
-          {delta > 0 ? '+' : ''}{delta.toLocaleString('fi-FI')} kcal
-        </span>
-      </div>
+    <div className="mt-3">
       {done ? (
         <div className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[rgba(100,200,120,0.28)] bg-[rgba(100,200,120,0.08)] px-4 py-[11px] text-[12px] text-[#7fd694]">
           <Check size={14} />

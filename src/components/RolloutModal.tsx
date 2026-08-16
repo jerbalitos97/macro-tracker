@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Sliders } from 'lucide-react'
-import { Sheet, Chip, Button } from './ui'
+import { Sheet, Chip, Button, Field } from './ui'
 import { planRollout } from '../lib/compensation'
-import { formatDateShort } from '../lib/dates'
+import { formatDateShort, addDays } from '../lib/dates'
 
 // Applying a suggestion used to mean reading "200 kcal/pv for 12 days" off a
 // card and then typing twelve daily adjustments by hand. This is that, as one
@@ -25,8 +25,9 @@ interface Props {
   totalKcal: number
   /** Days the suggestion proposes spreading over. */
   suggestedDays: number
-  /** Rollout starts the day after this — normally today. */
-  fromDate: string
+  /** Earliest day a rollout may touch — today, since a past budget is spent.
+   *  The picker defaults to the day after this and cannot go below it. */
+  earliestStart: string
   /** Never place an adjustment past this (the goal period's end). */
   lastDate: string
   onApply: (days: Array<{ date: string; kcal: number }>) => void
@@ -38,19 +39,26 @@ export function RolloutModal({
   description,
   totalKcal,
   suggestedDays,
-  fromDate,
+  earliestStart,
   lastDate,
   onApply,
   onClose,
 }: Props) {
   const [share, setShare] = useState<number>(1)
   const [spread, setSpread] = useState<number>(1)
+  // Tomorrow by default: today's eating is usually already under way, so
+  // retroactively tightening it is the surprising choice rather than the
+  // helpful one. Today stays selectable for anyone who catches it early.
+  const defaultStart = addDays(earliestStart, 1)
+  const [start, setStart] = useState<string>(
+    defaultStart > lastDate ? earliestStart : defaultStart,
+  )
 
   const plan = useMemo(() => {
     const amount = Math.round(totalKcal * share)
     const days = Math.max(1, Math.round(suggestedDays * spread))
-    return planRollout(amount, days, fromDate, lastDate)
-  }, [totalKcal, share, suggestedDays, spread, fromDate, lastDate])
+    return planRollout(amount, days, start, lastDate)
+  }, [totalKcal, share, suggestedDays, spread, start, lastDate])
 
   const applied = plan.reduce((s, d) => s + d.kcal, 0)
   const perDay = plan.length > 0 ? Math.round(applied / plan.length) : 0
@@ -63,6 +71,23 @@ export function RolloutModal({
   return (
     <Sheet open onClose={onClose} title={<><Sliders size={14} />{title}</>}>
       <p className="mb-3.5 text-xs leading-[1.55] text-fg-muted">{description}</p>
+
+      <Field
+        label="Mistä päivästä alkaen"
+        type="date"
+        value={start}
+        min={earliestStart}
+        max={lastDate}
+        onChange={(e) => {
+          const v = e.target.value
+          if (v) setStart(v < earliestStart ? earliestStart : v > lastDate ? lastDate : v)
+        }}
+      />
+      {start === earliestStart && (
+        <p className="-mt-1 mb-3 text-[10px] leading-tight text-fg-ghost">
+          Tänään on jo osittain syöty — säätö osuu loppupäivään.
+        </p>
+      )}
 
       <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
         Kuinka suuri osa
@@ -99,7 +124,8 @@ export function RolloutModal({
 
       {plan.length === 0 ? (
         <div className="rounded-[10px] border border-danger/20 bg-danger/[0.06] px-3.5 py-3 text-[12px] text-danger">
-          Jakson loppuun ei mahdu enää päiviä, joille säätö voitaisiin jakaa.
+          Valitun aloituspäivän ja jakson lopun ({formatDateShort(lastDate)}) väliin ei mahdu
+          päiviä, joille säätö voitaisiin jakaa.
         </div>
       ) : (
         <div className="rounded-[10px] border border-white/[0.08] bg-black/30 px-3.5 py-3">
@@ -127,7 +153,8 @@ export function RolloutModal({
           </div>
           {truncated && (
             <div className="mt-1.5 text-[11px] text-danger">
-              Jakso päättyy ennen kuin {wantedDays} päivää täyttyy — säätö mahtuu {plan.length} päivälle.
+              Jakso päättyy {formatDateShort(lastDate)} ennen kuin {wantedDays} päivää täyttyy —
+              säätö mahtuu {plan.length} päivälle.
             </div>
           )}
         </div>
