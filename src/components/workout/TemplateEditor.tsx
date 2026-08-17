@@ -87,6 +87,12 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
         return { ...base, interval: undefined }
       })
     onSave({
+      // Spread the original first: this editor only owns name, kind, colour
+      // and exercises, and listing the survivors by hand silently dropped
+      // everything it did not know about — the manual ordering, the block
+      // note, and (once archiving existed) the archived flag, which meant
+      // editing an archived template quietly brought it back.
+      ...initial,
       id: initial?.id ?? uid(),
       name: name.trim(),
       kind,
