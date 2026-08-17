@@ -32,6 +32,24 @@ integration. Never treat a push to a feature branch as delivery. Bump the
 `CACHE` version in `public/sw.js` on every release or the service worker keeps
 serving the old build.
 
+## Content lives in the database, logic lives in the code
+
+Templates, exercises, gate variants and training locations are **data**. They
+belong in `workout_templates` / `workout_locations`, written by a migration under
+`supabase/migrations/`, and they reach the client through the normal sync path.
+
+- **Never add a seed constant.** No `seedTemplates.ts`, no `seedLocations()`. A
+  constant in the client is a second source of truth that silently drifts from
+  the row the user actually edits, and then the app disagrees with itself
+  depending on which device you open it on.
+- **An empty list means "not synced yet", not "none".** `getLocations()` and
+  `getTemplates()` return `[]` before the first pull. Views must cope with that
+  rather than fill it in.
+- **Gate rules and resolution order stay in code** — `src/lib/gates.ts` and
+  `src/lib/sessionResolve.ts`. Thresholds are logic, not content.
+- Content migrations are **idempotent**: replace whole objects matched by their
+  stable `id` and skip the write when nothing changed, so re-running is a no-op.
+
 ## Conventions worth knowing
 
 - **Goals**: read the goal in force via `getActiveGoal()` /

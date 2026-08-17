@@ -6,10 +6,12 @@ import { WorkoutTools } from '../components/workout/WorkoutTools'
 import { DailyCheckSheet } from '../components/workout/DailyCheckSheet'
 import { deriveRegionHistory, assessmentsFrom, ALL_REGIONS } from '../lib/gates'
 import type { BodyRegion, GateStates, RegionHistory, LoadDay } from '../lib/gates'
-import { getLastLocationId, setLastLocationId, locationById } from '../lib/locations'
+import {
+  getLastLocationId, setLastLocationId, locationById, getLocations, pullLocations,
+  syncLocationCloud,
+} from '../lib/locations'
 import type { TrainingLocation } from '../lib/locations'
 import { resolveExercises, reresolveExercise } from '../lib/sessionResolve'
-import { ensureV2Templates } from '../lib/seedTemplates'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
@@ -161,6 +163,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
   const [selectedDay, setSelectedDay] = useState<string>(todayISO)
 
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
+  const [locations, setLocations] = useState<TrainingLocation[]>(() => getLocations())
   // The gate flow lives between picking a template and logging: a session is
   // never created until the room and the body have both been resolved.
   const [pendingTemplate, setPendingTemplate] = useState<WorkoutTemplate | null | undefined>(undefined)
@@ -175,6 +178,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     pullTemplates(user.id).then((ts) => { if (alive) setTemplates(ts) })
     pullWorkouts(user.id).then((ws) => { if (alive) setWorkouts(ws) })
     pullBlocks(user.id).then((bs) => { if (alive) setBlocks(bs) })
+    // Locations are content, not code: the profiles live in the database and
+    // arrive here, so a fresh install has none until this resolves.
+    pullLocations(user.id).then((ls) => { if (alive) setLocations(ls) })
     return () => { alive = false }
   }, [user])
 
@@ -227,11 +233,12 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     return out
   }, [assessmentLog, todayISO, loadDays])
 
-  // Create the v2 templates once and retire what they replace.
-  useEffect(() => {
-    const r = ensureV2Templates(user?.id)
-    if (r.created > 0) setTemplates(getTemplates())
-  }, [user])
+  /** A place invented in the daily check is real data, so it goes up with
+   *  everything else rather than living only on this phone. */
+  const saveLocationEverywhere = (saved: TrainingLocation, all: TrainingLocation[]) => {
+    setLocations(all)
+    if (user) syncLocationCloud(user.id, saved)
+  }
 
   /** Step one: choose the template, then ask the day. */
   const startWorkout = (template?: WorkoutTemplate) => {
@@ -809,7 +816,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       {pendingTemplate !== undefined && (
         <DailyCheckSheet
           histories={histories}
+          locations={locations}
           defaultLocationId={getLastLocationId()}
+          onLocationSaved={saveLocationEverywhere}
           onCancel={() => setPendingTemplate(undefined)}
           onStart={({ location, check, gates }) =>
             beginResolved(pendingTemplate, location, gates, check.redFlags)
@@ -820,7 +829,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       {editCheck && session && (
         <DailyCheckSheet
           histories={histories}
+          locations={locations}
           defaultLocationId={session.locationId ?? getLastLocationId()}
+          onLocationSaved={saveLocationEverywhere}
           expandAll
           onCancel={() => setEditCheck(false)}
           onStart={({ location, check, gates }) => {

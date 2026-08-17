@@ -127,11 +127,17 @@ function PrescriptionFields({
 
 // ── Environment ────────────────────────────────────────────────────────────
 
+/** How many substitutions deep the editor will let a slot go. Three covers the
+ *  real ladders (trap bar → straight bar → bodyweight) and stops the row from
+ *  becoming an infinitely nestable form. */
+const MAX_ENV_DEPTH = 3
+
 export function EnvFields({
   value,
   onChange,
   title,
   seedName = '',
+  depth = 0,
 }: {
   value: EnvRequirement | undefined
   onChange: (e: EnvRequirement | undefined) => void
@@ -139,6 +145,10 @@ export function EnvFields({
   /** Seeds a new fallback's name. An empty one would resolve to a nameless
    *  movement in the session, which is worse than a wrong-but-editable guess. */
   seedName?: string
+  /** Substitution depth. A substitute can need kit of its own, so the form
+   *  recurses exactly as the resolver does — otherwise the second and third
+   *  rungs of a ladder exist in the data and are invisible here. */
+  depth?: number
 }) {
   const requires = value?.requires ?? []
   const toggle = (cap: Capability) => {
@@ -199,10 +209,24 @@ export function EnvFields({
                 value={value?.fallback ?? emptyPrescription(seedName)}
                 onChange={(p) => onChange({ requires, fallback: p })}
               />
-              <p className="m-0 text-[10px] leading-snug text-fg-ghost">
+              <p className="m-0 mb-1.5 text-[10px] leading-snug text-fg-ghost">
                 Säilytä teho vaikeammalla vipuvarrella tai hitaammalla tempolla — ei lisäämällä
                 toistoja.
               </p>
+              {depth + 1 < MAX_ENV_DEPTH && (
+                <EnvFields
+                  value={value?.fallback?.env}
+                  onChange={(e) =>
+                    onChange({
+                      requires,
+                      fallback: { ...(value?.fallback ?? emptyPrescription(seedName)), env: e },
+                    })
+                  }
+                  title="Korvaaja vaatii paikalta"
+                  seedName={value?.fallback?.name || seedName}
+                  depth={depth + 1}
+                />
+              )}
             </>
           )}
         </>

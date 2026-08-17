@@ -7,7 +7,7 @@ import {
 } from '../../lib/gates'
 import type { BodyRegion, DayCheck, GateStates, RedFlag, RegionHistory } from '../../lib/gates'
 import {
-  CAPABILITIES, CAPABILITY_LABEL, getLocations, newLocation, saveLocation,
+  CAPABILITIES, CAPABILITY_LABEL, FIELD_OF, getLocations, newLocation, saveLocation,
 } from '../../lib/locations'
 import type { TrainingLocation } from '../../lib/locations'
 
@@ -33,6 +33,9 @@ interface Props {
   defaultLocationId: string | null
   /** Open every region immediately — used by "Muokkaa päiväarviota". */
   expandAll?: boolean
+  /** A place created here is content like any other, so the owner of the list
+   *  gets told and can push it to the database. */
+  onLocationSaved?: (saved: TrainingLocation, all: TrainingLocation[]) => void
   onCancel: () => void
   onStart: (result: {
     location: TrainingLocation | null
@@ -46,6 +49,7 @@ export function DailyCheckSheet({
   locations: locationsProp,
   defaultLocationId,
   expandAll = false,
+  onLocationSaved,
   onCancel,
   onStart,
 }: Props) {
@@ -102,13 +106,7 @@ export function DailyCheckSheet({
             className="mb-2 w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2 text-sm text-text"
           />
           {CAPABILITIES.map((cap) => {
-            const field = {
-              externalLoad: 'hasExternalLoad',
-              muscleUpBar: 'canMuscleUp',
-              plyoBox: 'hasPlyoBox',
-              anchorAndBand: 'hasAnchorAndBand',
-              parallettes: 'hasParallettes',
-            }[cap] as keyof TrainingLocation
+            const field = FIELD_OF[cap]
             const on = draftLocation[field] === true
             return (
               <button
@@ -133,9 +131,11 @@ export function DailyCheckSheet({
               disabled={!draftLocation.name.trim()}
               onClick={() => {
                 const saved = { ...draftLocation, name: draftLocation.name.trim() }
-                setLocations(saveLocation(saved))
+                const all = saveLocation(saved)
+                setLocations(all)
                 setLocationId(saved.id)
                 setDraftLocation(null)
+                onLocationSaved?.(saved, all)
               }}
             >
               Tallenna paikka

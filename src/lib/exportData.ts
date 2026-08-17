@@ -105,11 +105,18 @@ const README: Record<string, string> = {
     'Reusable session plans. archivedAt marks a retired template — retired, not ' +
     'deleted, so old sessions still point at something. An exercise may carry env ' +
     '(what the room must provide, and the substitute when it does not) and gate ' +
-    '(which body region sets its intensity, and the variant per state).',
+    '(which body region sets its intensity, and the variant per state). A gate ' +
+    'variant may carry its own env, and an env fallback may carry env in turn: ' +
+    'equipment substitution is a chain walked until the room can host something, ' +
+    'so "no trap bar" can end at a bodyweight hinge two steps down. A fallback of ' +
+    'null ends the chain and drops the slot instead of substituting.',
   trainingLocations:
-    'Where sessions happen, as five capability flags. The condition gate resolves ' +
+    'Where sessions happen, as capability flags — external load, muscle-up bar, ' +
+    'plyo box, anchor and band, parallettes, trap bar. The condition gate resolves ' +
     'against these before any health gate runs: the room decides which movements ' +
-    'exist, the body decides how hard.',
+    'exist, the body decides how hard. These profiles live in the database, not in ' +
+    'the app: an empty list here means the device had not synced, not that the user ' +
+    'trains nowhere.',
   assessments:
     'Daily readiness readings, one per body region per session. score is 0–10, ' +
     'gateOutput is what the gate decided (develop/hybrid/treat/rest/escalate) and ' +

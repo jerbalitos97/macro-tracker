@@ -82,6 +82,33 @@ export interface ResolveInput {
   lastSetsFor?: (name: string) => SetEntry[] | null
 }
 
+/** Guard against a fallback chain that loops back on itself through hand-edited
+ *  data. Eight steps is far past any real equipment ladder. */
+const MAX_ENV_DEPTH = 8
+
+/** Follow a prescription's equipment requirement — and the requirement of
+ *  whatever it falls back to — until something the room actually supports is
+ *  left standing.
+ *
+ *  The chaining is the point. Equipment substitution is a ladder, not a single
+ *  step: no trap bar means the straight-bar RDL, and no external load at all
+ *  means the bodyweight version. A one-step fallback would hand someone
+ *  training in a park the straight-bar RDL, which is just as impossible as the
+ *  trap bar was. A null anywhere in the chain ends it: the slot is dropped. */
+function resolveChain(
+  p: Prescription | null,
+  location: TrainingLocation | null,
+  depth = 0,
+): { prescription: Prescription | null; envFallback: boolean } {
+  if (p === null) return { prescription: null, envFallback: true }
+  if (!p.env) return { prescription: p, envFallback: depth > 0 }
+  if (depth >= MAX_ENV_DEPTH) return { prescription: null, envFallback: true }
+  const missing = p.env.requires.filter((cap) => !locationHas(location, cap))
+  if (missing.length === 0) return { prescription: p, envFallback: depth > 0 }
+  const next = resolveChain(p.env.fallback, location, depth + 1)
+  return { prescription: next.prescription, envFallback: true }
+}
+
 /** What the room does to one movement. */
 function resolveEnv(
   te: TemplateExercise,
@@ -90,18 +117,17 @@ function resolveEnv(
   if (!te.env) return { prescription: baseOf(te), envFallback: false }
   const missing = te.env.requires.filter((cap) => !locationHas(location, cap))
   if (missing.length === 0) return { prescription: baseOf(te), envFallback: false }
-  return { prescription: te.env.fallback, envFallback: true }
+  return { prescription: resolveChain(te.env.fallback, location, 1).prescription, envFallback: true }
 }
 
-/** Apply a prescription's own equipment requirement, if it has one. */
-function applyVariantEnv(
-  p: Prescription,
-  location: TrainingLocation | null,
-): { prescription: Prescription | null; envFallback: boolean } {
-  if (!p.env) return { prescription: p, envFallback: false }
-  const missing = p.env.requires.filter((cap) => !locationHas(location, cap))
-  if (missing.length === 0) return { prescription: p, envFallback: false }
-  return { prescription: p.env.fallback, envFallback: true }
+interface GateResult {
+  prescription: Prescription | null
+  envFallback: boolean
+  /** Why the slot is empty, when it is. A variant that needs kit the room does
+   *  not have reads "ei mahdollinen täällä"; a variant the gate switched off
+   *  reads "pois tänään". Conflating them would tell someone to find a different
+   *  gym when the real answer is to come back when the joint settles. */
+  unavailable?: 'env' | 'gate'
 }
 
 function resolveGate(
@@ -110,13 +136,15 @@ function resolveGate(
   envPrescription: Prescription,
   envFallback: boolean,
   location: TrainingLocation | null,
-): { prescription: Prescription | null; envFallback: boolean } {
+): GateResult {
   // The room already changed the movement, so the gate's named variants no
   // longer describe it. Keep the substitute and apply the gate as a volume
   // reduction instead — a gentler archer pull-up, not a jump back to the
   // barred original.
   if (envFallback) {
-    if (state === 'rest' || state === 'escalate') return { prescription: null, envFallback: true }
+    if (state === 'rest' || state === 'escalate') {
+      return { prescription: null, envFallback: true, unavailable: 'gate' }
+    }
     if (state === 'develop') return { prescription: envPrescription, envFallback: true }
     const factor = state === 'treat' ? 0.5 : 0.75
     return {
@@ -131,7 +159,7 @@ function resolveGate(
     }
   }
 
-  if (state === 'escalate') return { prescription: null, envFallback: false }
+  if (state === 'escalate') return { prescription: null, envFallback: false, unavailable: 'gate' }
 
   let picked: Prescription | null | undefined
   for (const key of VARIANT_FALLBACK[state]) {
@@ -140,10 +168,15 @@ function resolveGate(
     break
   }
   if (picked === undefined) picked = gate.variants.develop
-  if (picked === null) return { prescription: null, envFallback: false }
-  // The chosen variant may itself need kit the room does not have.
-  const ve = applyVariantEnv(picked, location)
-  return { prescription: ve.prescription, envFallback: ve.envFallback }
+  if (picked === null) return { prescription: null, envFallback: false, unavailable: 'gate' }
+  // The chosen variant may itself need kit the room does not have, and its
+  // substitute may need kit too — walk the whole chain. A variant whose chain
+  // ends in null is a movement this room cannot host at this intensity: the
+  // parallette holds are exactly this, dropped rather than swapped for a floor
+  // version the wrist cannot take.
+  const chained = resolveChain(picked, location)
+  if (chained.prescription === null) return { ...chained, unavailable: 'env' }
+  return chained
 }
 
 function toLogged(
@@ -231,7 +264,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
           gateRegion: te.gate.bodyRegion,
           gateState: state,
           envFallback: env.envFallback || g.envFallback,
-          unavailable: 'gate',
+          unavailable: g.unavailable ?? 'gate',
           source: gates[te.gate.bodyRegion].source,
         },
       }

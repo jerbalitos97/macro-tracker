@@ -5,6 +5,7 @@
 // much as a set of five yes/no facts, because those five are what actually
 // change the session.
 
+import { supabase } from './supabase'
 import { uid } from './workouts'
 
 const K_LOCATIONS = 'mimir.workouts.locations:v1'
@@ -16,6 +17,7 @@ export type Capability =
   | 'plyoBox'
   | 'anchorAndBand'
   | 'parallettes'
+  | 'trapBar'
 
 export const CAPABILITIES: Capability[] = [
   'externalLoad',
@@ -23,6 +25,7 @@ export const CAPABILITIES: Capability[] = [
   'plyoBox',
   'anchorAndBand',
   'parallettes',
+  'trapBar',
 ]
 
 export const CAPABILITY_LABEL: Record<Capability, string> = {
@@ -31,6 +34,7 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
   plyoBox: 'Hyppylaatikko',
   anchorAndBand: 'Ankkuri ja kuminauha',
   parallettes: 'Paraletit',
+  trapBar: 'Trap bar',
 }
 
 export interface TrainingLocation {
@@ -41,43 +45,27 @@ export interface TrainingLocation {
   hasPlyoBox: boolean
   hasAnchorAndBand: boolean
   hasParallettes: boolean
+  hasTrapBar: boolean
+  position?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
-const FIELD_OF: Record<Capability, keyof TrainingLocation> = {
+/** Which boolean on a location answers which capability. Exported so the
+ *  new-location form is generated from the same list the resolver reads: adding
+ *  a capability then shows up as a toggle without touching the UI. */
+export const FIELD_OF: Record<Capability, keyof TrainingLocation> = {
   externalLoad: 'hasExternalLoad',
   muscleUpBar: 'canMuscleUp',
   plyoBox: 'hasPlyoBox',
   anchorAndBand: 'hasAnchorAndBand',
   parallettes: 'hasParallettes',
+  trapBar: 'hasTrapBar',
 }
 
 export function locationHas(loc: TrainingLocation | null, cap: Capability): boolean {
   if (!loc) return true // unknown location assumes nothing is missing
   return loc[FIELD_OF[cap]] === true
-}
-
-/** The two places that exist on day one. Editable like any other. */
-export function seedLocations(): TrainingLocation[] {
-  return [
-    {
-      id: 'loc-koti',
-      name: 'Koti',
-      hasExternalLoad: true,   // kahvakuulat / reppu
-      canMuscleUp: false,
-      hasPlyoBox: true,
-      hasAnchorAndBand: true,
-      hasParallettes: true,
-    },
-    {
-      id: 'loc-sali',
-      name: 'Mikon sali',
-      hasExternalLoad: true,
-      canMuscleUp: true,
-      hasPlyoBox: true,
-      hasAnchorAndBand: true,
-      hasParallettes: true,
-    },
-  ]
 }
 
 function read<T>(key: string, fallback: T): T {
@@ -97,14 +85,14 @@ function write(key: string, value: unknown): void {
   }
 }
 
+/** Locations from the local cache. The database is the source of truth — see
+ *  pullLocations — and there is deliberately no built-in seed: content lives in
+ *  the database, not in a constant in the client. An empty list simply means
+ *  "not synced yet", and the daily check offers to create one. */
 export function getLocations(): TrainingLocation[] {
   const list = read<TrainingLocation[]>(K_LOCATIONS, [])
-  if (!Array.isArray(list) || list.length === 0) {
-    const seeded = seedLocations()
-    write(K_LOCATIONS, seeded)
-    return seeded
-  }
-  return list
+  if (!Array.isArray(list)) return []
+  return [...list].sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
 }
 
 export function saveLocation(loc: TrainingLocation): TrainingLocation[] {
@@ -120,6 +108,7 @@ export function deleteLocation(id: string): TrainingLocation[] {
 }
 
 export function newLocation(name = ''): TrainingLocation {
+  const now = new Date().toISOString()
   return {
     id: uid(),
     name,
@@ -128,6 +117,9 @@ export function newLocation(name = ''): TrainingLocation {
     hasPlyoBox: false,
     hasAnchorAndBand: false,
     hasParallettes: false,
+    hasTrapBar: false,
+    createdAt: now,
+    updatedAt: now,
   }
 }
 
@@ -143,4 +135,82 @@ export function setLastLocationId(id: string): void {
 export function locationById(id: string | undefined | null): TrainingLocation | null {
   if (!id) return null
   return getLocations().find((l) => l.id === id) ?? null
+}
+
+// ── Cloud sync ─────────────────────────────────────────────────────────────
+// Same shape as blocks and templates: the table is authoritative, localStorage
+// is the offline cache, and anything created offline is pushed up rather than
+// dropped.
+
+interface LocationRow {
+  id: string
+  name: string
+  has_external_load: boolean
+  can_muscle_up: boolean
+  has_plyo_box: boolean
+  has_anchor_and_band: boolean
+  has_parallettes: boolean
+  has_trap_bar: boolean
+  position: number | null
+  created_at: string
+  updated_at: string
+}
+
+const fromRow = (r: LocationRow): TrainingLocation => ({
+  id: r.id,
+  name: r.name,
+  hasExternalLoad: r.has_external_load,
+  canMuscleUp: r.can_muscle_up,
+  hasPlyoBox: r.has_plyo_box,
+  hasAnchorAndBand: r.has_anchor_and_band,
+  hasParallettes: r.has_parallettes,
+  hasTrapBar: r.has_trap_bar,
+  position: r.position ?? undefined,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+})
+
+export async function pullLocations(userId: string): Promise<TrainingLocation[]> {
+  if (!supabase) return getLocations()
+  const { data, error } = await supabase.from('workout_locations').select('*').eq('user_id', userId)
+  if (error) {
+    console.warn('[locations] pull:', error.message)
+    return getLocations()
+  }
+  const cloud = (data ?? []).map((r) => fromRow(r as LocationRow))
+  const cloudIds = new Set(cloud.map((l) => l.id))
+  const localOnly = getLocations().filter((l) => !cloudIds.has(l.id))
+  for (const l of localOnly) syncLocationCloud(userId, l)
+  const next = [...cloud, ...localOnly].sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
+  write(K_LOCATIONS, next)
+  return next
+}
+
+export function syncLocationCloud(userId: string, l: TrainingLocation): void {
+  supabase
+    ?.from('workout_locations')
+    .upsert({
+      id: l.id,
+      user_id: userId,
+      name: l.name,
+      has_external_load: l.hasExternalLoad,
+      can_muscle_up: l.canMuscleUp,
+      has_plyo_box: l.hasPlyoBox,
+      has_anchor_and_band: l.hasAnchorAndBand,
+      has_parallettes: l.hasParallettes,
+      has_trap_bar: l.hasTrapBar,
+      position: l.position ?? null,
+      created_at: l.createdAt ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .then(({ error }) => { if (error) console.warn('[locations] sync:', error.message) })
+}
+
+export function deleteLocationCloud(userId: string, id: string): void {
+  supabase
+    ?.from('workout_locations')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .then(({ error }) => { if (error) console.warn('[locations] delete:', error.message) })
 }
