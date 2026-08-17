@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer, GripVertical } from 'lucide-react'
 import { Card, CARD_CLASSES, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { WorkoutTemplate, TemplateExercise, TemplateKind, IntervalConfig } from '../../lib/workouts'
+import { GateEditor } from './GateEditor'
 import { uid, TEMPLATE_COLORS, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 
 interface Props {
@@ -303,6 +304,19 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Gate and environment. Collapsed and empty by default: a
+                    template that says nothing about either behaves exactly as
+                    templates always have. */}
+                {kind !== 'mobility' && (
+                  <GateEditor
+                    exerciseName={e.name}
+                    gate={e.gate}
+                    onChange={(g) => patch(e.id, { gate: g })}
+                    env={e.env}
+                    onEnvChange={(en) => patch(e.id, { env: en })}
+                  />
                 )}
               </>
             )}

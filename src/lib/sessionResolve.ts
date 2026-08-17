@@ -148,10 +148,12 @@ function resolveGate(
 
 function toLogged(
   te: TemplateExercise,
-  p: Prescription,
+  raw: Prescription,
   resolution: LoggedExercise['resolution'],
   lastSetsFor?: (name: string) => SetEntry[] | null,
 ): LoggedExercise {
+  // A variant saved without a name would otherwise reach the logger nameless.
+  const p: Prescription = raw.name.trim() ? raw : { ...raw, name: te.name }
   // Interval work is clocked rather than counted; its sets are plain markers.
   if (te.interval) {
     return {
