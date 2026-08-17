@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal, Info } from 'lucide-react'
+import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
@@ -44,7 +44,7 @@ interface TileProps {
   onMove: (delta: -1 | 1) => void
 }
 
-function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap, onInfo }: TileProps & { onSwap?: () => void; onInfo?: () => void }) {
+function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap }: TileProps & { onSwap?: () => void }) {
   const done = exerciseDone(ex)
 
   return (
@@ -65,23 +65,12 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
     >
       {({ handleProps }) => (
         <>
-          {/* Grip and the instruction button share the top-left; the done tick
-              owns the top-right corner. The written instruction sits one tap
-              from the movement it describes — anything further away goes unread
-              mid-session, which is how the notes ended up dead weight. */}
-          <div className="-m-2 flex items-center self-start">
-            <div {...handleProps} className="cursor-grab touch-none p-2 active:cursor-grabbing">
-              <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
-            </div>
-            {onInfo && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onInfo() }}
-                aria-label={`Ohje: ${ex.name}`}
-                className="hit-44 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full text-fg-faint"
-              >
-                <Info size={14} />
-              </button>
-            )}
+          {/* Deliberately no instruction button here. The tile is a small target
+              in a two-column grid and its whole face opens the movement, so an
+              icon on it mostly got hit by accident. The instruction lives one
+              level in, where you have already committed to this movement. */}
+          <div {...handleProps} className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing">
+            <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
           </div>
 
           <button
@@ -136,10 +125,10 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
 
 export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
   const [swapFor, setSwapFor] = useState<string | null>(null)
+  // The instruction sheet is only reachable from inside a movement's own sheet.
+  // Sheets do not stack — they share a z-layer and a scroll lock — so it swaps
+  // the set grid out and swaps it back on close, landing you where you left.
   const [infoFor, setInfoFor] = useState<string | null>(null)
-  // Sheets do not stack — they share a z-layer and a scroll lock. Opening the
-  // instructions from inside the set grid swaps sheets and swaps back on close,
-  // so you land where you left instead of back at the tile grid.
   const [infoReturnTo, setInfoReturnTo] = useState<string | null>(null)
   const escalated = (workout.assessments ?? []).some((a) => a.gateOutput === 'escalate')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -303,7 +292,6 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             onToggleDone={() => toggleExerciseDone(ex)}
             onMove={(d) => moveExercise(ex.id, d)}
             onSwap={ex.resolution?.gateRegion && onSwapVariant ? () => setSwapFor(ex.id) : undefined}
-            onInfo={() => setInfoFor(ex.id)}
           />
         ))}
 
