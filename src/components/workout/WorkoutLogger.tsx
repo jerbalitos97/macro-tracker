@@ -44,7 +44,7 @@ interface TileProps {
   onMove: (delta: -1 | 1) => void
 }
 
-function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap }: TileProps & { onSwap?: () => void }) {
+function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove }: TileProps) {
   const done = exerciseDone(ex)
 
   return (
@@ -99,13 +99,12 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
                   ? 'pois tänään'
                   : blockSummary(ex)}
             </div>
-            {/* Where the variant came from. Without it a substituted movement
-                looks like the plan changed by itself. */}
+            {/* Where the variant came from — read-only. Without it a substituted
+                movement looks like the plan changed by itself, but it is not a
+                control: changing the variant lives in the instruction sheet, so
+                the tile stays a tile. */}
             {(ex.resolution?.gateRegion || ex.resolution?.envFallback) && (
-              <div
-                onClick={onSwap ? (e) => { e.stopPropagation(); onSwap() } : undefined}
-                className={`mt-1 truncate font-mono text-[9px] tracking-[0.04em] text-accent/80 ${onSwap ? 'underline decoration-dotted underline-offset-2' : ''}`}
-              >
+              <div className="mt-1 truncate font-mono text-[9px] tracking-[0.04em] text-accent/80">
                 {[
                   ex.resolution.gateRegion &&
                     `${REGION_LABEL[ex.resolution.gateRegion].toLowerCase()}portti · ${GATE_LABEL[ex.resolution.gateState ?? 'develop']}`,
@@ -124,7 +123,6 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
 }
 
 export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
-  const [swapFor, setSwapFor] = useState<string | null>(null)
   // The instruction sheet is only reachable from inside a movement's own sheet.
   // Sheets do not stack — they share a z-layer and a scroll lock — so it swaps
   // the set grid out and swaps it back on close, landing you where you left.
@@ -254,32 +252,6 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
         </span>
       </button>
 
-      {/* Manual variant swap */}
-      {swapFor && onSwapVariant && (() => {
-        const ex = workout.exercises.find((e) => e.id === swapFor)
-        const region = ex?.resolution?.gateRegion
-        const states: GateState[] = ['develop', 'hybrid', 'treat', 'rest']
-        return (
-          <Sheet open onClose={() => setSwapFor(null)} title={`Vaihda variantti${region ? ` · ${REGION_LABEL[region]}` : ''}`}>
-            <p className="mb-3 text-[11px] leading-relaxed text-fg-muted">
-              {ex?.resolution?.baseName ?? ex?.name}. Käsin tehty vaihto kirjautuu lokiin, jotta
-              jälkikäteen näkyy että variantti ei tullut portista.
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {states.map((st) => (
-                <Button
-                  key={st}
-                  variant={ex?.resolution?.gateState === st ? 'primary' : 'action'}
-                  onClick={() => { onSwapVariant(swapFor, st); setSwapFor(null) }}
-                >
-                  {GATE_LABEL[st]}
-                </Button>
-              ))}
-            </div>
-          </Sheet>
-        )
-      })()}
-
       {/* Exercise blocks */}
       <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">
         {workout.exercises.map((ex) => (
@@ -291,7 +263,6 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             onOpen={() => setOpenId(ex.id)}
             onToggleDone={() => toggleExerciseDone(ex)}
             onMove={(d) => moveExercise(ex.id, d)}
-            onSwap={ex.resolution?.gateRegion && onSwapVariant ? () => setSwapFor(ex.id) : undefined}
           />
         ))}
 
@@ -322,6 +293,17 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             exercise={ex}
             slot={slotFor(ex)}
             templateNote={template?.note}
+            onSwapVariant={
+              ex.resolution?.gateRegion && onSwapVariant
+                ? (state) => {
+                    onSwapVariant(ex.id, state)
+                    // Back to the set grid so the new prescription is the next
+                    // thing you see, rather than the list you just chose from.
+                    setInfoFor(null)
+                    if (infoReturnTo) { setOpenId(infoReturnTo); setInfoReturnTo(null) }
+                  }
+                : undefined
+            }
             onClose={() => {
               setInfoFor(null)
               if (infoReturnTo) { setOpenId(infoReturnTo); setInfoReturnTo(null) }

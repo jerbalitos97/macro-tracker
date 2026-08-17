@@ -2,6 +2,7 @@ import { Info, Ban, CornerDownRight } from 'lucide-react'
 import { Sheet } from '../ui'
 import type { EnvRequirement, LoggedExercise, Prescription, TemplateExercise } from '../../lib/workouts'
 import { GATE_LABEL, REGION_LABEL } from '../../lib/gates'
+import type { GateState } from '../../lib/gates'
 import { CAPABILITY_LABEL } from '../../lib/locations'
 import { pickedVariant } from '../../lib/sessionResolve'
 import type { VariantKey } from '../../lib/sessionResolve'
@@ -81,12 +82,20 @@ interface Props {
   slot: TemplateExercise | null
   /** The template's own note — the block-level instruction, shown once. */
   templateNote?: string
+  /** Switch the slot to a chosen state by hand, for a symptom that shows up in
+   *  the warm-up rather than at the door. Absent for past sessions. */
+  onSwapVariant?: (state: GateState) => void
   onClose: () => void
 }
 
-export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onClose }: Props) {
+export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVariant, onClose }: Props) {
   const r = ex.resolution
   const todayKey = slot?.gate && r?.gateState ? pickedVariant(slot.gate, r.gateState) : null
+  // Switching happens by tapping the variant you want in the list below. The
+  // list already spells out what each state prescribes, so picking from it is
+  // strictly better informed than picking from four bare state names — which is
+  // what the old separate sheet asked you to do.
+  const canSwap = Boolean(onSwapVariant && slot?.gate)
 
   return (
     <Sheet open onClose={onClose} title={<><Info size={14} />Ohje</>}>
@@ -177,10 +186,13 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onClose }:
                 {VARIANT_ORDER.filter((k) => k in slot.gate!.variants).map((key) => {
                   const v = slot.gate!.variants[key]
                   const isToday = key === todayKey
+                  const Row = canSwap ? 'button' : 'div'
                   return (
-                    <div
+                    <Row
                       key={key}
-                      className={`mb-1.5 rounded-[8px] border px-2.5 py-2 ${
+                      onClick={canSwap && !isToday ? () => onSwapVariant!(key) : undefined}
+                      aria-pressed={canSwap ? isToday : undefined}
+                      className={`mb-1.5 block w-full !min-h-0 rounded-[8px] border px-2.5 py-2 text-left ${
                         isToday ? 'border-accent/40 bg-accent/[0.08]' : 'border-white/[0.07]'
                       }`}
                     >
@@ -215,11 +227,13 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onClose }:
                           )}
                         </>
                       )}
-                    </div>
+                    </Row>
                   )
                 })}
                 <p className="m-0 text-[10px] leading-snug text-fg-ghost">
-                  Määrittelemätön tila putoaa lähimpään määriteltyyn.
+                  {canSwap
+                    ? 'Napauta varianttia vaihtaaksesi sen käsin. Käsin tehty vaihto kirjautuu lokiin, jotta jälkikäteen näkyy ettei variantti tullut portista.'
+                    : 'Määrittelemätön tila putoaa lähimpään määriteltyyn.'}
                 </p>
               </div>
             )}
