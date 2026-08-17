@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Plus, Flame, Timer, X, Check } from 'lucide-react'
+import { Plus, Timer, X, Check } from 'lucide-react'
 import { Sheet, Button, Chip } from '../ui'
-import { WarmupFab } from './WarmupSheet'
 import {
   REST_TARGETS, getActiveRest, startRest, endRest, clearActiveRest,
   elapsedSec, formatRest,
@@ -19,7 +18,6 @@ interface Props {
 
 export function WorkoutTools({ workoutId }: Props) {
   const [menu, setMenu] = useState(false)
-  const [warmup, setWarmup] = useState(false)
   const [rest, setRest] = useState(false)
   const [active, setActive] = useState<ActiveRest | null>(() => getActiveRest())
   const [, tick] = useState(0)
@@ -84,17 +82,9 @@ export function WorkoutTools({ workoutId }: Props) {
 
       {/* Chooser */}
       <Sheet open={menu} onClose={() => setMenu(false)} title={<><Plus size={14} />Työkalut</>}>
-        <button
-          onClick={() => { setMenu(false); setWarmup(true) }}
-          className="mb-2 flex w-full items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5 text-left"
-        >
-          <Flame size={18} className="flex-shrink-0 text-accent" />
-          <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-text">Lämmittely</div>
-            <div className="text-[11px] text-fg-faint">Katso ja muokkaa lämmittelyrutiini</div>
-          </div>
-        </button>
-
+        {/* The warm-up used to live here as a second, separately-edited routine.
+            It is now the package the template names, shown at the top of the
+            logger with the day's gates applied — one warm-up, not two. */}
         <div className="rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5">
           <div className="flex items-center gap-3">
             <Timer size={18} className="flex-shrink-0 text-accent" />
@@ -173,7 +163,6 @@ export function WorkoutTools({ workoutId }: Props) {
         )}
       </Sheet>
 
-      <WarmupFab open={warmup} onClose={() => setWarmup(false)} />
     </>
   )
 }

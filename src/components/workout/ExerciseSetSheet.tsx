@@ -71,6 +71,45 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
         </button>
       )}
 
+      {/* Parallel choices, when the plan is asking you to pick the room rather
+          than the other way round. Both are spelled out with the place each
+          needs, because the point is to decide which gym to walk into. */}
+      {exercise.alternatives && exercise.alternatives.length > 1 && (
+        <div className="mb-3">
+          <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">
+            Valitse paikan mukaan
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {exercise.alternatives.map((alt) => {
+              const active = alt.name === exercise.name
+              return (
+                <button
+                  key={alt.name}
+                  onClick={() => active ? undefined : onChange({ ...exercise, name: alt.name, tempo: alt.tempo, note: [alt.note, alt.dose].filter(Boolean).join(' · ') || undefined })}
+                  aria-pressed={active}
+                  className={`w-full !min-h-0 rounded-[8px] border px-3 py-2 text-left ${
+                    active ? 'border-accent/45 bg-accent/[0.10]' : 'border-white/[0.09]'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[12.5px] leading-snug text-text">{alt.name}</span>
+                    <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">{alt.dose}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                    {alt.placeLabel && (
+                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${active ? 'text-accent' : 'text-fg-faint'}`}>
+                        {alt.placeLabel}
+                      </span>
+                    )}
+                    {alt.note && <span className="text-[10.5px] leading-snug text-fg-faint">{alt.note}</span>}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {suggestion && (
         <div className="mb-3 rounded-row border border-cyan/20 bg-cyan/[0.07] px-3 py-2">
           <div className="mb-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-cyan">Viime kerralla</div>

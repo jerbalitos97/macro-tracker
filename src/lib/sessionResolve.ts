@@ -112,34 +112,71 @@ const MAX_ENV_DEPTH = 8
  *  means the bodyweight version. A one-step fallback would hand someone
  *  training in a park the straight-bar RDL, which is just as impossible as the
  *  trap bar was. A null anywhere in the chain ends it: the slot is dropped. */
+interface ChainResult {
+  prescription: Prescription | null
+  envFallback: boolean
+  /** Parallel choices, when the slot offers them and the room allows them. The
+   *  first is the active one; the rest are one tap away in the logger. */
+  alternatives?: Prescription[]
+}
+
 function resolveChain(
   p: Prescription | null,
   location: TrainingLocation | null,
   depth = 0,
-): { prescription: Prescription | null; envFallback: boolean } {
+): ChainResult {
   if (p === null) return { prescription: null, envFallback: true }
-  if (!p.env) return { prescription: p, envFallback: depth > 0 }
   if (depth >= MAX_ENV_DEPTH) return { prescription: null, envFallback: true }
+
+  // Parallel options come first: they are a question for the user, not a
+  // deduction, so they short-circuit the usual "pick one" walk.
+  if (p.envOptions) {
+    const opts = resolveOptions(p.envOptions, location, depth)
+    if (opts) return opts
+  }
+
+  if (!p.env) return { prescription: p, envFallback: depth > 0 }
   const missing = p.env.requires.filter((cap) => !locationHas(location, cap))
   if (missing.length === 0) return { prescription: p, envFallback: depth > 0 }
   const next = resolveChain(p.env.fallback, location, depth + 1)
-  return { prescription: next.prescription, envFallback: true }
+  return { prescription: next.prescription, envFallback: true, alternatives: next.alternatives }
+}
+
+/** A group of side-by-side choices, kept whole when the room can host them and
+ *  collapsed to the fallback when it cannot. */
+function resolveOptions(
+  eo: NonNullable<Prescription['envOptions']>,
+  location: TrainingLocation | null,
+  depth: number,
+): ChainResult | null {
+  const missing = eo.requires.filter((cap) => !locationHas(location, cap))
+  if (missing.length > 0) {
+    const next = resolveChain(eo.fallback, location, depth + 1)
+    return { prescription: next.prescription, envFallback: true, alternatives: next.alternatives }
+  }
+  const options = eo.options.filter(Boolean)
+  if (options.length === 0) return null
+  return {
+    prescription: options[0],
+    envFallback: false,
+    alternatives: options.length > 1 ? options : undefined,
+  }
 }
 
 /** What the room does to one movement. */
-function resolveEnv(
-  te: TemplateExercise,
-  location: TrainingLocation | null,
-): { prescription: Prescription | null; envFallback: boolean } {
+function resolveEnv(te: TemplateExercise, location: TrainingLocation | null): ChainResult {
+  if (te.envOptions) {
+    const opts = resolveOptions(te.envOptions, location, 0)
+    if (opts) return opts
+  }
   if (!te.env) return { prescription: baseOf(te), envFallback: false }
   const missing = te.env.requires.filter((cap) => !locationHas(location, cap))
   if (missing.length === 0) return { prescription: baseOf(te), envFallback: false }
-  return { prescription: resolveChain(te.env.fallback, location, 1).prescription, envFallback: true }
+  const next = resolveChain(te.env.fallback, location, 1)
+  return { prescription: next.prescription, envFallback: true, alternatives: next.alternatives }
 }
 
-interface GateResult {
-  prescription: Prescription | null
-  envFallback: boolean
+interface GateResult extends ChainResult {
   /** Why the slot is empty, when it is. A variant that needs kit the room does
    *  not have reads "ei mahdollinen täällä"; a variant the gate switched off
    *  reads "pois tänään". Conflating them would tell someone to find a different
@@ -196,11 +233,29 @@ function resolveGate(
   return chained
 }
 
+/** Parallel choices as the logger needs them: the dose spelled out, so the row
+ *  can be read and picked without opening anything. */
+function toAlternatives(list: Prescription[] | undefined): LoggedExercise['alternatives'] {
+  if (!list || list.length < 2) return undefined
+  return list.map((p) => ({
+    name: p.name,
+    placeLabel: p.placeLabel,
+    dose: repsLabel(p)
+      ? `${p.sets} × ${repsLabel(p)}`
+      : p.holdSeconds != null
+        ? `${p.sets} × ${p.holdSeconds} s`
+        : `${p.sets} ×`,
+    tempo: p.tempo,
+    note: p.note,
+  }))
+}
+
 function toLogged(
   te: TemplateExercise,
   raw: Prescription,
   resolution: LoggedExercise['resolution'],
   lastSetsFor?: (name: string) => SetEntry[] | null,
+  alternatives?: Prescription[],
 ): LoggedExercise {
   // A variant saved without a name would otherwise reach the logger nameless.
   const p: Prescription = raw.name.trim() ? raw : { ...raw, name: te.name }
@@ -213,6 +268,7 @@ function toLogged(
       interval: { ...te.interval },
       tempo: p.tempo,
       note: p.note,
+      alternatives: toAlternatives(alternatives),
       resolution,
     }
   }
@@ -233,6 +289,7 @@ function toLogged(
     sets,
     tempo: p.tempo,
     note: [p.note, repsLabel(p) ? `${p.sets} × ${repsLabel(p)}` : null].filter(Boolean).join(' · ') || undefined,
+    alternatives: toAlternatives(alternatives),
     resolution,
   }
 }
@@ -267,7 +324,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
         slotId: te.id,
         envFallback: env.envFallback,
         source: 'inferred',
-      }, lastSetsFor)
+      }, lastSetsFor, env.alternatives)
     }
 
     const state = gates[te.gate.bodyRegion].state
@@ -297,7 +354,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
       gateState: state,
       envFallback: env.envFallback || g.envFallback,
       source: gates[te.gate.bodyRegion].source,
-    }, lastSetsFor)
+    }, lastSetsFor, g.alternatives ?? env.alternatives)
   })
 }
 
@@ -323,7 +380,7 @@ export function reresolveExercise(
       slotId: te.id,
       envFallback: env.envFallback,
       source: 'manual',
-    })
+    }, undefined, env.alternatives)
   }
   const g = resolveGate(te.gate, state, env.prescription, env.envFallback, location)
   if (g.prescription === null) {
@@ -349,7 +406,7 @@ export function reresolveExercise(
     gateState: state,
     envFallback: env.envFallback || g.envFallback,
     source: 'manual',
-  })
+  }, undefined, g.alternatives ?? env.alternatives)
 }
 
 /** Does this session need the professional-referral banner? */

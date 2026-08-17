@@ -12,6 +12,7 @@ import {
 } from '../lib/locations'
 import type { TrainingLocation } from '../lib/locations'
 import { resolveExercises, reresolveExercise } from '../lib/sessionResolve'
+import { pullWarmups } from '../lib/warmups'
 import { WorkoutLogger } from '../components/workout/WorkoutLogger'
 import { WorkoutSummary } from '../components/workout/WorkoutSummary'
 import { WorkoutSuccess } from '../components/workout/WorkoutSuccess'
@@ -164,6 +165,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
   const [locations, setLocations] = useState<TrainingLocation[]>(() => getLocations())
+  // Warm-up packages are read through warmupById at render time, so the pull
+  // only needs to force one re-render rather than be held in state.
+  const [, setWarmupTick] = useState(0)
   // The gate flow lives between picking a template and logging: a session is
   // never created until the room and the body have both been resolved.
   const [pendingTemplate, setPendingTemplate] = useState<WorkoutTemplate | null | undefined>(undefined)
@@ -178,9 +182,10 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     pullTemplates(user.id).then((ts) => { if (alive) setTemplates(ts) })
     pullWorkouts(user.id).then((ws) => { if (alive) setWorkouts(ws) })
     pullBlocks(user.id).then((bs) => { if (alive) setBlocks(bs) })
-    // Locations are content, not code: the profiles live in the database and
-    // arrive here, so a fresh install has none until this resolves.
+    // Locations and warm-up packages are content, not code: they live in the
+    // database and arrive here, so a fresh install has none until this resolves.
     pullLocations(user.id).then((ls) => { if (alive) setLocations(ls) })
+    pullWarmups(user.id).then(() => { if (alive) setWarmupTick((n) => n + 1) })
     return () => { alive = false }
   }, [user])
 

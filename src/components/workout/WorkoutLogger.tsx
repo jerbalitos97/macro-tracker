@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
 import { ExerciseSetSheet } from './ExerciseSetSheet'
 import { ExerciseInfoSheet } from './ExerciseInfoSheet'
+import { WarmupPackageSheet } from './WarmupPackageSheet'
+import { warmupById, resolveWarmup } from '../../lib/warmups'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig, WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
@@ -128,6 +130,23 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
   // the set grid out and swaps it back on close, landing you where you left.
   const [infoFor, setInfoFor] = useState<string | null>(null)
   const [infoReturnTo, setInfoReturnTo] = useState<string | null>(null)
+  const [warmupOpen, setWarmupOpen] = useState(false)
+
+  // The warm-up reads differently depending on the day: the wrist items become
+  // a rehab dose when the wrist is being treated, and one template a week
+  // carries the progressive external-rotation dose.
+  const warmup = warmupById(template?.warmupId)
+  const gateStates = useMemo(() => {
+    const out: Partial<Record<'knee' | 'back' | 'wrist', { state: GateState }>> = {}
+    for (const a of workout.assessments ?? []) {
+      if (a.gateOutput) out[a.bodyRegion] = { state: a.gateOutput }
+    }
+    return out
+  }, [workout.assessments])
+  const warmupItems = useMemo(
+    () => resolveWarmup(warmup, gateStates, template?.warmupProgressive === true),
+    [warmup, gateStates, template?.warmupProgressive],
+  )
   const escalated = (workout.assessments ?? []).some((a) => a.gateOutput === 'escalate')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -232,12 +251,15 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
         </button>
       )}
 
-      {/* Warm-up tick. Only a fact — that it was done — recorded per session
-          so the log can say whether it happens, without asking anyone to write
-          the routine down again. */}
+      {/* The warm-up. When the template names a package the button opens it —
+          the routine is content in the database, so it can be read here instead
+          of remembered. Without a package it stays a bare tick, which is what
+          every older template gets. */}
       <button
         onClick={() =>
-          onChange({ ...workout, warmupDone: !workout.warmupDone, updatedAt: new Date().toISOString() })
+          warmupItems.length > 0
+            ? setWarmupOpen(true)
+            : onChange({ ...workout, warmupDone: !workout.warmupDone, updatedAt: new Date().toISOString() })
         }
         aria-pressed={workout.warmupDone === true}
         className={`mb-3 flex w-full items-center gap-2.5 rounded-row border px-4 py-3 text-left transition-colors ${
@@ -248,9 +270,29 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
       >
         {workout.warmupDone ? <Check size={16} /> : <Flame size={16} />}
         <span className="flex-1 text-[13px]">
-          {workout.warmupDone ? 'Lämmittely tehty' : 'Merkitse lämmittely tehdyksi'}
+          {warmupItems.length > 0
+            ? `${warmup?.name ?? 'Lämmittely'}${workout.warmupDone ? ' · tehty' : ''}`
+            : workout.warmupDone ? 'Lämmittely tehty' : 'Merkitse lämmittely tehdyksi'}
         </span>
+        {warmupItems.length > 0 && (
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+            {warmupItems.length} liikettä
+          </span>
+        )}
       </button>
+
+      {warmupOpen && warmup && (
+        <WarmupPackageSheet
+          name={warmup.name}
+          note={warmup.note}
+          items={warmupItems}
+          done={workout.warmupDone === true}
+          onToggleDone={() =>
+            onChange({ ...workout, warmupDone: !workout.warmupDone, updatedAt: new Date().toISOString() })
+          }
+          onClose={() => setWarmupOpen(false)}
+        />
+      )}
 
       {/* Exercise blocks */}
       <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">

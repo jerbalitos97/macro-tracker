@@ -37,7 +37,7 @@ import { recommendProtein, intentOf } from './planning'
 import { computeWeightTrend } from './weight'
 import { getTemplates, getWorkouts, getDraft } from './workouts'
 import { getBlocks, blockForDate } from './blocks'
-import { getWarmup } from './warmup'
+import { getWarmups } from './warmups'
 import { getRestLog } from './restTimer'
 import { getLocations } from './locations'
 import { getPrefs } from './uiPrefs'
@@ -47,7 +47,7 @@ import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -61,7 +61,7 @@ const MAPPED_KEYS = [
   'mimir.workouts.templates:v1',       // workoutTemplates
   'mimir.workouts.draft:v1',           // workoutDraft
   'mimir.workouts.blocks:v1',          // trainingBlocks
-  'mimir.workouts.warmup:v1',          // warmupRoutine
+  'mimir.workouts.warmups:v1',         // warmupPackages
   'mimir.workouts.restLog:v1',         // restLog
   'mimir.workouts.restTimer:v1',       // activeRest (transient; swept for completeness)
   'friday.uiPrefs:v1',                 // uiPrefs
@@ -112,7 +112,11 @@ const README: Record<string, string> = {
     'variant may carry its own env, and an env fallback may carry env in turn: ' +
     'equipment substitution is a chain walked until the room can host something, ' +
     'so "no trap bar" can end at a bodyweight hinge two steps down. A fallback of ' +
-    'null ends the chain and drops the slot instead of substituting.',
+    'null ends the chain and drops the slot instead of substituting. envOptions is ' +
+    'the other case: parallel choices shown side by side rather than resolved to ' +
+    'one, each with a placeLabel naming the gym it needs, because there the plan ' +
+    'picks the room. warmupId names the warm-up package; warmupProgressive marks ' +
+    'the one session a week that carries the progressive dose.',
   trainingLocations:
     'Where sessions happen, as capability flags — external load, muscle-up bar, ' +
     'plyo box, anchor and band, parallettes, trap bar. The condition gate resolves ' +
@@ -131,7 +135,13 @@ const README: Record<string, string> = {
   trainingBlocks:
     'Mesocycles: named date ranges with an intent (base/strength/skill/peak/deload) ' +
     'that sets how much deficit the block tolerates.',
-  warmupRoutine: 'The warm-up routine itself — one list, not copied per session.',
+  warmupPackages:
+    'Warm-up packages. A template names one via warmupId; it is a routine rather ' +
+    'than training volume, so it is not a numbered exercise and nothing counts its ' +
+    'sets. An item with gateRegion + escalated is raised on a treating day rather ' +
+    'than dropped — a treating wrist is the reason the dose goes up, not a reason ' +
+    'to skip. Items marked progressive carry the once-a-week heavier dose in ' +
+    'whichever template has warmupProgressive set.',
   restLog:
     'Rest periods timed between sets: seconds is the rest actually taken, targetSec ' +
     'what was aimed for. The timer counts up and ends manually, so seconds > ' +
@@ -169,7 +179,7 @@ export interface ExportBundle {
   workoutTemplates: unknown[]
   workoutDraft: unknown
   trainingBlocks: unknown[]
-  warmupRoutine: unknown[]
+  warmupPackages: unknown[]
   restLog: unknown[]
   habits: { definitions: unknown[]; entries: unknown[] } | null
   wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
@@ -352,7 +362,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     workoutTemplates: getTemplates(),
     workoutDraft: getDraft(),
     trainingBlocks: getBlocks(),
-    warmupRoutine: getWarmup(),
+    warmupPackages: getWarmups(),
     restLog: getRestLog(),
     habits,
     wealth,

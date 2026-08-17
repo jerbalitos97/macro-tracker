@@ -34,9 +34,10 @@ serving the old build.
 
 ## Content lives in the database, logic lives in the code
 
-Templates, exercises, gate variants and training locations are **data**. They
-belong in `workout_templates` / `workout_locations`, written by a migration under
-`supabase/migrations/`, and they reach the client through the normal sync path.
+Templates, exercises, gate variants, warm-up packages and training locations are
+**data**. They belong in `workout_templates` / `workout_locations` /
+`workout_warmups`, written by a migration under `supabase/migrations/`, and they
+reach the client through the normal sync path.
 
 - **Never add a seed constant.** No `seedTemplates.ts`, no `seedLocations()`. A
   constant in the client is a second source of truth that silently drifts from
@@ -49,6 +50,10 @@ belong in `workout_templates` / `workout_locations`, written by a migration unde
   `src/lib/sessionResolve.ts`. Thresholds are logic, not content.
 - Content migrations are **idempotent**: replace whole objects matched by their
   stable `id` and skip the write when nothing changed, so re-running is a no-op.
+- **A warm-up is not an exercise.** It is a package (`workout_warmups`) named by
+  a template's `warmupId`, shown as a routine and ticked as a whole. Putting it
+  back in `exercises` makes it look like training volume and inflates every
+  session's slot count.
 
 ## Conventions worth knowing
 

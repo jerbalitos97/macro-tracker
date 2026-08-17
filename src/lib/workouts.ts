@@ -40,6 +40,24 @@ export interface EnvRequirement {
   fallback: Prescription | null
 }
 
+/** Several movements offered side by side instead of resolved down to one.
+ *
+ *  Normally the room picks the movement. Sometimes the movement should pick the
+ *  room: "Koti + Fitness 24/7" is one profile covering two buildings, and which
+ *  one you walk into depends on what the session asks for. Resolving that to a
+ *  single answer would hide the choice the plan is actually asking you to make,
+ *  so the options are shown together, each labelled with where it can be done.
+ *
+ *  `requires` gates the whole group — no external load anywhere means no loaded
+ *  hinge at all, and `fallback` takes over. */
+export interface EnvOptions {
+  requires: Capability[]
+  /** Two or more parallel choices. Each should carry a placeLabel. */
+  options: Prescription[]
+  /** Used when `requires` is not met. null drops the slot. */
+  fallback: Prescription | null
+}
+
 /** One prescription: a movement at a given intensity. Used both for gate
  *  variants and for environment fallbacks, because they are the same thing —
  *  "do this instead" — arrived at for different reasons. */
@@ -55,6 +73,11 @@ export interface Prescription {
    *  loaded split squat needs weight, the treat variant needs an anchor. So
    *  the requirement lives on the prescription, not only on the slot. */
   env?: EnvRequirement
+  /** Parallel options rather than a single answer. See EnvOptions. */
+  envOptions?: EnvOptions
+  /** Where this option can be done, shown next to it when options are offered
+   *  side by side. Purely a label — the capability flags do the filtering. */
+  placeLabel?: string
 }
 
 /** Gate control: which body region decides this movement's intensity, and what
@@ -88,6 +111,8 @@ export interface TemplateExercise {
    *  then the gate (at what intensity). Absent on every pre-existing template,
    *  which therefore behaves exactly as before. */
   env?: EnvRequirement
+  /** Parallel place-specific choices instead of one resolved movement. */
+  envOptions?: EnvOptions
   gate?: GateSpec
 }
 
@@ -100,6 +125,13 @@ export interface WorkoutTemplate {
   exercises: TemplateExercise[]
   /** Free-form planning note carried with the template. */
   note?: string
+  /** The warm-up package run before the first exercise. It is not a numbered
+   *  slot: a warm-up is a fixed routine you do or skip, not something you log
+   *  set by set, and putting it in the list made it look like training volume. */
+  warmupId?: string | null
+  /** This session carries the once-a-week progressive dose of whichever warm-up
+   *  items are marked progressive. Everywhere else they stay light. */
+  warmupProgressive?: boolean
   /** Retired templates keep their history but leave the pickers. Null or
    *  absent means active. */
   archivedAt?: string | null
@@ -146,6 +178,18 @@ export interface Resolution {
   source: 'asked' | 'manual' | 'inferred'
 }
 
+/** One of several movements offered side by side, as the logger shows it. */
+export interface LoggedAlternative {
+  name: string
+  /** Where it can be done — the point of showing them together. */
+  placeLabel?: string
+  /** "3 × 6–8" or "5 × 10 s", spelled out so the row can be compared at a
+   *  glance without opening anything. */
+  dose: string
+  tempo?: string
+  note?: string
+}
+
 export interface LoggedExercise {
   id: string
   name: string
@@ -153,6 +197,10 @@ export interface LoggedExercise {
   interval?: IntervalConfig // present when the exercise is clocked, not counted
   tempo?: string
   note?: string
+  /** Present when the slot offered parallel choices. The active one is `name`;
+   *  the others are one tap away. Kept on the logged record so a past session
+   *  still shows what the alternative was. */
+  alternatives?: LoggedAlternative[]
   resolution?: Resolution
 }
 
@@ -295,6 +343,8 @@ interface TemplateRow {
   position: number | null
   exercises: TemplateExercise[]
   note: string | null
+  warmup_id: string | null
+  warmup_progressive: boolean | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -308,6 +358,8 @@ const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   position: r.position ?? undefined,
   exercises: Array.isArray(r.exercises) ? r.exercises : [],
   note: r.note ?? undefined,
+  warmupId: r.warmup_id ?? null,
+  warmupProgressive: r.warmup_progressive === true,
   archivedAt: r.archived_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -347,6 +399,8 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       position: t.position ?? null,
       exercises: t.exercises,
       note: t.note ?? null,
+      warmup_id: t.warmupId ?? null,
+      warmup_progressive: t.warmupProgressive === true,
       archived_at: t.archivedAt ?? null,
       created_at: t.createdAt,
       updated_at: t.updatedAt,
