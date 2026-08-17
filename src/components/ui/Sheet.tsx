@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence, m, useDragControls, useReducedMotion } from 'motion/react'
 import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
@@ -16,6 +17,16 @@ export function Sheet({ open, onClose, title, children }: Props) {
   // the whole sheet would set touch-action there and kill native scrolling
   // of overflowing content on touch devices.
   const dragControls = useDragControls()
+
+  // Escape closes it. The other two ways out — swiping the handle and tapping
+  // the backdrop — are both pointer gestures, so without this a keyboard user
+  // has no way to dismiss an open sheet at all.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
   return (
     <AnimatePresence>

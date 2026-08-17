@@ -129,6 +129,11 @@ export interface SetEntry {
 export interface Resolution {
   /** The template's own name for the slot, before any substitution. */
   baseName: string
+  /** The template exercise this came from. Names are not unique — two slots can
+   *  both be "Step downs" — so anything that has to find the slot again (the
+   *  instructions sheet, a manual variant swap) matches on this. Absent on
+   *  sessions logged before it existed, and on exercises added by hand. */
+  slotId?: string
   gateRegion?: BodyRegion
   gateState?: GateState
   /** The room forced the fallback prescription. */

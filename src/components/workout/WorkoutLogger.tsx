@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal } from 'lucide-react'
+import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal, Info } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
 import { ExerciseSetSheet } from './ExerciseSetSheet'
+import { ExerciseInfoSheet } from './ExerciseInfoSheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
-import type { Workout, LoggedExercise, IntervalConfig } from '../../lib/workouts'
+import type { Workout, LoggedExercise, IntervalConfig, WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 import { GATE_LABEL, REGION_LABEL } from '../../lib/gates'
 import type { GateState } from '../../lib/gates'
 
 interface Props {
   workout: Workout
+  /** The template this session came from, when it still exists. Only used to
+   *  read the written instructions back — the session itself is self-contained. */
+  template?: WorkoutTemplate | null
   onChange: (w: Workout) => void   // every change autosaves the draft upstream
   onFinish: () => void
   /** Opens the day-assessment sheet mid-session. */
@@ -40,7 +44,7 @@ interface TileProps {
   onMove: (delta: -1 | 1) => void
 }
 
-function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap }: TileProps & { onSwap?: () => void }) {
+function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onMove, onSwap, onInfo }: TileProps & { onSwap?: () => void; onInfo?: () => void }) {
   const done = exerciseDone(ex)
 
   return (
@@ -61,8 +65,23 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
     >
       {({ handleProps }) => (
         <>
-          <div {...handleProps} className="-m-2 cursor-grab touch-none self-start p-2 active:cursor-grabbing">
-            <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
+          {/* Grip and the instruction button share the top-left; the done tick
+              owns the top-right corner. The written instruction sits one tap
+              from the movement it describes — anything further away goes unread
+              mid-session, which is how the notes ended up dead weight. */}
+          <div className="-m-2 flex items-center self-start">
+            <div {...handleProps} className="cursor-grab touch-none p-2 active:cursor-grabbing">
+              <GripVertical size={16} style={done ? { color: accent } : undefined} className={done ? '' : 'text-fg-faint'} />
+            </div>
+            {onInfo && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onInfo() }}
+                aria-label={`Ohje: ${ex.name}`}
+                className="hit-44 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full text-fg-faint"
+              >
+                <Info size={14} />
+              </button>
+            )}
           </div>
 
           <button
@@ -115,8 +134,13 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
   )
 }
 
-export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
+export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
   const [swapFor, setSwapFor] = useState<string | null>(null)
+  const [infoFor, setInfoFor] = useState<string | null>(null)
+  // Sheets do not stack — they share a z-layer and a scroll lock. Opening the
+  // instructions from inside the set grid swaps sheets and swaps back on close,
+  // so you land where you left instead of back at the tile grid.
+  const [infoReturnTo, setInfoReturnTo] = useState<string | null>(null)
   const escalated = (workout.assessments ?? []).some((a) => a.gateOutput === 'escalate')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -156,6 +180,20 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck
     setNewName('')
     setAdding(false)
     setOpenId(ex.id)
+  }
+
+  /** Find the template slot a logged exercise came from. slotId is the reliable
+   *  link; name matching is the fallback for sessions logged before slotId
+   *  existed, and it can miss when two slots share a name — better a missing
+   *  instruction than the wrong one, so nothing is guessed beyond that. */
+  const slotFor = (ex: LoggedExercise): TemplateExercise | null => {
+    if (!template) return null
+    const id = ex.resolution?.slotId
+    if (id) return template.exercises.find((t) => t.id === id) ?? null
+    const base = ex.resolution?.baseName
+    if (!base) return null
+    const matches = template.exercises.filter((t) => t.name === base)
+    return matches.length === 1 ? matches[0] : null
   }
 
   const open = openId ? workout.exercises.find((e) => e.id === openId) ?? null : null
@@ -265,6 +303,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck
             onToggleDone={() => toggleExerciseDone(ex)}
             onMove={(d) => moveExercise(ex.id, d)}
             onSwap={ex.resolution?.gateRegion && onSwapVariant ? () => setSwapFor(ex.id) : undefined}
+            onInfo={() => setInfoFor(ex.id)}
           />
         ))}
 
@@ -286,6 +325,23 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck
         </Button>
       </div>
 
+      {/* What the template says about this movement */}
+      {infoFor && (() => {
+        const ex = workout.exercises.find((e) => e.id === infoFor)
+        if (!ex) return null
+        return (
+          <ExerciseInfoSheet
+            exercise={ex}
+            slot={slotFor(ex)}
+            templateNote={template?.note}
+            onClose={() => {
+              setInfoFor(null)
+              if (infoReturnTo) { setOpenId(infoReturnTo); setInfoReturnTo(null) }
+            }}
+          />
+        )
+      })()}
+
       {/* Per-exercise set entry: interval exercises get the clock, others the grid */}
       {open && (open.interval ? (
         <IntervalTimerSheet
@@ -294,6 +350,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck
           onRemoveExercise={() => removeExercise(open.id)}
           onMoveUp={moveUp}
           onMoveDown={moveDown}
+          onShowInfo={() => { setInfoReturnTo(open.id); setInfoFor(open.id); setOpenId(null) }}
           onClose={() => setOpenId(null)}
         />
       ) : (
@@ -304,6 +361,7 @@ export function WorkoutLogger({ workout, onChange, onFinish, onExit, onEditCheck
           onRemoveExercise={() => removeExercise(open.id)}
           onMoveUp={moveUp}
           onMoveDown={moveDown}
+          onShowInfo={() => { setInfoReturnTo(open.id); setInfoFor(open.id); setOpenId(null) }}
           onClose={() => setOpenId(null)}
         />
       ))}

@@ -39,6 +39,23 @@ const VARIANT_FALLBACK: Record<GateState, Array<'develop' | 'hybrid' | 'treat' |
   escalate: ['develop'],
 }
 
+export type VariantKey = 'develop' | 'hybrid' | 'treat' | 'rest'
+
+/** Which of a gate's variants a given state actually lands on, following the
+ *  same fall-through the resolver uses. The instructions sheet needs this to
+ *  mark the line the session came from: showing all four variants without
+ *  saying which one is today's would leave the reader doing the resolution by
+ *  hand, which is the thing this app exists to avoid. Null means the slot is
+ *  switched off in that state. */
+export function pickedVariant(gate: GateSpec, state: GateState): VariantKey | null {
+  if (state === 'escalate') return null
+  for (const key of VARIANT_FALLBACK[state]) {
+    if (!(key in gate.variants)) continue
+    return gate.variants[key] === null ? null : key
+  }
+  return gate.variants.develop === null ? null : 'develop'
+}
+
 function repsLow(p: Prescription): number | undefined {
   if (p.reps == null) return undefined
   return typeof p.reps === 'number' ? p.reps : p.reps.min
@@ -235,6 +252,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
         sets: [],
         resolution: {
           baseName: te.name,
+          slotId: te.id,
           gateRegion: te.gate?.bodyRegion,
           envFallback: true,
           unavailable: 'env',
@@ -246,6 +264,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
     if (!te.gate) {
       return toLogged(te, env.prescription, {
         baseName: te.name,
+        slotId: te.id,
         envFallback: env.envFallback,
         source: 'inferred',
       }, lastSetsFor)
@@ -261,6 +280,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
         sets: [],
         resolution: {
           baseName: te.name,
+          slotId: te.id,
           gateRegion: te.gate.bodyRegion,
           gateState: state,
           envFallback: env.envFallback || g.envFallback,
@@ -272,6 +292,7 @@ export function resolveExercises(input: ResolveInput): LoggedExercise[] {
 
     return toLogged(te, g.prescription, {
       baseName: te.name,
+      slotId: te.id,
       gateRegion: te.gate.bodyRegion,
       gateState: state,
       envFallback: env.envFallback || g.envFallback,
@@ -293,12 +314,15 @@ export function reresolveExercise(
       id: uid(),
       name: te.name,
       sets: [],
-      resolution: { baseName: te.name, envFallback: true, unavailable: 'env', source: 'manual' },
+      resolution: { baseName: te.name, slotId: te.id, envFallback: true, unavailable: 'env', source: 'manual' },
     }
   }
   if (!te.gate) {
     return toLogged(te, env.prescription, {
-      baseName: te.name, envFallback: env.envFallback, source: 'manual',
+      baseName: te.name,
+      slotId: te.id,
+      envFallback: env.envFallback,
+      source: 'manual',
     })
   }
   const g = resolveGate(te.gate, state, env.prescription, env.envFallback, location)
@@ -309,6 +333,7 @@ export function reresolveExercise(
       sets: [],
       resolution: {
         baseName: te.name,
+        slotId: te.id,
         gateRegion: te.gate.bodyRegion,
         gateState: state,
         envFallback: env.envFallback || g.envFallback,
@@ -319,6 +344,7 @@ export function reresolveExercise(
   }
   return toLogged(te, g.prescription, {
     baseName: te.name,
+    slotId: te.id,
     gateRegion: te.gate.bodyRegion,
     gateState: state,
     envFallback: env.envFallback || g.envFallback,

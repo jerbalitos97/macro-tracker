@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause } from 'lucide-react'
+import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 
@@ -10,6 +10,8 @@ interface Props {
   /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
   onMoveUp: (() => void) | null
   onMoveDown: (() => void) | null
+  /** Show what the template prescribed for this movement. */
+  onShowInfo?: () => void
   onClose: () => void
 }
 
@@ -52,7 +54,7 @@ function speak(text: string): void {
   } catch { /* no speech available */ }
 }
 
-export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
+export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onShowInfo, onClose }: Props) {
   const iv = exercise.interval
   const [run, setRun] = useState<Run | null>(null)
   const [paused, setPaused] = useState(false)
@@ -163,6 +165,15 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
   return (
     <Sheet open onClose={onClose} title={<span className="normal-case">{exercise.name}</span>}>
+      {onShowInfo && (
+        <button
+          onClick={onShowInfo}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+        >
+          <Info size={13} /> Pohjan ohje
+        </button>
+      )}
+
       <div className="mb-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3 py-2 font-mono text-[11px] text-fg-muted">
         {configLabel}
       </div>

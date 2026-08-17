@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Trash2, Check, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, X, Trash2, Check, ArrowUp, ArrowDown, Info } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, SetEntry } from '../../lib/workouts'
 
@@ -12,6 +12,8 @@ interface Props {
   /** Reorder without dragging (WCAG 2.5.7). Null at the ends of the list. */
   onMoveUp: (() => void) | null
   onMoveDown: (() => void) | null
+  /** Show what the template prescribed for this movement. */
+  onShowInfo?: () => void
   onClose: () => void
 }
 
@@ -37,7 +39,7 @@ function summarize(ex: LoggedExercise): string {
     .join('  ')
 }
 
-export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onMoveUp, onMoveDown, onClose }: Props) {
+export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExercise, onMoveUp, onMoveDown, onShowInfo, onClose }: Props) {
   const [sets, setSets] = useState<SetEntry[]>(exercise.sets.length ? exercise.sets : [{}])
 
   const commit = (next: SetEntry[]) => {
@@ -58,6 +60,17 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
 
   return (
     <Sheet open onClose={onClose} title={<span className="normal-case">{exercise.name}</span>}>
+      {/* Reachable from inside the set grid too: the prescription is most worth
+          re-reading exactly when you are deciding what to type. */}
+      {onShowInfo && (
+        <button
+          onClick={onShowInfo}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+        >
+          <Info size={13} /> Pohjan ohje
+        </button>
+      )}
+
       {suggestion && (
         <div className="mb-3 rounded-row border border-cyan/20 bg-cyan/[0.07] px-3 py-2">
           <div className="mb-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-cyan">Viime kerralla</div>

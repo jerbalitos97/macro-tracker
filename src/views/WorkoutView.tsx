@@ -372,13 +372,18 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       <>
         <WorkoutLogger
           workout={session}
+          template={templates.find((t) => t.id === session.templateId) ?? null}
           onChange={setSession}
           onFinish={finishWorkout}
           onEditCheck={() => setEditCheck(true)}
           onSwapVariant={(exerciseId, state) => {
             const tpl = templates.find((t) => t.id === session.templateId)
             const target = session.exercises.find((e) => e.id === exerciseId)
-            const te = tpl?.exercises.find((x) => x.name === target?.resolution?.baseName)
+            // slotId first: two slots can share a name ("Step downs"), and a
+            // name match would then swap the wrong one.
+            const te =
+              tpl?.exercises.find((x) => x.id === target?.resolution?.slotId) ??
+              tpl?.exercises.find((x) => x.name === target?.resolution?.baseName)
             if (!te) return
             const rebuilt = reresolveExercise(te, locationById(session.locationId), state)
             const next: Workout = {

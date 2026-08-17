@@ -97,10 +97,13 @@ const README: Record<string, string> = {
     'Completed sessions: exercises, sets, reps, weights, timestamps. warmupDone is ' +
     'the per-session tick that a warm-up happened. locationId says where, and ' +
     'assessments what the body reported that day. Each exercise carries a ' +
-    'resolution: baseName is the slot the template asked for, gateRegion/gateState ' +
-    'why this variant, envFallback whether the room forced a substitute, and ' +
-    'unavailable whether it was dropped (env = impossible here, gate = off today). ' +
-    'That is what makes variant-versus-result analysable after the fact.',
+    'resolution: baseName is the slot the template asked for, slotId the template ' +
+    'exercise id it came from (join on that rather than on names, which repeat — ' +
+    'absent on sessions logged before it existed and on exercises added by hand), ' +
+    'gateRegion/gateState why this variant, envFallback whether the room forced a ' +
+    'substitute, and unavailable whether it was dropped (env = impossible here, ' +
+    'gate = off today). That is what makes variant-versus-result analysable after ' +
+    'the fact.',
   workoutTemplates:
     'Reusable session plans. archivedAt marks a retired template — retired, not ' +
     'deleted, so old sessions still point at something. An exercise may carry env ' +
