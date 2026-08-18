@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info } from 'lucide-react'
+import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info, Plus } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 
@@ -89,6 +89,16 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     speak('Sarja valmis')
     setPaused(false)
     setRun(null)
+  }
+
+  /** Interval sets are markers, not numbers, so adding one is just another
+   *  round to clock and removing one drops a round that did not happen. */
+  const addSet = () => onChange({ ...exercise, sets: [...exercise.sets, {}] })
+
+  const removeSet = (i: number) => {
+    if (exercise.sets.length <= 1) return
+    if (run) { setPaused(false); setRun(null) }
+    onChange({ ...exercise, sets: exercise.sets.filter((_, idx) => idx !== i) })
   }
 
   const startClock = (setIndex: number, side: 1 | 2 = 1) => {
@@ -241,18 +251,37 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                     {s.done ? 'Tehty' : 'Sarja'}
                   </span>
                 </div>
-                <button
-                  onClick={() => startClock(i)}
-                  aria-label={`Kellota sarja ${i + 1}`}
-                  className={`flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full ${
-                    s.done ? 'border border-cyan/40 text-cyan' : 'bg-gradient-to-br from-cyan to-violet text-bg'
-                  }`}
-                >
-                  {s.done ? <Check size={15} strokeWidth={3} /> : <Play size={15} />}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => startClock(i)}
+                    aria-label={`Kellota sarja ${i + 1}`}
+                    className={`flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full ${
+                      s.done ? 'border border-cyan/40 text-cyan' : 'bg-gradient-to-br from-cyan to-violet text-bg'
+                    }`}
+                  >
+                    {s.done ? <Check size={15} strokeWidth={3} /> : <Play size={15} />}
+                  </button>
+                  <button
+                    onClick={() => removeSet(i)}
+                    disabled={exercise.sets.length <= 1}
+                    aria-label={`Poista sarja ${i + 1}`}
+                    className="icon-btn flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-md text-fg-faint hover:text-danger disabled:opacity-30"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+
+          {/* Same as a strength exercise: the plan says how many rounds, the
+              day says how many you actually did. */}
+          <button
+            onClick={addSet}
+            className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+          >
+            <Plus size={14} /> Lisää sarja
+          </button>
 
           <div className="mt-4 flex items-center gap-2">
             <button

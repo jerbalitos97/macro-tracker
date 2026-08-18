@@ -521,21 +521,40 @@ export function deleteWorkoutCloud(userId: string, id: string): void {
     .then(({ error }) => { if (error) console.warn('[workouts] history delete:', error.message) })
 }
 
-// ── In-progress draft (autosaved) ──────────────────────────────────────────────
-export function getDraft(): Workout | null {
-  return read<Workout | null>(K_DRAFT, null)
+// ── In-progress drafts (autosaved) ─────────────────────────────────────────────
+//
+// More than one at a time, because sessions genuinely overlap: a mobility
+// routine started in the morning and a strength session in the evening are two
+// unfinished workouts, and forcing the first to be finished or thrown away to
+// begin the second loses real data. Drafts stay device-local; only finished
+// sessions sync.
+
+/** Every unfinished session, newest first. Reads the single-draft format this
+ *  replaced, so an app updated mid-session does not drop the workout in hand. */
+export function getDrafts(): Workout[] {
+  const raw = read<unknown>(K_DRAFT, null)
+  if (!raw) return []
+  const list = Array.isArray(raw) ? (raw as Workout[]) : [raw as Workout]
+  return list
+    .filter((w) => w && typeof w.id === 'string')
+    .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 }
 
-export function saveDraft(w: Workout): void {
-  write(K_DRAFT, w)
+export function getDraft(id?: string): Workout | null {
+  const all = getDrafts()
+  return id ? all.find((w) => w.id === id) ?? null : all[0] ?? null
 }
 
-export function clearDraft(): void {
-  try {
-    localStorage.removeItem(K_DRAFT)
-  } catch {
-    // ignore
-  }
+export function saveDraft(w: Workout): Workout[] {
+  const next = [w, ...getDrafts().filter((d) => d.id !== w.id)]
+  write(K_DRAFT, next)
+  return next
+}
+
+export function clearDraft(id: string): Workout[] {
+  const next = getDrafts().filter((d) => d.id !== id)
+  write(K_DRAFT, next)
+  return next
 }
 
 // ── Suggestions ────────────────────────────────────────────────────────────────

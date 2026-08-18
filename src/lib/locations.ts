@@ -10,6 +10,9 @@ import { uid } from './workouts'
 
 const K_LOCATIONS = 'mimir.workouts.locations:v1'
 const K_LAST = 'mimir.workouts.lastLocation:v1'
+/** Ids this device has seen in the cloud, so a later absence reads as a
+ *  deletion rather than as something created offline. */
+const K_SEEN = 'mimir.workouts.locationsSeen:v1'
 
 export type Capability =
   | 'externalLoad'
@@ -132,6 +135,19 @@ export function setLastLocationId(id: string): void {
   write(K_LAST, id)
 }
 
+/** Ids known to have come from the cloud. Null on the very first pull after
+ *  this bookkeeping was added — see the note in pullLocations. */
+function getSeenIds(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem(K_SEEN)
+    if (raw === null) return null
+    const list = JSON.parse(raw)
+    return new Set(Array.isArray(list) ? (list as string[]) : [])
+  } catch {
+    return new Set()
+  }
+}
+
 export function locationById(id: string | undefined | null): TrainingLocation | null {
   if (!id) return null
   return getLocations().find((l) => l.id === id) ?? null
@@ -179,10 +195,35 @@ export async function pullLocations(userId: string): Promise<TrainingLocation[]>
   }
   const cloud = (data ?? []).map((r) => fromRow(r as LocationRow))
   const cloudIds = new Set(cloud.map((l) => l.id))
-  const localOnly = getLocations().filter((l) => !cloudIds.has(l.id))
-  for (const l of localOnly) syncLocationCloud(userId, l)
-  const next = [...cloud, ...localOnly].sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
+  const local = getLocations()
+
+  // A local row missing from the cloud is one of two opposite things, and
+  // getting them the wrong way round is why deleting a location used to be
+  // impossible: whatever was removed server-side got helpfully re-uploaded on
+  // the next pull. If we have seen the id come down from the cloud before, its
+  // absence now means it was deleted — drop it. If we have never seen it, it
+  // was created on this device while offline — push it up.
+  //
+  // On the first pull after this bookkeeping existed there is no record either
+  // way. Locations have synced to the cloud since the day they were added, so
+  // anything already cached here arrived from there: treat the whole local set
+  // as seen, which lets a server-side deletion take effect immediately.
+  //
+  // Except when the cloud came back empty. "No rows" and "could not see your
+  // rows" are indistinguishable here, and guessing wrong once would delete
+  // every location the device had. With no record to go on, the safe reading of
+  // an empty response is that there is nothing to reconcile against — so the
+  // local set is pushed up rather than thrown away.
+  const recorded = getSeenIds()
+  const seen = recorded ?? (cloud.length > 0 ? new Set(local.map((l) => l.id)) : new Set<string>())
+
+  const localOnly = local.filter((l) => !cloudIds.has(l.id))
+  const createdOffline = localOnly.filter((l) => !seen.has(l.id))
+  for (const l of createdOffline) syncLocationCloud(userId, l)
+
+  const next = [...cloud, ...createdOffline].sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
   write(K_LOCATIONS, next)
+  if (cloud.length > 0) write(K_SEEN, [...cloudIds])
   return next
 }
 

@@ -20,13 +20,23 @@ const K_LOG = 'mimir.workouts.restLog:v1'
  *  rather than a rest, and are discarded on read rather than recorded. */
 const ABANDONED_AFTER_SEC = 2 * 60 * 60
 
-export const REST_TARGETS = [60, 90, 120, 180, 300] as const
+export const REST_TARGETS = [60, 90, 120, 180] as const
+
+/** Two things get clocked mid-session and they are not the same thing. A rest
+ *  has a target you are waiting to pass; a hold has no target at all — you are
+ *  measuring how long you lasted, and any number the app suggested would be a
+ *  number to quit at. So a hold is the same stopwatch with targetSec 0, and
+ *  nothing is drawn as "past". */
+export type ClockKind = 'rest' | 'hold'
 
 export interface ActiveRest {
   /** Epoch ms. */
   startedAt: number
-  /** Seconds the rest is aiming for; the timer keeps running past it. */
+  /** Seconds the rest is aiming for; the timer keeps running past it. 0 for a
+   *  hold, which has no target. */
   targetSec: number
+  /** Defaults to 'rest' on entries written before holds existed. */
+  kind?: ClockKind
   /** The session it belongs to, when started from inside one. */
   workoutId?: string
 }
@@ -38,6 +48,7 @@ export interface RestEntry {
   endedAt: number
   seconds: number
   targetSec: number
+  kind?: ClockKind
   workoutId?: string
 }
 
@@ -72,10 +83,19 @@ export function elapsedSec(a: ActiveRest, now: number = Date.now()): number {
   return Math.max(0, Math.floor((now - a.startedAt) / 1000))
 }
 
-export function startRest(targetSec: number, workoutId?: string): ActiveRest {
-  const a: ActiveRest = { startedAt: Date.now(), targetSec, workoutId }
+export function startRest(targetSec: number, workoutId?: string, kind: ClockKind = 'rest'): ActiveRest {
+  const a: ActiveRest = { startedAt: Date.now(), targetSec, kind, workoutId }
   write(K_ACTIVE, a)
   return a
+}
+
+/** An open-ended hold. No target, so nothing to be late for. */
+export function startHold(workoutId?: string): ActiveRest {
+  return startRest(0, workoutId, 'hold')
+}
+
+export function isHold(a: ActiveRest): boolean {
+  return a.kind === 'hold' || a.targetSec === 0
 }
 
 export function clearActiveRest(): void {
@@ -94,7 +114,9 @@ export function endRest(): RestEntry | null {
   if (!a) return null
   const endedAt = Date.now()
   const seconds = Math.max(0, Math.round((endedAt - a.startedAt) / 1000))
-  if (seconds < 5) return null
+  // A hold of a few seconds is a real hold; a rest of a few seconds is a
+  // mis-tap, so only rests have a floor.
+  if (seconds < (isHold(a) ? 2 : 5)) return null
   const entry: RestEntry = {
     id: `${a.startedAt}`,
     date: toISO(new Date(a.startedAt)),
@@ -102,6 +124,7 @@ export function endRest(): RestEntry | null {
     endedAt,
     seconds,
     targetSec: a.targetSec,
+    kind: a.kind ?? 'rest',
     workoutId: a.workoutId,
   }
   write(K_LOG, [...getRestLog(), entry].slice(-500))

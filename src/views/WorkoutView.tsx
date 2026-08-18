@@ -25,7 +25,7 @@ import {
   pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
   pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
-  getDraft, saveDraft, clearDraft, newWorkout, lastEntryForExercise,
+  getDrafts, saveDraft, clearDraft, newWorkout, lastEntryForExercise,
 } from '../lib/workouts'
 import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
 import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
@@ -143,7 +143,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(() => getTemplates())
   const [workouts, setWorkouts] = useState<Workout[]>(() => getWorkouts())
-  const [draft, setDraft] = useState<Workout | null>(() => getDraft())
+  const [drafts, setDrafts] = useState<Workout[]>(() => getDrafts())
 
   const [session, setSession] = useState<Workout | null>(null)
   const [viewing, setViewing] = useState<Workout | null>(null)
@@ -201,8 +201,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
         cloudSyncTimer.current = window.setTimeout(() => syncWorkoutCloud(user.id, snapshot), 800)
       }
     } else {
-      saveDraft(session)
-      setDraft(session)
+      setDrafts(saveDraft(session))
     }
   }, [session, screen, pastEdit, user])
 
@@ -275,22 +274,19 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     if (location) setLastLocationId(location.id)
     setPendingTemplate(undefined)
     setSession(w)
-    saveDraft(w)
-    setDraft(w)
+    setDrafts(saveDraft(w))
     setScreen('logging')
   }
 
-  const continueDraft = () => {
-    if (!draft) return
-    setSession(draft)
+  const continueDraft = (d: Workout) => {
+    setSession(d)
     setScreen('logging')
   }
 
-  const discardDraft = () => {
-    if (!window.confirm('Hylätäänkö keskeneräinen treeni?')) return
-    clearDraft()
-    setDraft(null)
-    setSession(null)
+  const discardDraft = (d: Workout) => {
+    if (!window.confirm(`Hylätäänkö "${d.name}"?`)) return
+    setDrafts(clearDraft(d.id))
+    if (session?.id === d.id) setSession(null)
   }
 
   const finishWorkout = () => {
@@ -305,8 +301,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       setScreen('summary')
       return
     }
-    clearDraft()
-    setDraft(null)
+    setDrafts(clearDraft(saved.id))
     setSession(null)
     setViewing(saved)
     setSuccess(true)
@@ -380,7 +375,6 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           template={templates.find((t) => t.id === session.templateId) ?? null}
           onChange={setSession}
           onFinish={finishWorkout}
-          onEditCheck={() => setEditCheck(true)}
           onSwapVariant={(exerciseId, state) => {
             const tpl = templates.find((t) => t.id === session.templateId)
             const target = session.exercises.find((e) => e.id === exerciseId)
@@ -397,11 +391,14 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               updatedAt: new Date().toISOString(),
             }
             setSession(next)
-            saveDraft(next)
+            setDrafts(saveDraft(next))
           }}
           onExit={exitLogging}
         />
-        <WorkoutTools workoutId={session?.id ?? draft?.id} />
+        <WorkoutTools
+          workoutId={session?.id ?? drafts[0]?.id}
+          onEditCheck={session ? () => setEditCheck(true) : undefined}
+        />
         {success && <WorkoutSuccess onDone={() => { setSuccess(false); setScreen('summary') }} />}
       </>
     )
@@ -442,7 +439,10 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onEdit={() => startEditPast(viewing)}
           onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
         />
-        <WorkoutTools workoutId={session?.id ?? draft?.id} />
+        <WorkoutTools
+          workoutId={session?.id ?? drafts[0]?.id}
+          onEditCheck={session ? () => setEditCheck(true) : undefined}
+        />
       </>
     )
   }
@@ -455,7 +455,10 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onSave={handleSaveTemplate}
           onCancel={() => { setEditing(null); setScreen('home') }}
         />
-        <WorkoutTools workoutId={session?.id ?? draft?.id} />
+        <WorkoutTools
+          workoutId={session?.id ?? drafts[0]?.id}
+          onEditCheck={session ? () => setEditCheck(true) : undefined}
+        />
       </>
     )
   }
@@ -487,29 +490,34 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
       {tab === 'log' && (
         <div className="flex flex-col gap-2.5">
-          {draft && (
-            <Card variant="glass" className="border-cyan/25">
+          {/* Every unfinished session, not just the last one. A mobility
+              routine started in the morning and a strength session in the
+              evening genuinely overlap, and making one of them be finished or
+              thrown away to start the other loses real work. */}
+          {drafts.map((d) => (
+            <Card key={d.id} variant="glass" className="border-cyan/25">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-cyan">Kesken</div>
-                  <div className="mt-0.5 truncate font-display text-[16px] font-semibold text-text">{draft.name}</div>
+                  <div className="mt-0.5 truncate font-display text-[16px] font-semibold text-text">{d.name}</div>
                   <div className="font-mono text-[10px] text-fg-faint">
-                    {draft.exercises.length} liikettä
+                    {d.exercises.length} liikettä
+                    {d.date !== todayISO && ` · ${d.date}`}
                   </div>
                 </div>
                 <button
-                  onClick={discardDraft}
-                  aria-label="Hylkää"
+                  onClick={() => discardDraft(d)}
+                  aria-label={`Hylkää ${d.name}`}
                   className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
                 >
                   <X size={16} />
                 </button>
               </div>
-              <Button variant="primary" onClick={continueDraft} className="mt-3 w-full">
+              <Button variant="primary" onClick={() => continueDraft(d)} className="mt-3 w-full">
                 <Play size={16} /> Jatka treeniä
               </Button>
             </Card>
-          )}
+          ))}
 
           <button
             onClick={() => startWorkout()}
@@ -864,7 +872,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               updatedAt: new Date().toISOString(),
             }
             setSession(next)
-            saveDraft(next)
+            setDrafts(saveDraft(next))
                     setEditCheck(false)
           }}
         />
@@ -962,7 +970,10 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
         )
       })()}
 
-      <WorkoutTools workoutId={session?.id ?? draft?.id} />
+      <WorkoutTools
+          workoutId={session?.id ?? drafts[0]?.id}
+          onEditCheck={session ? () => setEditCheck(true) : undefined}
+        />
     </div>
   )
 }

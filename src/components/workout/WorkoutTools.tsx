@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Timer, X, Check } from 'lucide-react'
+import { Plus, Timer, X, Check, SlidersHorizontal, Infinity as InfinityIcon } from 'lucide-react'
 import { Sheet, Button, Chip } from '../ui'
 import {
-  REST_TARGETS, getActiveRest, startRest, endRest, clearActiveRest,
-  elapsedSec, formatRest,
+  REST_TARGETS, getActiveRest, startRest, startHold, endRest, clearActiveRest,
+  elapsedSec, formatRest, isHold,
 } from '../../lib/restTimer'
 import type { ActiveRest, RestEntry } from '../../lib/restTimer'
 
@@ -14,9 +14,12 @@ import type { ActiveRest, RestEntry } from '../../lib/restTimer'
 interface Props {
   /** Session the rest belongs to, when one is running. */
   workoutId?: string
+  /** Re-open the day assessment mid-session. Lives here rather than on the
+   *  logger itself so the session screen stays a list of movements. */
+  onEditCheck?: () => void
 }
 
-export function WorkoutTools({ workoutId }: Props) {
+export function WorkoutTools({ workoutId, onEditCheck }: Props) {
   const [menu, setMenu] = useState(false)
   const [rest, setRest] = useState(false)
   const [active, setActive] = useState<ActiveRest | null>(() => getActiveRest())
@@ -46,6 +49,12 @@ export function WorkoutTools({ workoutId }: Props) {
 
   const begin = (targetSec: number) => {
     setActive(startRest(targetSec, workoutId))
+    setMenu(false)
+    setRest(true)
+  }
+
+  const beginHold = () => {
+    setActive(startHold(workoutId))
     setMenu(false)
     setRest(true)
   }
@@ -85,23 +94,32 @@ export function WorkoutTools({ workoutId }: Props) {
         {/* The warm-up used to live here as a second, separately-edited routine.
             It is now the package the template names, shown at the top of the
             logger with the day's gates applied — one warm-up, not two. */}
+        {onEditCheck && (
+          <button
+            onClick={() => { setMenu(false); onEditCheck() }}
+            className="mb-2 flex w-full items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5 text-left"
+          >
+            <SlidersHorizontal size={18} className="flex-shrink-0 text-accent" />
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-text">Muokkaa päiväarviota</div>
+              <div className="text-[11px] text-fg-faint">
+                Jos jokin alkoi tuntua kesken treenin, portit ratkaistaan uudelleen
+              </div>
+            </div>
+          </button>
+        )}
+
         <div className="rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5">
           <div className="flex items-center gap-3">
             <Timer size={18} className="flex-shrink-0 text-accent" />
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-text">Lepoajastin</div>
+              <div className="text-[13px] font-semibold text-text">Kello</div>
               <div className="text-[11px] text-fg-faint">
-                Käy taustalla vaikka suljet sovelluksen — lepo päättyy kun sinä lopetat sen
+                Käy taustalla vaikka suljet sovelluksen — päättyy kun sinä lopetat sen
               </div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-5 gap-1.5">
-            {REST_TARGETS.map((t) => (
-              <Chip key={t} onClick={() => begin(t)} className="justify-center tabular-nums">
-                {t < 120 ? `${t}s` : `${t / 60}min`}
-              </Chip>
-            ))}
-          </div>
+          <ClockChoices onRest={begin} onHold={beginHold} />
         </div>
       </Sheet>
 
@@ -109,7 +127,7 @@ export function WorkoutTools({ workoutId }: Props) {
       <Sheet
         open={rest}
         onClose={() => setRest(false)}
-        title={<><Timer size={14} />Lepo</>}
+        title={<><Timer size={14} />{active && isHold(active) ? 'Pito' : 'Lepo'}</>}
       >
         {active ? (
           <>
@@ -122,27 +140,31 @@ export function WorkoutTools({ workoutId }: Props) {
                 {formatRest(seconds)}
               </div>
               <div className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-fg-faint">
-                tavoite {formatRest(active.targetSec)}
+                {isHold(active) ? 'ei tavoitetta' : `tavoite ${formatRest(active.targetSec)}`}
                 {past && <span className="ml-2 text-accent">ylitetty</span>}
               </div>
             </div>
 
-            <div className="mb-3 h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.55)]">
-              <div
-                className="h-full rounded-sm bg-gradient-to-r from-accent to-[#e8d07a] transition-[width] duration-500"
-                style={{ width: `${Math.min(100, (seconds / active.targetSec) * 100)}%` }}
-              />
-            </div>
+            {/* A hold has no bar: there is nothing to be a fraction of, and a
+                bar filling towards some number would read as a place to stop. */}
+            {!isHold(active) && (
+              <div className="mb-3 h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.55)]">
+                <div
+                  className="h-full rounded-sm bg-gradient-to-r from-accent to-[#e8d07a] transition-[width] duration-500"
+                  style={{ width: `${Math.min(100, (seconds / active.targetSec) * 100)}%` }}
+                />
+              </div>
+            )}
 
             <p className="mb-3 text-[11px] leading-relaxed text-fg-faint">
-              Ajastin ei tarvitse sovellusta pysyäkseen oikeassa: se muistaa alkuhetken ja laskee
-              kuluneen ajan kellosta. Voit sulkea sovelluksen ja palata — luku on silti oikein.
-              Tavoite on vain merkki matkan varrella, lepo päättyy kun painat alta.
+              {isHold(active)
+                ? 'Kello ei tarvitse sovellusta pysyäkseen oikeassa: se muistaa alkuhetken ja laskee kuluneen ajan kellosta. Pidolla ei ole tavoitetta — se päättyy kun päätät sen, ja kesto kirjautuu.'
+                : 'Ajastin ei tarvitse sovellusta pysyäkseen oikeassa: se muistaa alkuhetken ja laskee kuluneen ajan kellosta. Voit sulkea sovelluksen ja palata — luku on silti oikein. Tavoite on vain merkki matkan varrella, lepo päättyy kun painat alta.'}
             </p>
 
             <div className="flex gap-2">
               <Button variant="primary" className="flex-1" onClick={() => finish()}>
-                <Check size={16} /> Lopeta lepo
+                <Check size={16} /> {isHold(active) ? 'Lopeta pito' : 'Lopeta lepo'}
               </Button>
               <Button
                 variant="ghost"
@@ -153,16 +175,35 @@ export function WorkoutTools({ workoutId }: Props) {
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-5 gap-1.5">
-            {REST_TARGETS.map((t) => (
-              <Chip key={t} onClick={() => begin(t)} className="justify-center tabular-nums">
-                {t < 120 ? `${t}s` : `${t / 60}min`}
-              </Chip>
-            ))}
-          </div>
+          <ClockChoices onRest={begin} onHold={beginHold} />
         )}
       </Sheet>
 
+    </>
+  )
+}
+
+/** Rest targets and the open-ended hold, offered together. Two different jobs:
+ *  a rest is waiting for a number to pass, a hold is finding out what the
+ *  number was. */
+function ClockChoices({ onRest, onHold }: { onRest: (sec: number) => void; onHold: () => void }) {
+  return (
+    <>
+      <div className="mb-1 mt-3 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Lepo</div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {REST_TARGETS.map((t) => (
+          <Chip key={t} onClick={() => onRest(t)} className="justify-center tabular-nums">
+            {t < 120 ? `${t}s` : `${t / 60}min`}
+          </Chip>
+        ))}
+      </div>
+      <div className="mb-1 mt-3 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Pito</div>
+      <Chip onClick={onHold} className="w-full justify-center">
+        <InfinityIcon size={13} /> Käynnistä pitokello
+      </Chip>
+      <p className="m-0 mt-1.5 text-[10px] leading-snug text-fg-ghost">
+        Ei aikarajaa — mittaa kuinka kauan pito kesti.
+      </p>
     </>
   )
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle, SlidersHorizontal } from 'lucide-react'
+import { ChevronLeft, Plus, Check, GripVertical, Flame, AlertTriangle } from 'lucide-react'
 import { m } from 'motion/react'
 import { Sheet, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { DragReorder } from '../ui'
@@ -10,7 +10,6 @@ import { warmupById, resolveWarmup } from '../../lib/warmups'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig, WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
-import { GATE_LABEL, REGION_LABEL } from '../../lib/gates'
 import type { GateState } from '../../lib/gates'
 
 interface Props {
@@ -20,8 +19,7 @@ interface Props {
   template?: WorkoutTemplate | null
   onChange: (w: Workout) => void   // every change autosaves the draft upstream
   onFinish: () => void
-  /** Opens the day-assessment sheet mid-session. */
-  onEditCheck?: () => void
+  /** The day assessment is reachable from the tools button, not from here. */
   /** Re-resolve one slot to a chosen state, when a symptom shows up in the
    *  warm-up rather than at the door. */
   onSwapVariant?: (exerciseId: string, state: GateState) => void
@@ -101,22 +99,11 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
                   ? 'pois tänään'
                   : blockSummary(ex)}
             </div>
-            {/* Where the variant came from — read-only. Without it a substituted
-                movement looks like the plan changed by itself, but it is not a
-                control: changing the variant lives in the instruction sheet, so
-                the tile stays a tile. */}
-            {(ex.resolution?.gateRegion || ex.resolution?.envFallback) && (
-              <div className="mt-1 truncate font-mono text-[9px] tracking-[0.04em] text-accent/80">
-                {[
-                  ex.resolution.gateRegion &&
-                    `${REGION_LABEL[ex.resolution.gateRegion].toLowerCase()}portti · ${GATE_LABEL[ex.resolution.gateState ?? 'develop']}`,
-                  ex.resolution.envFallback && 'paikka',
-                  ex.resolution.source === 'manual' && 'käsin',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </div>
-            )}
+            {/* Deliberately nothing about gates or substitutions here. Which
+                gate produced this variant is worth knowing but not worth a line
+                on every tile — it lives in the instruction sheet, next to the
+                variants it is choosing between. The tile says what to do and
+                how far along you are, and stops. */}
           </div>
         </>
       )}
@@ -124,7 +111,7 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
   )
 }
 
-export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, onEditCheck, onSwapVariant }: Props) {
+export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, onSwapVariant }: Props) {
   // The instruction sheet is only reachable from inside a movement's own sheet.
   // Sheets do not stack — they share a z-layer and a scroll lock — so it swaps
   // the set grid out and swaps it back on close, landing you where you left.
@@ -240,15 +227,6 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             </p>
           </div>
         </div>
-      )}
-
-      {onEditCheck && (
-        <button
-          onClick={onEditCheck}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
-        >
-          <SlidersHorizontal size={13} /> Muokkaa päiväarviota
-        </button>
       )}
 
       {/* The warm-up. When the template names a package the button opens it —

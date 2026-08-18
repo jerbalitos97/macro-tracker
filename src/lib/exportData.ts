@@ -35,7 +35,7 @@ import { computeDays } from './compute'
 import { getPeriods, getActiveGoal } from './goalPeriods'
 import { recommendProtein, intentOf } from './planning'
 import { computeWeightTrend } from './weight'
-import { getTemplates, getWorkouts, getDraft } from './workouts'
+import { getTemplates, getWorkouts, getDrafts } from './workouts'
 import { getBlocks, blockForDate } from './blocks'
 import { getWarmups } from './warmups'
 import { getRestLog } from './restTimer'
@@ -59,7 +59,7 @@ const MAPPED_KEYS = [
   'cutdata:surplus-ack:v1',            // surplusAcknowledged
   'mimir.workouts.history:v1',         // workouts
   'mimir.workouts.templates:v1',       // workoutTemplates
-  'mimir.workouts.draft:v1',           // workoutDraft
+  'mimir.workouts.draft:v1',           // workoutDrafts
   'mimir.workouts.blocks:v1',          // trainingBlocks
   'mimir.workouts.warmups:v1',         // warmupPackages
   'mimir.workouts.restLog:v1',         // restLog
@@ -67,6 +67,7 @@ const MAPPED_KEYS = [
   'friday.uiPrefs:v1',                 // uiPrefs
   'mimir.workouts.locations:v1',       // trainingLocations
   'mimir.workouts.lastLocation:v1',    // (transient: which chip is preselected)
+  'mimir.workouts.locationsSeen:v1',   // (bookkeeping: which location ids came from the cloud)
 ]
 
 const README: Record<string, string> = {
@@ -131,7 +132,10 @@ const README: Record<string, string> = {
     'Thresholds are relative to the region\'s own 14-day median, so a score is only ' +
     'meaningful next to its baseline. escalate means a red flag was ticked and the ' +
     'app stopped prescribing — it is not a severity level.',
-  workoutDraft: 'A session in progress at export time, if any.',
+  workoutDrafts:
+    'Sessions in progress at export time. There can be more than one — an ' +
+    'unfinished mobility routine and an unfinished strength session coexist — and ' +
+    'they are device-local, so this list is whatever that one device was holding.',
   trainingBlocks:
     'Mesocycles: named date ranges with an intent (base/strength/skill/peak/deload) ' +
     'that sets how much deficit the block tolerates.',
@@ -143,9 +147,11 @@ const README: Record<string, string> = {
     'to skip. Items marked progressive carry the once-a-week heavier dose in ' +
     'whichever template has warmupProgressive set.',
   restLog:
-    'Rest periods timed between sets: seconds is the rest actually taken, targetSec ' +
-    'what was aimed for. The timer counts up and ends manually, so seconds > ' +
-    'targetSec is normal and meaningful.',
+    'Timed periods from the session clock. kind is "rest" or "hold": a rest has a ' +
+    'targetSec it was aiming for, a hold has targetSec 0 because the measurement ' +
+    'IS the number — how long the position was held. The clock counts up and ends ' +
+    'manually, so seconds > targetSec on a rest is normal and meaningful. Entries ' +
+    'written before holds existed have no kind and are all rests.',
   habits: 'Habit definitions and their daily entries (cloud-stored).',
   wealth: 'Assets, their valuations over time, and the wealth goal (cloud-stored).',
   uiPrefs: 'Saved UI arrangement, e.g. the order of tools on the launcher.',
@@ -177,7 +183,7 @@ export interface ExportBundle {
   settings: unknown
   workouts: unknown[]
   workoutTemplates: unknown[]
-  workoutDraft: unknown
+  workoutDrafts: unknown[]
   trainingBlocks: unknown[]
   warmupPackages: unknown[]
   restLog: unknown[]
@@ -360,7 +366,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     settings: data.settings,
     workouts: getWorkouts(),
     workoutTemplates: getTemplates(),
-    workoutDraft: getDraft(),
+    workoutDrafts: getDrafts(),
     trainingBlocks: getBlocks(),
     warmupPackages: getWarmups(),
     restLog: getRestLog(),
