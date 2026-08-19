@@ -101,6 +101,13 @@ export function TodayView({
 
   const isOver = remaining < 0
 
+  // The pace marker: where a straight line to the goal puts you today, and how
+  // far the actual deficit is from it. Positive means ahead.
+  const expectedPct = computed.totalDeficitTarget > 0
+    ? computed.expectedDeficit / computed.totalDeficitTarget
+    : 0
+  const paceDelta = computed.cumulativeDeficit - computed.expectedDeficit
+
   const deficitPct = computed.totalDeficitTarget > 0
     ? computed.cumulativeDeficit / computed.totalDeficitTarget
     : 0
@@ -412,12 +419,37 @@ export function TodayView({
               / {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal tavoite
             </div>
           </div>
-          <div className="text-[22px] font-extrabold tabular-nums tracking-[-0.025em] text-accent">
-            {(deficitPct * 100).toFixed(1)}
-            <span className="text-xs font-normal text-fg-faint">%</span>
+          <div className="text-right">
+            <div className="text-[22px] font-extrabold tabular-nums tracking-[-0.025em] text-accent">
+              {(deficitPct * 100).toFixed(1)}
+              <span className="text-xs font-normal text-fg-faint">%</span>
+            </div>
+            {/* Where the straight line to the goal says you should be by now.
+                A percentage on its own answers "how far in", not "am I on
+                track" — those only differ once you know the pace. */}
+            <div className="mt-0.5 text-[11px] tabular-nums text-fg-ghost">
+              tahti {(expectedPct * 100).toFixed(1)} %
+            </div>
           </div>
         </div>
-        <ProgressBar value={deficitPct} color="#22d3ee" height={4} />
+        <ProgressBar
+          value={deficitPct}
+          ghost={expectedPct}
+          ghostLabel={`Lineaarinen tahti: ${Math.round(computed.expectedDeficit).toLocaleString('fi-FI')} kcal`}
+          color="#22d3ee"
+          height={4}
+        />
+        {computed.elapsedDays > 0 && (
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px]">
+            <span className="text-fg-ghost">
+              Tasaisella vajeella nyt {Math.round(computed.expectedDeficit).toLocaleString('fi-FI')} kcal
+              <span className="text-fg-faint"> · {computed.elapsedDays}/{computed.totalDays} pv</span>
+            </span>
+            <span className={paceDelta >= 0 ? 'font-semibold text-[#7fd694]' : 'font-semibold text-accent'}>
+              {paceDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(paceDelta)).toLocaleString('fi-FI')} kcal
+            </span>
+          </div>
+        )}
       </Card>
     </div>
   )

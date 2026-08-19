@@ -206,6 +206,12 @@ export function computeDays(
     }
   })
 
+  // Elapsed is counted the same way cumulativeDeficit is accumulated — days
+  // strictly before today — so comparing the two is comparing like with like.
+  // Today is deliberately excluded: it is still being eaten.
+  const elapsedDays = Math.min(total, Math.max(0, days.filter((d) => d.date < todayISO).length))
+  const expectedDeficit = total > 0 ? (totalDeficitTarget * elapsedDays) / total : 0
+
   return {
     days,
     totalDays: total,
@@ -213,5 +219,7 @@ export function computeDays(
     totalDeficitTarget,
     dailyDeficitBase,
     cumulativeDeficit,
+    elapsedDays,
+    expectedDeficit,
   }
 }

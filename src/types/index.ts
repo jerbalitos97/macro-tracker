@@ -156,6 +156,16 @@ export interface ComputedResult {
   totalDeficitTarget: number
   dailyDeficitBase: number
   cumulativeDeficit: number
+  /** Days of the period already behind us — the same days cumulativeDeficit
+   *  sums, so the two are comparable. */
+  elapsedDays: number
+  /** Where the cumulative deficit should stand by now if the whole target were
+   *  spread evenly across the period. A straight line to the goal, which is
+   *  what makes "ahead" or "behind" a fair reading: the real plan shifts
+   *  deficit between weekdays and weekends, but both converge on the same
+   *  total, so the line is the honest comparison and does not wobble with
+   *  whichever day of the week you happen to open the app. */
+  expectedDeficit: number
 }
 
 export interface AppData {
