@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info, Plus } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
+import { beep, primeAudio } from '../../lib/audio'
 
 interface Props {
   exercise: LoggedExercise & { interval: IntervalConfig }
@@ -23,25 +24,6 @@ interface Run {
   side: 1 | 2
   round: number
   secondsLeft: number
-}
-
-// ── Audio cues ─────────────────────────────────────────────────────────────
-let audioCtx: AudioContext | null = null
-
-function beep(freq: number, ms = 160): void {
-  try {
-    audioCtx ??= new AudioContext()
-    if (audioCtx.state === 'suspended') void audioCtx.resume()
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.frequency.value = freq
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    gain.gain.setValueAtTime(0.25, audioCtx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + ms / 1000)
-    osc.start()
-    osc.stop(audioCtx.currentTime + ms / 1000)
-  } catch { /* no audio available */ }
 }
 
 function speak(text: string): void {
@@ -103,6 +85,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
   const startClock = (setIndex: number, side: 1 | 2 = 1) => {
     setPaused(false)
+    primeAudio() // this tap is the gesture that lets later beeps be heard
     beep(880)
     speak('Valmistaudu')
     setRun({ setIndex, phase: 'countdown', side, round: 1, secondsLeft: 3 })

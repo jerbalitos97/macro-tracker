@@ -98,6 +98,34 @@ export function isHold(a: ActiveRest): boolean {
   return a.kind === 'hold' || a.targetSec === 0
 }
 
+/** How long the rest alarm keeps sounding once the target is reached. It
+ *  repeats rather than chiming once because the phone is face-down on the
+ *  floor and you are not looking at it — one beep is easy to miss, and the
+ *  timer deliberately keeps running past the target, so nothing is lost by
+ *  hearing it late. */
+export const ALARM_SEC = 10
+
+/** Is the alarm sounding at this many seconds in?
+ *
+ *  A hold has no target, so it never alarms — the whole point of a hold is that
+ *  there is no number to reach. And the window closes: reopening the app twenty
+ *  minutes after a forgotten rest should be quiet, not an alarm for a moment
+ *  that passed long ago. */
+export function inAlarmWindow(a: ActiveRest, seconds: number): boolean {
+  if (isHold(a)) return false
+  return seconds >= a.targetSec && seconds < a.targetSec + ALARM_SEC
+}
+
+/** Seconds per colour step on the hold clock. */
+export const HOLD_STEP_SEC = 5
+
+/** Which colour step a hold is in. The digits are readable but they ask you to
+ *  read; a colour change lands in peripheral vision while you are upside down
+ *  in the hold, which is the only place attention is available. */
+export function holdStep(seconds: number): number {
+  return Math.floor(Math.max(0, seconds) / HOLD_STEP_SEC)
+}
+
 export function clearActiveRest(): void {
   try {
     localStorage.removeItem(K_ACTIVE)

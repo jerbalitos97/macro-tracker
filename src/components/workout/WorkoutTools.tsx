@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Timer, X, Check, SlidersHorizontal, Infinity as InfinityIcon } from 'lucide-react'
 import { Sheet, Button, Chip } from '../ui'
 import {
   REST_TARGETS, getActiveRest, startRest, startHold, endRest, clearActiveRest,
-  elapsedSec, formatRest, isHold,
+  elapsedSec, formatRest, isHold, inAlarmWindow, holdStep, HOLD_STEP_SEC, ALARM_SEC,
 } from '../../lib/restTimer'
+import { beep, primeAudio } from '../../lib/audio'
 import type { ActiveRest, RestEntry } from '../../lib/restTimer'
 
 // The floating button used to open the warm-up directly. It is now a "+" that
@@ -46,14 +47,42 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
   const running = active !== null
   const seconds = active ? elapsedSec(active) : 0
   const past = active ? seconds >= active.targetSec : false
+  const hold = active ? isHold(active) : false
+
+  // The rest alarm: one beep a second for ten seconds once the target passes.
+  // Keyed on the rest's start instant and the second it is beeping for, so a
+  // re-render inside the same second stays silent and a new rest starts clean.
+  const lastBeep = useRef<string | null>(null)
+  useEffect(() => {
+    if (!active || !inAlarmWindow(active, seconds)) return
+    const key = `${active.startedAt}:${seconds}`
+    if (lastBeep.current === key) return
+    lastBeep.current = key
+    // Two quick tones rather than one, so it reads as an alarm and not as the
+    // interval timer's phase change.
+    beep(1320, 140)
+    const t = window.setTimeout(() => beep(1760, 140), 170)
+    return () => window.clearTimeout(t)
+  }, [active, seconds])
+
+  // The hold clock changes colour every five seconds. Nothing is encoded in
+  // *which* colour — only that it changed — so the digits remain the source of
+  // truth for anyone who cannot separate these hues.
+  const HOLD_COLORS = ['#22d3ee', '#a78bfa', '#facc15', '#4ade80']
+  const holdColor = HOLD_COLORS[holdStep(seconds) % HOLD_COLORS.length]
+  const alarming = active ? inAlarmWindow(active, seconds) : false
 
   const begin = (targetSec: number) => {
+    primeAudio() // this tap is the gesture that lets the alarm be heard later
+    lastBeep.current = null
     setActive(startRest(targetSec, workoutId))
     setMenu(false)
     setRest(true)
   }
 
   const beginHold = () => {
+    primeAudio()
+    lastBeep.current = null
     setActive(startHold(workoutId))
     setMenu(false)
     setRest(true)
@@ -72,17 +101,24 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
           and then left behind is visible from anywhere in the tool. */}
       <button
         onClick={() => (running ? setRest(true) : setMenu(true))}
-        aria-label={running ? `Lepo käynnissä ${formatRest(seconds)}` : 'Lisää'}
+        aria-label={running ? `${hold ? 'Pito' : 'Lepo'} käynnissä ${formatRest(seconds)}` : 'Lisää'}
         className={`active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex items-center justify-center gap-1.5 rounded-full border transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)] ${
           running
-            ? `h-12 px-4 ${past ? 'border-accent/50 bg-accent/[0.16] text-accent' : 'border-white/12 bg-[rgba(9,11,20,0.62)] text-text'}`
+            ? `h-12 px-4 ${hold ? 'border-white/12 bg-[rgba(9,11,20,0.62)]' : past ? 'border-accent/50 bg-accent/[0.16] text-accent' : 'border-white/12 bg-[rgba(9,11,20,0.62)] text-text'}`
             : 'h-12 w-12 border-white/10 bg-[rgba(9,11,20,0.54)] text-accent'
         }`}
       >
         {running ? (
           <>
-            <Timer size={16} />
-            <span className="font-mono text-[14px] tabular-nums">{formatRest(seconds)}</span>
+            {/* A hold carries its colour out here too, so the five-second step
+                is visible without opening anything — which is the point of it. */}
+            <Timer size={16} style={hold ? { color: holdColor } : undefined} />
+            <span
+              className="font-mono text-[14px] tabular-nums"
+              style={hold ? { color: holdColor, transition: 'color 220ms var(--smooth)' } : undefined}
+            >
+              {formatRest(seconds)}
+            </span>
           </>
         ) : (
           <Plus size={22} />
@@ -134,15 +170,26 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             <div className="flex flex-col items-center py-3">
               <div
                 className={`font-display text-[56px] font-extrabold tabular-nums leading-none tracking-[-0.04em] ${
-                  past ? 'text-accent' : 'text-text'
+                  hold ? '' : past ? 'text-accent' : 'text-text'
                 }`}
+                style={hold ? { color: holdColor, transition: 'color 220ms var(--smooth)' } : undefined}
               >
                 {formatRest(seconds)}
               </div>
               <div className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-fg-faint">
-                {isHold(active) ? 'ei tavoitetta' : `tavoite ${formatRest(active.targetSec)}`}
-                {past && <span className="ml-2 text-accent">ylitetty</span>}
+                {hold
+                  ? `${HOLD_STEP_SEC} s välein väri vaihtuu`
+                  : `tavoite ${formatRest(active.targetSec)}`}
+                {!hold && past && <span className="ml-2 text-accent">ylitetty</span>}
               </div>
+              {/* The alarm is audible, so it says so for anyone with sound off
+                  — and it says when it will stop, so silence reads as "the
+                  alarm finished", not "the timer died". */}
+              {!hold && alarming && (
+                <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-accent" aria-live="polite">
+                  hälytys · {active.targetSec + ALARM_SEC - seconds} s
+                </div>
+              )}
             </div>
 
             {/* A hold has no bar: there is nothing to be a fraction of, and a
