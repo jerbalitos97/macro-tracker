@@ -163,6 +163,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
       <Sheet
         open={rest}
         onClose={() => setRest(false)}
+        tint={hold ? holdColor : undefined}
         title={<><Timer size={14} />{active && isHold(active) ? 'Pito' : 'Lepo'}</>}
       >
         {active ? (
