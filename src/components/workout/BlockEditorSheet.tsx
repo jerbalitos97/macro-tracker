@@ -19,7 +19,7 @@ interface Props {
 
 const label = 'mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
 const field =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text [color-scheme:dark]'
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-base text-text [color-scheme:dark]'
 
 export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose }: Props) {
   const [name, setName] = useState(block.name)

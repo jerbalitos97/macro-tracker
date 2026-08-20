@@ -29,7 +29,7 @@ import { Card, Button } from '../components/ui'
 
 const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 const inputCls =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]'
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-base text-text [color-scheme:dark]'
 
 const PERIOD_TYPE_LABEL: Record<string, string> = {
   cut: 'Cut',
@@ -949,7 +949,7 @@ function NumField({
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-        className="w-[110px] rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]"
+        className="w-[110px] rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-base text-text [color-scheme:dark]"
       />
     </div>
   )

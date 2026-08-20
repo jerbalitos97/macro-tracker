@@ -16,7 +16,7 @@ import type { Capability } from '../../lib/locations'
 
 const label = 'mb-1 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
 const field =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-sm text-text [color-scheme:dark]'
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-base text-text [color-scheme:dark]'
 const num = `${field} text-center tabular-nums`
 
 const toInt = (v: string): number | undefined => {

@@ -185,6 +185,24 @@ html.scroll-locked, body.scroll-locked {
       -webkit-appearance: none;
       appearance: none;
     }
+
+    /* iOS zooms the whole page in whenever you focus a field whose text is
+       under 16px — and it does not zoom back out when you leave the field, so
+       every entry leaves you pinching your way back. Sixteen is the exact
+       threshold, so the fix is to stop being under it.
+
+       The alternative, `maximum-scale=1` on the viewport, would also stop the
+       zoom, by taking pinch-zoom away from everyone permanently. Deliberately
+       not done: that is a real accessibility loss (WCAG 1.4.4) traded for a
+       cosmetic gain, and this costs nothing.
+
+       Base layer, so a Tailwind text-* utility still wins where a control is
+       meant to be bigger — the session-name field is 22px and stays 22px. */
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
   }
 }
 

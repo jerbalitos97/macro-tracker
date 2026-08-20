@@ -18,7 +18,7 @@ interface Props {
 }
 
 const cell =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-1.5 py-2 text-center text-sm tabular-nums text-text [color-scheme:dark]'
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-1.5 py-2 text-center text-base tabular-nums text-text [color-scheme:dark]'
 const colLabel = 'font-mono text-[8.5px] uppercase tracking-[0.12em] text-fg-faint'
 
 function num(v: string): number | undefined {

@@ -8,7 +8,7 @@ const CURRENCIES = ['EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK']
 
 const fieldLabel = 'mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
 const inputCls =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-sm text-text [color-scheme:dark]'
+  'w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-base text-text [color-scheme:dark]'
 const errorBanner =
   'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
 const okBanner =
