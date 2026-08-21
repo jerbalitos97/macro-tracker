@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange } from 'lucide-react'
+import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange, CheckSquare, Sprout, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
 import { DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
+import { useTools } from '../contexts/ToolsContext'
+import type { Tool } from '../lib/roles'
 import { getPrefs, savePrefsLocal, pullPrefs, syncPrefsCloud, applyOrder } from '../lib/uiPrefs'
 import { exportAll } from '../lib/exportData'
 import type { ExportOutcome } from '../lib/exportData'
 
-interface Tool {
-  /** Stable key for the saved order — never rename these. */
-  id: string
+interface ToolDef {
+  /** Stable key for the saved order — never rename these. It doubles as the
+   *  permission key, so it must match a `Tool` in lib/roles.ts. */
+  id: Tool
   label: string
   Icon: LucideIcon
   color: string
@@ -19,14 +22,17 @@ interface Tool {
   short?: string
 }
 
-const TOOLS: Tool[] = [
-  { id: 'habits',  label: 'Habit Tracking',   Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
-  { id: 'fitness', label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },
-  { id: 'wealth',  label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
-  { id: 'workout', label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
-  { id: 'grocery', label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
-  { id: 'plan',    label: 'Suunnittelu',      Icon: CalendarRange,  color: '#e8b85a', target: 'planning' },
-  { id: 'friday',  label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
+const TOOLS: ToolDef[] = [
+  { id: 'habits',   label: 'Habit Tracking',   Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
+  { id: 'fitness',  label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },
+  { id: 'wealth',   label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
+  { id: 'workout',  label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
+  { id: 'grocery',  label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
+  { id: 'plan',     label: 'Suunnittelu',      Icon: CalendarRange,  color: '#e8b85a', target: 'planning' },
+  { id: 'tasks',    label: 'Tehtävät',         Icon: CheckSquare,    color: '#e8b85a', target: 'tasks' },
+  { id: 'mobility', label: 'LiikkuvuusPuu',    Icon: Sprout,         color: '#7ba88a', target: 'mobility', short: 'Liikkuvuus' },
+  { id: 'friday',   label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
+  { id: 'admin',    label: 'Käyttäjät',        Icon: ShieldCheck,    color: '#9ea2b0', target: 'admin' },
 ]
 
 interface Props {
@@ -35,6 +41,7 @@ interface Props {
 
 export function HomeView({ setView }: Props) {
   const { user } = useAuth()
+  const { tools: granted, loading: toolsLoading } = useTools()
   const [order, setOrder] = useState<string[] | undefined>(() => getPrefs().homeToolOrder)
 
   useEffect(() => {
@@ -44,11 +51,21 @@ export function HomeView({ setView }: Props) {
     return () => { alive = false }
   }, [user])
 
-  const tools = applyOrder(TOOLS, (t) => t.id, order)
+  // Suodatus ennen järjestystä: myöntämätön työkalu ei ole olemassa tällä
+  // ruudulla. Piilottaminen ei ole turvaraja — se on RLS ja App.tsx:n portti —
+  // mutta kortti jota ei voi avata on pelkkää hämmennystä.
+  const visible = TOOLS.filter((t) => granted.includes(t.id))
+  const tools = applyOrder(visible, (t) => t.id, order)
 
-  const persist = (next: Tool[]) => {
+  const persist = (next: ToolDef[]) => {
     if (next === tools) return
-    const ids = next.map((t) => t.id)
+    // Vain näkyvät kortit järjestyvät, mutta tallennettuun listaan jätetään myös
+    // piilossa olevien id:t. Ilman tätä myöntämättömän työkalun id katoaisi
+    // listalta joka kerta kun ruudukkoa järjestetään, ja työkalu ilmestyisi
+    // myöhemmin myönnettäessä aina loppuun applyOrderin oletuksena.
+    const visibleIds: string[] = next.map((t) => t.id)
+    const hidden = (order ?? []).filter((id) => !visibleIds.includes(id))
+    const ids = [...visibleIds, ...hidden]
     setOrder(ids)
     const prefs = savePrefsLocal({ ...getPrefs(), homeToolOrder: ids })
     if (user) syncPrefsCloud(user.id, prefs)
@@ -68,6 +85,11 @@ export function HomeView({ setView }: Props) {
       </div>
 
       {/* Tool grid */}
+      {toolsLoading && tools.length === 0 && (
+        <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">
+          Ladataan työkaluja…
+        </p>
+      )}
       <div ref={reorder.containerRef} className="grid grid-cols-2 gap-4">
         {tools.map((tool) => (
           <ToolTile
@@ -140,7 +162,7 @@ function ExportButton({ userId }: { userId?: string }) {
 }
 
 interface TileProps {
-  tool: Tool
+  tool: ToolDef
   reorder: ReturnType<typeof useDragReorder>
   onOpen: () => void
   onMove: (delta: -1 | 1) => void

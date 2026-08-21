@@ -1,5 +1,7 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange, CheckSquare, Sprout, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useTools } from '../contexts/ToolsContext'
+import { VIEW_TOOL } from '../lib/viewAccess'
 
 type View =
   | 'home'
@@ -14,6 +16,10 @@ type View =
   | 'workout'
   | 'grocery'
   | 'planning'
+  | 'tasks'
+  | 'tasks-calendar'
+  | 'mobility'
+  | 'admin'
 
 interface Tab {
   id: View
@@ -65,12 +71,33 @@ const GROCERY_TABS: Tab[] = [
   { id: 'grocery', label: 'Grocery', Icon: ShoppingBasket },
 ]
 
+// Tehtävillä on oma kalenteri eikä Fridayn CalendarView. Sama ruudukko näyttäisi
+// päivän kaloribudjetin ja tehtävälistan yhtä aikaa, ja ne ovat eri kysymys.
+const TASKS_TABS: Tab[] = [
+  { id: 'home',            label: 'Koti',      Icon: LayoutGrid },
+  { id: 'tasks',           label: 'Tehtävät',  Icon: CheckSquare },
+  { id: 'tasks-calendar',  label: 'Kalenteri', Icon: CalendarDays },
+]
+
+const MOBILITY_TABS: Tab[] = [
+  { id: 'home',     label: 'Koti',       Icon: LayoutGrid },
+  { id: 'mobility', label: 'Liikkuvuus', Icon: Sprout },
+]
+
+const ADMIN_TABS: Tab[] = [
+  { id: 'home',  label: 'Koti',       Icon: LayoutGrid },
+  { id: 'admin', label: 'Käyttäjät',  Icon: ShieldCheck },
+]
+
 function tabsForView(v: View): Tab[] {
   if (v === 'habits') return HABIT_TABS
   if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
   if (v === 'workout') return WORKOUT_TABS
   if (v === 'grocery') return GROCERY_TABS
   if (v === 'planning' || v === 'settings') return PLANNING_TABS
+  if (v === 'tasks' || v === 'tasks-calendar') return TASKS_TABS
+  if (v === 'mobility') return MOBILITY_TABS
+  if (v === 'admin') return ADMIN_TABS
   return FITNESS_TABS
 }
 
@@ -82,7 +109,14 @@ interface Props {
 }
 
 export function NavBar({ view, setView }: Props) {
-  const tabs = tabsForView(view)
+  const { tools } = useTools()
+  // Sama suodatus kuin ruudukossa. PLANNING_TABS niputtaa Suunnittelun ja
+  // Asetukset, joten pelkkä "tämän työkalun tabit" ei riitä — jokainen tab
+  // tarkistetaan erikseen.
+  const tabs = tabsForView(view).filter((t) => {
+    const needed = VIEW_TOOL[t.id]
+    return needed === null || tools.includes(needed)
+  })
   const activeIdx = tabs.findIndex((t) => t.id === view)
 
   return (

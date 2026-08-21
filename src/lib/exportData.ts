@@ -20,9 +20,14 @@
 //     a named section below lands in `raw.unmapped` verbatim. A store added
 //     later and never registered here still ships — worse-labelled than it
 //     could be, but present.
-//   · Cloud-only collections (habits, wealth) cannot be swept that way, so
-//     they are fetched explicitly. When a new cloud table appears, add it to
-//     `fetchCloud` — and note that the sweep will not cover it for you.
+//   · Cloud-only collections (habits, wealth, tasks, mobility logs) cannot be
+//     swept that way, so they are fetched explicitly. When a new cloud table
+//     appears, add it to `fetchCloud` — and note that the sweep will not cover
+//     it for you.
+//   · Complete means complete *for the caller*. Every cloud fetch here is
+//     scoped to the signed-in user's own rows, which is what RLS allows and
+//     what a shareable file should contain — one person's data, not the
+//     household's.
 //   · SENSITIVE_KEYS never ship. The auth session holds a bearer token; a file
 //     meant to be shared must not carry it.
 //
@@ -43,11 +48,13 @@ import { getLocations } from './locations'
 import { getPrefs } from './uiPrefs'
 import { getAcknowledgedSurpluses } from './surplusAck'
 import { listHabits, listEntries } from './habits'
+import { listAllTasks } from './tasks'
+import { listMobilityLogs } from './mobility'
 import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -153,6 +160,17 @@ const README: Record<string, string> = {
     'manually, so seconds > targetSec on a rest is normal and meaningful. Entries ' +
     'written before holds existed have no kind and are all rests.',
   habits: 'Habit definitions and their daily entries (cloud-stored).',
+  tasks:
+    'One-off dated to-dos (cloud-stored). Not habits: a habit recurs on ' +
+    'task_days, a task is a single dated row that is ticked once and can be ' +
+    'moved to another day. done/doneAt say whether and when it was ticked. ' +
+    'null means the fetch failed or there is no signed-in user — not "none".',
+  mobilityLogs:
+    'LiikkuvuusPuu entries (cloud-stored): one row per mobility session, each ' +
+    'flagged upperBody and/or lowerBody. This is a motivation visualisation — ' +
+    'one row grows one branch — and deliberately NOT training volume, so it ' +
+    'is absent from `workouts` and from every day row. Do not add these to ' +
+    'training load. null means the fetch failed, not "none".',
   wealth: 'Assets, their valuations over time, and the wealth goal (cloud-stored).',
   uiPrefs: 'Saved UI arrangement, e.g. the order of tools on the launcher.',
   protein:
@@ -189,6 +207,8 @@ export interface ExportBundle {
   restLog: unknown[]
   habits: { definitions: unknown[]; entries: unknown[] } | null
   wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
+  tasks: unknown[] | null
+  mobilityLogs: unknown[] | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
   trainingLocations: unknown[]
@@ -309,8 +329,10 @@ function sweepUnmapped(): Record<string, unknown> {
 async function fetchCloud(userId: string | undefined): Promise<{
   habits: ExportBundle['habits']
   wealth: ExportBundle['wealth']
+  tasks: ExportBundle['tasks']
+  mobilityLogs: ExportBundle['mobilityLogs']
 }> {
-  const [habits, wealth] = await Promise.all([
+  const [habits, wealth, tasks, mobilityLogs] = await Promise.all([
     (async () => {
       if (!userId) return null
       try {
@@ -332,8 +354,24 @@ async function fetchCloud(userId: string | undefined): Promise<{
         return null
       }
     })(),
+    (async () => {
+      if (!userId) return null
+      try {
+        return await listAllTasks(userId)
+      } catch {
+        return null
+      }
+    })(),
+    (async () => {
+      if (!userId) return null
+      try {
+        return await listMobilityLogs(userId)
+      } catch {
+        return null
+      }
+    })(),
   ])
-  return { habits, wealth }
+  return { habits, wealth, tasks, mobilityLogs }
 }
 
 export async function buildExport(userId?: string): Promise<ExportBundle | null> {
@@ -349,7 +387,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     data.adjustments ?? [],
   )
   const trend = computeWeightTrend(data.weights ?? [])
-  const { habits, wealth } = await fetchCloud(userId)
+  const { habits, wealth, tasks, mobilityLogs } = await fetchCloud(userId)
 
   return {
     _readme: README,
@@ -372,6 +410,8 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     restLog: getRestLog(),
     habits,
     wealth,
+    tasks,
+    mobilityLogs,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
     trainingLocations: getLocations(),

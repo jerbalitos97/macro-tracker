@@ -41,6 +41,11 @@ import { AnalysisView } from './views/AnalysisView'
 import { PlanningView } from './views/PlanningView'
 import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
+import { TasksView, TasksCalendarView } from './views/TasksView'
+import { MobilityView } from './views/MobilityView'
+import { AdminView } from './views/AdminView'
+import { useTools } from './contexts/ToolsContext'
+import { isViewAllowed } from './lib/viewAccess'
 import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion/react'
 
 // Cross-fade between views. `mode="wait"` runs exit before enter, so a slow
@@ -90,11 +95,22 @@ const DEFAULT_SETTINGS: Settings = {
 
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled } = useAuth()
+  const { tools: grantedTools, loading: toolsLoading } = useTools()
   const reduceMotion = useReducedMotion()
   const viewMotion = reduceMotion ? VIEW_MOTION_REDUCED : VIEW_MOTION
 
   // A ?g=<listId> share link deep-links straight into the Grocery tool.
   const [view, setView] = useState<View>(() => (sharedListIdFromUrl() ? 'grocery' : 'home'))
+
+  // Portti. Kortin piilottaminen ruudukosta ei riitä: `view` säilyy komponentin
+  // tilassa, ja jakolinkki (?g=…) osoittaa suoraan yhteen työkaluun. Ilman tätä
+  // käyttäjä joka joskus näki työkalun jää siihen kiinni sen jälkeen kun oikeus
+  // on otettu pois. Odotetaan että oikeudet on ladattu, jotta ensimmäinen
+  // render ei heitä ulos näkymästä johon käyttäjällä on oikeus.
+  useEffect(() => {
+    if (toolsLoading) return
+    if (!isViewAllowed(view, grantedTools)) setView('home')
+  }, [view, grantedTools, toolsLoading])
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
@@ -747,6 +763,30 @@ export default function App() {
             onImport={handleImport}
             user={user}
           />
+        </m.div>
+      )}
+
+      {view === 'tasks' && (
+        <m.div key={view} {...viewMotion}>
+          <TasksView />
+        </m.div>
+      )}
+
+      {view === 'tasks-calendar' && (
+        <m.div key={view} {...viewMotion}>
+          <TasksCalendarView />
+        </m.div>
+      )}
+
+      {view === 'mobility' && (
+        <m.div key={view} {...viewMotion}>
+          <MobilityView />
+        </m.div>
+      )}
+
+      {view === 'admin' && (
+        <m.div key={view} {...viewMotion}>
+          <AdminView />
         </m.div>
       )}
       </AnimatePresence>

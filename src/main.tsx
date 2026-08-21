@@ -4,6 +4,7 @@ import './styles/global.css'
 import App from './App'
 import { AuroraBackground } from './components/AuroraBackground'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToolsProvider } from './contexts/ToolsContext'
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
@@ -26,8 +27,10 @@ if (!root) throw new Error('Root element not found')
 createRoot(root).render(
   <StrictMode>
     <AuthProvider>
-      <AuroraBackground />
-      <App />
+      <ToolsProvider>
+        <AuroraBackground />
+        <App />
+      </ToolsProvider>
     </AuthProvider>
   </StrictMode>
 )

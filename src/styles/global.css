@@ -422,3 +422,13 @@ input[type="date"], select { color-scheme: dark; }
 .banner-enter {
   animation: bannerSlideDown 0.28s var(--ease-out) both;
 }
+
+/* LiikkuvuusPuu — lehtien ja oksien ilmestyminen.
+   VAIN opacity. Puun geometria elää SVG:n transform-attribuuteissa, ja jos tämä
+   keyframe koskee transformia, Safari pitää CSS-arvoa attribuuttia vahvempana ja
+   jokainen lehti kasautuu viewBoxin origoon. Se oli Kodin viimeinen bugi ennen
+   siirtoa — älä lisää tähän transformia. */
+@keyframes leafIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

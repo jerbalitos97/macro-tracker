@@ -343,3 +343,74 @@ create policy "wt_settings: own row only"
   on wt_settings for all
   using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ── Käyttäjät ja työkaluoikeudet ─────────────────────────────
+-- HUOM: nämä kaksi taulua tarvitsevat lisäksi
+-- supabase/migrations/20260821_app_users_and_tools.sql — siellä ovat policyt,
+-- `is_app_admin()`-funktio, is_admin-lipun vartijatrigger ja admin-siemenrivi.
+-- Aja se tämän tiedoston jälkeen. RLS kytketään päälle jo täällä, jotta
+-- puolittain tehty asennus (taulut ilman policyja) epäonnistuu kiinni eikä auki:
+-- ilman policyja kukaan ei lue mitään, ja appi putoaa roles.ts:n oletuksiin.
+create table if not exists app_users (
+  user_id      uuid primary key references auth.users on delete cascade,
+  display_name text not null default '',
+  is_admin     boolean not null default false,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+alter table app_users enable row level security;
+
+create table if not exists user_tools (
+  user_id    uuid primary key references auth.users on delete cascade,
+  tools      text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
+
+alter table user_tools enable row level security;
+
+-- ── Tehtävät ─────────────────────────────────────────────────
+-- Ei sama asia kuin `habits`: habit toistuu, tehtävä on kertaluontoinen
+-- päivätty rivi. Avain on uuid eikä asiakkaan `Date.now()`, koska bigint-avain
+-- on globaali ja kaksi käyttäjää voi törmätä siihen.
+create table if not exists tasks (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null default auth.uid() references auth.users on delete cascade,
+  title          text not null,
+  scheduled_date date not null,
+  done           boolean not null default false,
+  done_at        timestamptz,
+  created_at     timestamptz not null default now()
+);
+
+alter table tasks enable row level security;
+
+create policy "tasks: own rows only"
+  on tasks for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists tasks_user_date on tasks (user_id, scheduled_date);
+
+-- ── LiikkuvuusPuu ────────────────────────────────────────────
+-- Motivaatiovisualisointi, ei treenivolyymia. Tarkoituksella erillään
+-- `workouts`-taulusta: näiden laskeminen harjoitteluun näyttäisi treeniä jota
+-- ei tehty.
+create table if not exists mobility_logs (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users on delete cascade,
+  log_date   date not null,
+  upper_body boolean not null default false,
+  lower_body boolean not null default false,
+  created_at timestamptz not null default now(),
+  constraint mobility_logs_something_logged check (upper_body or lower_body)
+);
+
+alter table mobility_logs enable row level security;
+
+create policy "mobility_logs: own rows only"
+  on mobility_logs for all
+  using  (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create index if not exists mobility_logs_user_date on mobility_logs (user_id, log_date);
