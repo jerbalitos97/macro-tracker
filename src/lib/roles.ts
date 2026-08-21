@@ -57,9 +57,15 @@ export const TOOL_NAMES: Record<Tool, string> = {
 export const ASSIGNABLE_TOOLS: Tool[] = ALL_TOOLS.filter((t) => t !== 'admin')
 
 /** Mitä uusi käyttäjä näkee ennen kuin admin on konffannut hänelle mitään.
- *  Tarkoituksellisen suppea: Kodista tuodut työkalut ovat ne joita muut kuin
- *  omistaja tulevat käyttämään, eikä paino- tai varallisuusdataan pääse
- *  vahingossa se joka ehtii kirjautua ennen konffausta. */
+ *
+ *  Päätetty oletus: LiikkuvuusPuu, Tehtävät ja ruokapäiväkirja. Ruoka puuttuu
+ *  tästä listasta koska sitä työkalua ei ole vielä olemassa — Fridayn
+ *  ruokakirjaus elää `fitness`-työkalun sisällä TDEE:n, vajeen ja
+ *  tavoiteanalyysin kanssa, eikä sitä voi myöntää erikseen ennen kuin se on
+ *  eriytetty omaksi työkaluksi. Lisää `'ruoka'` tähän samalla kun se tehdään.
+ *
+ *  Suppeus on tarkoituksellista: paino- tai varallisuusdataan ei pääse
+ *  vahingossa se joka ehtii kirjautua ennen kuin admin on konffannut. */
 const DEFAULT_TOOLS: Tool[] = ['tasks', 'mobility']
 
 /** Adminin oletukset — kaikki. Käytetään vain jos admin-käyttäjän oma
