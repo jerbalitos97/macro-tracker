@@ -7,6 +7,10 @@ import { Tree } from '../components/mobility/Tree'
 
 type Choice = 'upper' | 'lower' | 'both'
 
+// Istunnonaikainen välimuisti — sama syy kuin TasksView'ssa: paluu työkaluun
+// näyttää puun heti eikä "Ladataan…", ja taustahaku korjaa hiljaa perässä.
+const logsCache = new Map<string, MobilityLog[]>()
+
 const CHOICES: Array<{ id: Choice; label: string; dot: string }> = [
   { id: 'upper', label: 'Yläkroppa', dot: '#7ba88a' },
   { id: 'lower', label: 'Alakroppa', dot: '#d4a857' },
@@ -15,8 +19,8 @@ const CHOICES: Array<{ id: Choice; label: string; dot: string }> = [
 
 export function MobilityView() {
   const { user } = useAuth()
-  const [logs, setLogs] = useState<MobilityLog[]>([])
-  const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState<MobilityLog[]>(() => (user ? logsCache.get(user.id) ?? [] : []))
+  const [loading, setLoading] = useState(() => !(user && logsCache.has(user.id)))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [flash, setFlash] = useState(false)
@@ -31,7 +35,10 @@ export function MobilityView() {
     }
     let alive = true
     listMobilityLogs(user.id)
-      .then((l) => { if (alive) setLogs(l) })
+      .then((l) => {
+        logsCache.set(user.id, l)
+        if (alive) setLogs(l)
+      })
       .catch((e) => { if (alive) setError(e instanceof Error ? e.message : 'Haku epäonnistui') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }

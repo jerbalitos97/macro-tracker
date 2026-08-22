@@ -52,13 +52,11 @@ import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion
 // exit reads as a blank flash — keep it short and let the enter carry the
 // motion. A small upward drift makes the swap read as a transition.
 const VIEW_MOTION = {
-  initial: { opacity: 0, y: 6 },
+  initial: { opacity: 0, y: 5 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -4 },
   transition: {
-    duration: 0.2,
+    duration: 0.16,
     ease: [0.16, 1, 0.3, 1] as const,
-    exit: { duration: 0.1, ease: 'easeIn' as const },
   },
 }
 
@@ -66,7 +64,6 @@ const VIEW_MOTION = {
 const VIEW_MOTION_REDUCED = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
-  exit: { opacity: 0 },
   transition: { duration: 0.01 },
 }
 
@@ -95,7 +92,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled } = useAuth()
-  const { tools: grantedTools, loading: toolsLoading } = useTools()
+  const { tools: grantedTools, loading: toolsLoading, viewAs, stopViewAs } = useTools()
   const reduceMotion = useReducedMotion()
   const viewMotion = reduceMotion ? VIEW_MOTION_REDUCED : VIEW_MOTION
 
@@ -456,6 +453,25 @@ export default function App() {
         />
       )}
 
+      {/* View-as-banneri. Kiinteä alareunaan, jotta paluureitti omaan
+          näkymään on näkyvissä joka ruudulla ja joka rullausasennossa —
+          yläreuna kuuluu sticky-navbarille. Työkalulinssi, ei datalinssi:
+          kyselyt kulkevat yhä omalla sessiolla ja RLS näyttää vain omat rivit. */}
+      {viewAs && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-violet/40 bg-[rgba(20,14,40,0.92)] px-4 py-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
+          <span className="min-w-0 truncate font-mono text-[11px] uppercase tracking-[0.08em] text-violet">
+            Katsot: {viewAs.name}
+          </span>
+          <button
+            type="button"
+            onClick={stopViewAs}
+            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-violet"
+          >
+            Palaa omaan näkymään
+          </button>
+        </div>
+      )}
+
       {/* Nav with sync badge — hidden on the launcher (home) view. The bar is
           sticky, so unmounting it outright yanks the content up; collapse its
           height instead so entering/leaving home stays smooth. */}
@@ -479,7 +495,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="wait">
       {view === 'home' && (
         <m.div key={view} {...viewMotion}>
           <HomeView setView={setView} />
@@ -789,7 +804,6 @@ export default function App() {
           <AdminView />
         </m.div>
       )}
-      </AnimatePresence>
     </div>
     </LazyMotion>
   )

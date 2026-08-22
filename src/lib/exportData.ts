@@ -75,6 +75,7 @@ const MAPPED_KEYS = [
   'mimir.workouts.locations:v1',       // trainingLocations
   'mimir.workouts.lastLocation:v1',    // (transient: which chip is preselected)
   'mimir.workouts.locationsSeen:v1',   // (bookkeeping: which location ids came from the cloud)
+  'friday.tools:v1',                   // (cache: tool grants for instant startup; user_tools/app_users in cloud are authoritative)
 ]
 
 const README: Record<string, string> = {

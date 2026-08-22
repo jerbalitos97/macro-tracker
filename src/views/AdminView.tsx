@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, ShieldCheck } from 'lucide-react'
+import { AlertCircle, Check, Eye, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
-import { ASSIGNABLE_TOOLS, TOOL_NAMES, defaultToolsFor, type Tool } from '../lib/roles'
+import { ASSIGNABLE_TOOLS, TOOL_NAMES, defaultToolsFor, effectiveTools, type Tool } from '../lib/roles'
 import { listAllToolOverrides, listAppUsers, setToolsFor, type AppUser } from '../lib/userTools'
 
 // Työkalujen jako per käyttäjä.
@@ -26,7 +26,7 @@ const TOOL_COLOR: Record<Tool, string> = {
 
 export function AdminView() {
   const { user } = useAuth()
-  const { isAdmin, refresh } = useTools()
+  const { isAdmin, refresh, startViewAs } = useTools()
 
   const [users, setUsers] = useState<AppUser[]>([])
   const [assigned, setAssigned] = useState<Record<string, Tool[]>>({})
@@ -164,6 +164,24 @@ export function AdminView() {
                     Ylläpitäjä pääsee aina hallintaan riippumatta näistä rasteista
                     {isMe ? ' — omaa oikeutta ei voi poistaa' : ''}.
                   </p>
+                )}
+
+                {!isMe && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      // Linssi lasketaan samalla säännöllä jolla käyttäjän oma
+                      // appi sen laskee: kannan rivi jos on, muuten oletukset.
+                      startViewAs(
+                        u.displayName || u.userId.slice(0, 8),
+                        effectiveTools(u.isAdmin, customised.has(u.userId) ? list : null)
+                      )
+                    }
+                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-input border border-violet/40 bg-violet/[0.10] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-violet"
+                  >
+                    <Eye size={13} />
+                    Katso tätä näkymää
+                  </button>
                 )}
 
                 <div className="mt-3 flex flex-col gap-1.5">

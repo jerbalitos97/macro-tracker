@@ -14,6 +14,14 @@ import { MonthCalendar } from '../components/tasks/MonthCalendar'
 const SHELL =
   'flex min-h-dvh flex-col gap-4 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-7'
 
+// Istunnonaikainen välimuisti. Ilman tätä jokainen paluu työkaluun näyttää
+// "Ladataan…" vaikka sama lista haettiin sekunti sitten toisella välilehdellä —
+// ja juuri se lukee välkyntänä. Näytetään viimeksi nähty heti ja annetaan
+// taustahaun korjata hiljaa. Muisti tyhjenee reloadissa, joten tämä ei ole
+// uusi totuuden lähde vaan pelkkä paluumatkan pehmennys.
+const dayCache = new Map<string, Task[]>()
+const monthCache = new Map<string, Task[]>()
+
 function Notice({ children }: { children: React.ReactNode }) {
   return (
     <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
@@ -65,11 +73,12 @@ function useTaskActions(userId: string | undefined, reload: () => void) {
 
 export function TasksView() {
   const { user } = useAuth()
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
+  const today = toISO(new Date())
+  const cacheKey = `${user?.id ?? ''}:${today}`
+  const [tasks, setTasks] = useState<Task[]>(() => dayCache.get(cacheKey) ?? [])
+  const [loading, setLoading] = useState(() => !dayCache.has(cacheKey))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
-  const today = toISO(new Date())
 
   const reload = useCallback(() => setTick((n) => n + 1), [])
 
@@ -81,11 +90,14 @@ export function TasksView() {
     let alive = true
     setLoadError(null)
     listTasksForDate(user.id, today)
-      .then((t) => { if (alive) setTasks(t) })
+      .then((t) => {
+        dayCache.set(cacheKey, t)
+        if (alive) setTasks(t)
+      })
       .catch((e) => { if (alive) setLoadError(e instanceof Error ? e.message : 'Haku epäonnistui') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [user, today, tick])
+  }, [user, today, cacheKey, tick])
 
   const actions = useTaskActions(user?.id, reload)
   const done = tasks.filter((t) => t.done).length
@@ -141,6 +153,7 @@ export function TasksCalendarView() {
 
   const firstISO = `${year}-${String(month0 + 1).padStart(2, '0')}-01`
   const lastISO = toISO(new Date(year, month0 + 1, 0))
+  const cacheKey = `${user?.id ?? ''}:${firstISO}`
 
   useEffect(() => {
     if (!user) {
@@ -148,14 +161,23 @@ export function TasksCalendarView() {
       return
     }
     let alive = true
-    setLoading(true)
+    const cached = monthCache.get(cacheKey)
+    if (cached) {
+      setMonthTasks(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     setLoadError(null)
     listTasksInRange(user.id, firstISO, lastISO)
-      .then((t) => { if (alive) setMonthTasks(t) })
+      .then((t) => {
+        monthCache.set(cacheKey, t)
+        if (alive) setMonthTasks(t)
+      })
       .catch((e) => { if (alive) setLoadError(e instanceof Error ? e.message : 'Haku epäonnistui') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [user, firstISO, lastISO, tick])
+  }, [user, firstISO, lastISO, cacheKey, tick])
 
   const actions = useTaskActions(user?.id, reload)
 
