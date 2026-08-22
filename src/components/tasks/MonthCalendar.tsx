@@ -73,7 +73,9 @@ export function MonthCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      {/* key kuukaudesta: kuukauden vaihto häivyttää uuden ruudukon sisään
+          sen sijaan että numerot vain hyppäisivät paikoilleen. */}
+      <div key={`${year}-${monthIndex0}`} className="view-enter grid grid-cols-7 gap-1">
         {cells.map((c, i) => {
           if (!c) return <div key={`pad-${i}`} aria-hidden />
           const open = openByDate.get(c.iso) ?? 0

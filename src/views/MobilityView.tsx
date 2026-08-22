@@ -81,7 +81,7 @@ export function MobilityView() {
         </p>
       </div>
 
-      <div className="rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-4 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
+      <div className="card-enter rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-4 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
         {loading ? (
           <p className="py-16 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>
         ) : (
@@ -100,14 +100,14 @@ export function MobilityView() {
       </div>
 
       {error && (
-        <p role="status" className="flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
+        <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
           <AlertCircle size={14} className="shrink-0" />
           {error}
         </p>
       )}
 
       {flash && (
-        <p role="status" className="flex items-center justify-center gap-2 rounded-row border border-border-hi bg-accent/[0.10] px-4 py-3 text-[13px] text-accent">
+        <p role="status" className="card-enter flex items-center justify-center gap-2 rounded-row border border-border-hi bg-accent/[0.10] px-4 py-3 text-[13px] text-accent">
           <Check size={14} />
           Kirjattu — puu kasvoi
         </p>
@@ -131,7 +131,7 @@ export function MobilityView() {
       {recent.length > 0 && (
         <div>
           <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">Viimeisimmät</div>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="list-stagger flex flex-col gap-1.5">
             {recent.map((l) => (
               <li
                 key={l.id}

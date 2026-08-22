@@ -42,7 +42,7 @@ export function TaskItem({ task, onToggle, onReschedule, onDelete }: Props) {
               : 'border-white/15 bg-black/30 text-transparent'
           }`}
         >
-          <Check size={15} strokeWidth={2.5} />
+          {task.done ? <Check size={15} strokeWidth={2.5} className="check-pop" /> : <Check size={15} strokeWidth={2.5} />}
         </button>
         <span
           className={`min-w-0 flex-1 break-words text-[15px] leading-snug ${

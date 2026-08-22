@@ -432,3 +432,20 @@ input[type="date"], select { color-scheme: dark; }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* Painalluspalaute — jokainen oikea nappi painuu sormen alla.
+   Tahallaan ilman transitionia: elementtitason transition-sääntö voittaisi
+   spesifisyydellä Tailwindin transition-colors-utilityn ja sammuttaisi
+   värisiirtymät ympäri appia. Välitön skaalaus lukee natiivilta painallukselta,
+   ja sama käytös joka napissa on arvokkaampaa kuin pehmennys osassa. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active { transform: scale(0.96); }
+}
+
+/* Kuittauksen pop — pieni ylilyönti kun tehtävä merkitään tehdyksi.
+   Käyttää --spring-käyrää, joten ylitys tulee käyrästä eikä keyframesta. */
+@keyframes checkPop {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.check-pop { animation: checkPop 0.3s var(--spring) both; }

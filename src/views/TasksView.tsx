@@ -16,7 +16,7 @@ const SHELL =
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <p role="status" className="flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
+    <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
       <AlertCircle size={14} className="shrink-0" />
       {children}
     </p>
@@ -105,7 +105,7 @@ export function TasksView() {
           Ei tehtäviä tälle päivälle.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="list-stagger flex flex-col gap-2">
           {tasks.map((t) => (
             <TaskItem
               key={t.id}
@@ -206,7 +206,7 @@ export function TasksCalendarView() {
       ) : dayTasks.length === 0 ? (
         <p className="py-6 text-center text-[13px] text-fg-ghost">Ei tehtäviä tälle päivälle.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="list-stagger flex flex-col gap-2">
           {dayTasks.map((t) => (
             <TaskItem
               key={t.id}

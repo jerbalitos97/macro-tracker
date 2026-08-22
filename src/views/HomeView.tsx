@@ -90,7 +90,7 @@ export function HomeView({ setView }: Props) {
           Ladataan työkaluja…
         </p>
       )}
-      <div ref={reorder.containerRef} className="grid grid-cols-2 gap-4">
+      <div ref={reorder.containerRef} className="list-stagger grid grid-cols-2 gap-4">
         {tools.map((tool) => (
           <ToolTile
             key={tool.id}
@@ -149,7 +149,7 @@ function ExportButton({ userId }: { userId?: string }) {
       {outcome && (
         <p
           role="status"
-          className={`mt-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] ${
+          className={`view-enter mt-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] ${
             bad ? 'text-danger' : 'text-fg-muted'
           }`}
         >

@@ -34,10 +34,14 @@ export function EncouragingHeader({ done, total }: Props) {
       <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
         Tehtävät · {pct}%
       </div>
-      <h2 className="mt-1.5 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] text-text">
-        {title}
-      </h2>
-      <p className="mt-1 text-[13px] text-fg-muted">{sub}</p>
+      {/* key vaihtaa lohkon kun viesti vaihtuu, jolloin uusi teksti häipyy
+          sisään sen sijaan että sanat vain vaihtuisivat paikoillaan. */}
+      <div key={title} className="view-enter">
+        <h2 className="mt-1.5 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] text-text">
+          {title}
+        </h2>
+        <p className="mt-1 text-[13px] text-fg-muted">{sub}</p>
+      </div>
       {total > 0 && (
         <div className="mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.07]">
           <div
