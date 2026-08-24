@@ -4,6 +4,8 @@ import type { ComputedDay, ComputedResult, Meal, TrainingBurn } from '../types'
 import { formatDayOfWeek } from '../lib/dates'
 import { parsePositiveInt, parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
 import { MealRow } from '../components/MealRow'
+import { MealCapture } from '../components/ruoka/MealCapture'
+import { useTools } from '../contexts/ToolsContext'
 import { ProgressBar } from '../components/ProgressBar'
 import { Card, Button, Field, RingGauge } from '../components/ui'
 
@@ -23,7 +25,7 @@ interface Props {
   burns: TrainingBurn[]
   proteinTarget: number
   computed: ComputedResult
-  onAddMeal: (meal: { kcal: number; protein: number }) => void
+  onAddMeal: (meal: { kcal: number; protein: number; description?: string; items?: string[] }) => void
   onDeleteMeal: (id: number) => void
   onAddBurn: (burn: { kcal: number; note: string }) => void
   onDeleteBurn: (id: number) => void
@@ -42,6 +44,7 @@ export function TodayView({
   onDeleteBurn,
   onSetAdjustment,
 }: Props) {
+  const { can } = useTools()
   const [showMealForm, setShowMealForm] = useState(false)
   const [showBurnForm, setShowBurnForm] = useState(false)
   const [mealForm, setMealForm] = useState({ kcal: '', protein: '' })
@@ -272,6 +275,17 @@ export function TodayView({
         </div>
         <ProgressBar value={day.protein / proteinTarget} color="#60a5fa" height={6} />
       </Card>
+
+      {/* ── Photo capture (kuvauslisä) ───────────────────────────────
+          Näkyy vain kun oikeus on myönnetty. Palvelinfunktio tarkistaa saman
+          oikeuden uudelleen, joten tämä on käytettävyyttä eikä pääsynhallintaa. */}
+      {can('fitness:photo') && (
+        <MealCapture
+          onAccept={(m) =>
+            onAddMeal({ kcal: m.kcal, protein: m.protein, description: m.description, items: m.items })
+          }
+        />
+      )}
 
       {/* ── Meals list ──────────────────────────────────────────────── */}
       <div className="mt-[18px]">

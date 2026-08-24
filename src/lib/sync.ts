@@ -22,7 +22,10 @@ export function syncSettings(userId: string, s: Settings) {
 export function syncMeal(userId: string, m: Meal) {
   supabase
     ?.from('meals')
-    .upsert({ id: m.id, user_id: userId, date: m.date, kcal: m.kcal, protein: m.protein })
+    .upsert({
+      id: m.id, user_id: userId, date: m.date, kcal: m.kcal, protein: m.protein,
+      description: m.description ?? null, items: m.items ?? null,
+    })
     .then(({ error }) => { if (error) console.warn('[sync] meal:', error.message) })
 }
 
@@ -195,7 +198,14 @@ export async function pullAllData(userId: string): Promise<AppData | null> {
 
     return {
       settings: settingsRes.data.data as Settings,
-      meals: (mealsRes.data ?? []).map((r) => ({ id: r.id, date: r.date, kcal: Number(r.kcal), protein: Number(r.protein) })),
+      meals: (mealsRes.data ?? []).map((r) => ({
+        id: r.id,
+        date: r.date,
+        kcal: Number(r.kcal),
+        protein: Number(r.protein),
+        ...(r.description ? { description: String(r.description) } : {}),
+        ...(Array.isArray(r.items) ? { items: (r.items as unknown[]).map(String) } : {}),
+      })),
       weights,
       burns: (burnsRes.data ?? []).map((r) => ({ id: r.id, date: r.date, kcal: Number(r.kcal), note: r.note })),
       events,

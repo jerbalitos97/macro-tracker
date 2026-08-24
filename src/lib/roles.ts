@@ -13,6 +13,11 @@ export type Tool =
   // Fridayn omat
   | 'habits'
   | 'fitness'
+  // Fitnessin alatyökalut. Näkyvät vain kun `fitness` on myönnetty, ja
+  // jakavat sen sisällön kolmeen osaan — ks. FITNESS_SUB_TOOLS.
+  | 'fitness:weight'
+  | 'fitness:core'
+  | 'fitness:photo'
   | 'wealth'
   | 'workout'
   | 'grocery'
@@ -28,6 +33,9 @@ export type Tool =
 export const ALL_TOOLS: Tool[] = [
   'habits',
   'fitness',
+  'fitness:weight',
+  'fitness:core',
+  'fitness:photo',
   'wealth',
   'workout',
   'grocery',
@@ -41,6 +49,9 @@ export const ALL_TOOLS: Tool[] = [
 export const TOOL_NAMES: Record<Tool, string> = {
   habits:   'Habit Tracking',
   fitness:  'Fitness Tracking',
+  'fitness:weight': 'Painonseuranta',
+  'fitness:core':   'Kaikki muu paitsi painonseuranta',
+  'fitness:photo':  'Kuvauslisä kalorienseurantaan',
   wealth:   'Wealth',
   workout:  'Workout',
   grocery:  'Grocery',
@@ -51,10 +62,60 @@ export const TOOL_NAMES: Record<Tool, string> = {
   admin:    'Käyttäjäoikeudet',
 }
 
+/** Fitnessin alatyökalut siinä järjestyksessä kuin ne näytetään adminissa. */
+export const FITNESS_SUB_TOOLS: Tool[] = ['fitness:weight', 'fitness:core', 'fitness:photo']
+
+const SUB_TOOL_SET = new Set<Tool>(FITNESS_SUB_TOOLS)
+
+/** Onko työkalu jonkin toisen alatyökalu. Adminissa nämä piirretään emonsa
+ *  sisään eikä omina korttiriveinään. */
+export const isSubTool = (t: Tool): boolean => SUB_TOOL_SET.has(t)
+
 /** Työkalut jotka admin voi myöntää. `admin` ei ole listalla: admin-oikeus
  *  tulee `app_users.is_admin`-lipusta, ei työkalulistasta, jotta oikeuden
  *  myöntämiselle on yksi reitti eikä kaksi. */
 export const ASSIGNABLE_TOOLS: Tool[] = ALL_TOOLS.filter((t) => t !== 'admin')
+
+/** Ylätason työkalut — se lista jota admin selaa. */
+export const PARENT_TOOLS: Tool[] = ASSIGNABLE_TOOLS.filter((t) => !isSubTool(t))
+
+/**
+ * Alatyökalujen säännöt yhdessä paikassa.
+ *
+ *   · Kuvalisä vaatii ydintyökalun. Kuvasta tunnistettu annos kirjataan
+ *     ruokapäiväkirjaan, ja ilman ydintä ei ole päiväkirjaa mihin kirjata —
+ *     pelkkä kuvalisä olisi nappi joka ei johda mihinkään.
+ *   · Painonseuranta ja ydin ovat toisistaan riippumattomia. Molemmat päällä
+ *     on nykyinen Fitness kokonaisuudessaan; vain painonseuranta on se
+ *     kevyt versio jossa ei ole kaloreita eikä tavoiteanalyysiä.
+ *   · Yksikään alatyökalu ei tarkoita mitään ilman emoaan. Jos `fitness` ei
+ *     ole myönnetty, alatyökalut pudotetaan.
+ *
+ * Tätä kutsutaan sekä ajonaikaisessa resoluutiossa että adminin rastituksessa,
+ * jotta kannassa oleva epäjohdonmukainen rivi ei koskaan avaa mitään mitä
+ * säännöt eivät salli.
+ */
+export function normalizeTools(tools: Tool[]): Tool[] {
+  const set = new Set(tools)
+
+  if (!set.has('fitness')) {
+    for (const sub of FITNESS_SUB_TOOLS) set.delete(sub)
+    return ALL_TOOLS.filter((t) => set.has(t))
+  }
+
+  // Kuvalisä ⇒ ydin.
+  if (set.has('fitness:photo')) set.add('fitness:core')
+
+  // `fitness` ilman yhtään alavalintaa on vanha muoto (ja se mitä admin saa
+  // kun myöntää pelkän Fitnessin). Tulkitaan se koko nykyiseksi työkaluksi,
+  // jotta myöntäminen ei tuota korttia jonka takana ei ole mitään.
+  if (!FITNESS_SUB_TOOLS.some((sub) => set.has(sub))) {
+    set.add('fitness:core')
+    set.add('fitness:weight')
+  }
+
+  return ALL_TOOLS.filter((t) => set.has(t))
+}
 
 /** Mitä uusi käyttäjä näkee ennen kuin admin on konffannut hänelle mitään.
  *
@@ -73,7 +134,7 @@ const DEFAULT_TOOLS: Tool[] = ['tasks', 'mobility']
 const ADMIN_TOOLS: Tool[] = ALL_TOOLS
 
 export function defaultToolsFor(isAdmin: boolean): Tool[] {
-  return isAdmin ? [...ADMIN_TOOLS] : [...DEFAULT_TOOLS]
+  return normalizeTools(isAdmin ? [...ADMIN_TOOLS] : [...DEFAULT_TOOLS])
 }
 
 const isTool = (v: string): v is Tool => (ALL_TOOLS as string[]).includes(v)
@@ -96,7 +157,7 @@ export function parseTools(raw: unknown): Tool[] | null {
  *     Tämä on vain käyttöliittymän puoli; kannassa saman asian tekee RLS.
  */
 export function effectiveTools(isAdmin: boolean, override: Tool[] | null): Tool[] {
-  const base = override ?? defaultToolsFor(isAdmin)
+  const base = normalizeTools(override ?? defaultToolsFor(isAdmin))
   if (isAdmin) {
     return base.includes('admin') ? base : [...base, 'admin']
   }

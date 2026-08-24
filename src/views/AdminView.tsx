@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Check, Eye, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
-import { ASSIGNABLE_TOOLS, TOOL_NAMES, defaultToolsFor, effectiveTools, type Tool } from '../lib/roles'
+import {
+  ASSIGNABLE_TOOLS, FITNESS_SUB_TOOLS, PARENT_TOOLS, TOOL_NAMES,
+  defaultToolsFor, effectiveTools, normalizeTools, type Tool,
+} from '../lib/roles'
 import { listAllToolOverrides, listAppUsers, setToolsFor, type AppUser } from '../lib/userTools'
 
 // Työkalujen jako per käyttäjä.
@@ -14,6 +17,9 @@ import { listAllToolOverrides, listAppUsers, setToolsFor, type AppUser } from '.
 const TOOL_COLOR: Record<Tool, string> = {
   habits:   '#a78bfa',
   fitness:  '#22d3ee',
+  'fitness:weight': '#22d3ee',
+  'fitness:core':   '#22d3ee',
+  'fitness:photo':  '#7dd3fc',
   wealth:   '#34d399',
   workout:  '#60a5fa',
   grocery:  '#f87171',
@@ -73,7 +79,27 @@ export function AdminView() {
 
   const toggle = async (u: AppUser, tool: Tool) => {
     const current = assigned[u.userId] ?? []
-    const next = current.includes(tool) ? current.filter((t) => t !== tool) : [...current, tool]
+    const turningOff = current.includes(tool)
+    let draft = turningOff ? current.filter((t) => t !== tool) : [...current, tool]
+
+    // Emon pois ottaminen vie lapset mukanaan. normalizeTools tekee tämän myös,
+    // mutta tehdään se tässä eksplisiittisesti jotta rastit päivittyvät heti
+    // oikein eikä vasta seuraavalla latauksella.
+    if (turningOff && tool === 'fitness') {
+      draft = draft.filter((t) => !FITNESS_SUB_TOOLS.includes(t))
+    }
+    // Ydin pois ⇒ kuvalisä pois, koska kuvalisä kirjaa päiväkirjaan.
+    if (turningOff && tool === 'fitness:core') {
+      draft = draft.filter((t) => t !== 'fitness:photo')
+    }
+    // Alatyökalu päälle ⇒ emo päälle, muuten valinta ei tarkoita mitään.
+    if (!turningOff && FITNESS_SUB_TOOLS.includes(tool) && !draft.includes('fitness')) {
+      draft = [...draft, 'fitness']
+    }
+
+    // Sama normalisointi kuin ajonaikana: kuvalisä ⇒ ydin, orvot alatyökalut
+    // pois. Näin administa ei voi tallentaa yhdistelmää jota ajonaika hylkäisi.
+    const next = normalizeTools(draft)
 
     setAssigned((s) => ({ ...s, [u.userId]: next }))
     setSaving((s) => ({ ...s, [u.userId]: true }))
@@ -185,37 +211,38 @@ export function AdminView() {
                 )}
 
                 <div className="mt-3 flex flex-col gap-1.5">
-                  {ASSIGNABLE_TOOLS.map((tool) => {
+                  {PARENT_TOOLS.map((tool) => {
                     const active = list.includes(tool)
                     return (
-                      <button
-                        key={tool}
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => void toggle(u, tool)}
-                        aria-pressed={active}
-                        className={`flex cursor-pointer items-center justify-between rounded-input border px-3 py-2.5 text-left text-[14px] transition-colors disabled:opacity-60 ${
-                          active
-                            ? 'border-border-hi bg-accent/[0.10] text-text'
-                            : 'border-white/[0.08] bg-black/25 text-fg-muted'
-                        }`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span
-                            aria-hidden
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ background: TOOL_COLOR[tool], opacity: active ? 1 : 0.3 }}
-                          />
-                          <span className={`truncate ${active ? 'font-medium' : ''}`}>{TOOL_NAMES[tool]}</span>
-                        </span>
-                        <span
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
-                            active ? 'border-border-hi bg-accent/[0.18] text-accent' : 'border-white/15 text-transparent'
-                          }`}
-                        >
-                          <Check size={12} strokeWidth={3} />
-                        </span>
-                      </button>
+                      <div key={tool} className="flex flex-col gap-1.5">
+                        <ToolToggle
+                          tool={tool}
+                          active={active}
+                          disabled={isSaving}
+                          onToggle={() => void toggle(u, tool)}
+                        />
+                        {/* Alatyökalut emon sisään, sisennettynä ja vain kun
+                            emo on päällä — muuten rastit näyttäisivät
+                            valittavilta vaikka ne eivät tarkoita mitään. */}
+                        {tool === 'fitness' && active && (
+                          <div className="ml-3 flex flex-col gap-1.5 border-l border-white/10 pl-3">
+                            {FITNESS_SUB_TOOLS.map((sub) => (
+                              <ToolToggle
+                                key={sub}
+                                tool={sub}
+                                active={list.includes(sub)}
+                                disabled={isSaving}
+                                small
+                                onToggle={() => void toggle(u, sub)}
+                              />
+                            ))}
+                            <p className="text-[11px] leading-snug text-fg-ghost">
+                              Kuvauslisä kytkee myös ylemmän kohdan päälle — kuvasta tunnistettu
+                              annos kirjataan ruokapäiväkirjaan.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -225,5 +252,52 @@ export function AdminView() {
         </div>
       )}
     </div>
+  )
+}
+
+interface ToggleProps {
+  tool: Tool
+  active: boolean
+  disabled: boolean
+  small?: boolean
+  onToggle: () => void
+}
+
+function ToolToggle({ tool, active, disabled, small = false, onToggle }: ToggleProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`flex cursor-pointer items-center justify-between rounded-input border px-3 text-left transition-colors disabled:opacity-60 ${
+        small ? 'py-2 text-[13px]' : 'py-2.5 text-[14px]'
+      } ${
+        active
+          ? 'border-border-hi bg-accent/[0.10] text-text'
+          : 'border-white/[0.08] bg-black/25 text-fg-muted'
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span
+          aria-hidden
+          className="shrink-0 rounded-full"
+          style={{
+            width: small ? 7 : 10,
+            height: small ? 7 : 10,
+            background: TOOL_COLOR[tool],
+            opacity: active ? 1 : 0.3,
+          }}
+        />
+        <span className={`truncate ${active ? 'font-medium' : ''}`}>{TOOL_NAMES[tool]}</span>
+      </span>
+      <span
+        className={`flex shrink-0 items-center justify-center rounded border ${
+          small ? 'h-4 w-4' : 'h-5 w-5'
+        } ${active ? 'border-border-hi bg-accent/[0.18] text-accent' : 'border-white/15 text-transparent'}`}
+      >
+        <Check size={small ? 10 : 12} strokeWidth={3} />
+      </span>
+    </button>
   )
 }

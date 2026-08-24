@@ -54,7 +54,7 @@ import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
 
-const SCHEMA_VERSION = 6
+const SCHEMA_VERSION = 7
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -161,6 +161,13 @@ const README: Record<string, string> = {
     'manually, so seconds > targetSec on a rest is normal and meaningful. Entries ' +
     'written before holds existed have no kind and are all rests.',
   habits: 'Habit definitions and their daily entries (cloud-stored).',
+  mealPhotoFields:
+    'Meals logged through the photo add-on carry `description` and `items` ' +
+    '(what the vision model identified); hand-logged meals carry neither, so ' +
+    'their absence marks a manual entry rather than missing data. The photo ' +
+    'itself is never stored — only the accepted numbers and their explanation. ' +
+    'kcal/protein are the values the user confirmed, which may differ from ' +
+    'what the model first suggested.',
   tasks:
     'One-off dated to-dos (cloud-stored). Not habits: a habit recurs on ' +
     'task_days, a task is a single dated row that is ticked once and can be ' +

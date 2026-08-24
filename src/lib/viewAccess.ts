@@ -14,10 +14,14 @@ export const VIEW_TOOL: Record<View, Tool | null> = {
   home:             null,
   settings:         null,
 
-  today:            'fitness',
-  calendar:         'fitness',
-  weight:           'fitness',
-  analysis:         'fitness',
+  // Fitness on jaettu: `fitness:core` on kalorit, kalenteri ja analyysi,
+  // `fitness:weight` on painonseuranta. Alatyökalu esiintyy tehollisessa
+  // listassa vain kun `fitness` on myönnetty (ks. roles.ts normalizeTools),
+  // joten yksi avain riittää eikä emoa tarvitse tarkistaa erikseen.
+  today:            'fitness:core',
+  calendar:         'fitness:core',
+  analysis:         'fitness:core',
+  weight:           'fitness:weight',
 
   habits:           'habits',
   wealth:           'wealth',

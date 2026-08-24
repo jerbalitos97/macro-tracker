@@ -619,6 +619,8 @@ export default function App() {
             proteinTarget={settings.proteinTarget}
             computed={computed}
             onAddMeal={(meal) => {
+              // meal voi kantaa description/items kun se tulee kuvauslisästä;
+              // spread vie ne sellaisenaan sekä tilaan että synkkaan.
               const m = { ...meal, id: Date.now(), date: todayISO }
               setMeals((prev) => [...prev, m])
               if (user) syncMeal(user.id, m)

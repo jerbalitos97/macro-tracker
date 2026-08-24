@@ -24,7 +24,7 @@ interface ToolDef {
 
 const TOOLS: ToolDef[] = [
   { id: 'habits',   label: 'Habit Tracking',   Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
-  { id: 'fitness',  label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },
+  { id: 'fitness',  label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },  // kohde ratkaistaan ajossa, ks. targetFor
   { id: 'wealth',   label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
   { id: 'workout',  label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
   { id: 'grocery',  label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
@@ -56,6 +56,16 @@ export function HomeView({ setView }: Props) {
   // mutta kortti jota ei voi avata on pelkkää hämmennystä.
   const visible = TOOLS.filter((t) => granted.includes(t.id))
   const tools = applyOrder(visible, (t) => t.id, order)
+
+  // Fitness on jaettu kahtia, joten kortin kohde riippuu siitä kumpi puoli on
+  // myönnetty. Pelkän painonseurannan käyttäjä laskeutuisi muuten `today`hin,
+  // josta portti heittäisi hänet takaisin kotiin — kortti joka ei tee mitään.
+  const targetFor = (tool: ToolDef): View | null => {
+    if (tool.id !== 'fitness') return tool.target
+    if (granted.includes('fitness:core')) return 'today'
+    if (granted.includes('fitness:weight')) return 'weight'
+    return null
+  }
 
   const persist = (next: ToolDef[]) => {
     if (next === tools) return
@@ -95,8 +105,12 @@ export function HomeView({ setView }: Props) {
           <ToolTile
             key={tool.id}
             tool={tool}
+            resolvedTarget={targetFor(tool)}
             reorder={reorder}
-            onOpen={() => { if (tool.target) setView(tool.target) }}
+            onOpen={() => {
+              const t = targetFor(tool)
+              if (t) setView(t)
+            }}
             onMove={(d) => persist(moveByDelta(tools, tool.id, d))}
           />
         ))}
@@ -163,13 +177,15 @@ function ExportButton({ userId }: { userId?: string }) {
 
 interface TileProps {
   tool: ToolDef
+  /** Ratkaistu kohde — Fitnessillä se riippuu myönnetystä puolesta. */
+  resolvedTarget: View | null
   reorder: ReturnType<typeof useDragReorder>
   onOpen: () => void
   onMove: (delta: -1 | 1) => void
 }
 
-function ToolTile({ tool, reorder, onOpen, onMove }: TileProps) {
-  const enabled = tool.target !== null
+function ToolTile({ tool, resolvedTarget, reorder, onOpen, onMove }: TileProps) {
+  const enabled = resolvedTarget !== null
 
   return (
     <DragItem

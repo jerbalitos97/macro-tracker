@@ -13,6 +13,11 @@ export function MealRow({ meal, onDelete }: Props) {
         {/* Left accent stripe */}
         <div className="h-7 w-[3px] flex-shrink-0 rounded-sm bg-accent/35" />
         <div className="min-w-0">
+          {/* Kuva-analyysin kuvaus, kun ateria on kirjattu kuvasta. Käsin
+              kirjatulla ei ole kuvausta, ja rivi näyttää silloin entiseltään. */}
+          {meal.description && (
+            <div className="truncate text-[12px] text-fg-muted">{meal.description}</div>
+          )}
           <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
             {meal.kcal.toLocaleString('fi-FI')}
             <span className="ml-1 text-[11px] font-normal text-fg-faint">kcal</span>

@@ -95,6 +95,10 @@ export interface Meal {
   date: string
   kcal: number
   protein: number
+  /** Kuva-analyysin kuvaus annoksesta. Puuttuu käsin kirjatulta ateriasta. */
+  description?: string
+  /** Kuva-analyysin tunnistamat ainekset. Puuttuu käsin kirjatulta ateriasta. */
+  items?: string[]
 }
 
 export interface WeightEntry {

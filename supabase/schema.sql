@@ -24,7 +24,11 @@ create table if not exists meals (
   user_id uuid not null references auth.users on delete cascade,
   date    text not null,               -- YYYY-MM-DD
   kcal    numeric not null,
-  protein numeric not null default 0
+  protein numeric not null default 0,
+  -- Kuvauslisän tulos. Null = käsin kirjattu ateria. Kuvaa ei tallenneta,
+  -- vain se teksti joka kertoo mistä luvut tulivat.
+  description text,
+  items       text[]
 );
 
 alter table meals enable row level security;
