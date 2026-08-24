@@ -41,7 +41,7 @@ interface Props {
 
 export function HomeView({ setView }: Props) {
   const { user } = useAuth()
-  const { tools: granted, loading: toolsLoading } = useTools()
+  const { tools: granted, loading: toolsLoading, can } = useTools()
   const [order, setOrder] = useState<string[] | undefined>(() => getPrefs().homeToolOrder)
 
   useEffect(() => {
@@ -117,7 +117,13 @@ export function HomeView({ setView }: Props) {
       </div>
 
       {/* Export */}
-      <ExportButton userId={user?.id} />
+      {/* Vienti on ylläpitäjän työkalu: tiedosto kootaan kutsujan omasta
+          datasta, mutta se on koko tavoite- ja tulosaineisto yhtenä
+          jaettavana tiedostona, eikä se ole mitään mitä Anne tai äiti
+          tarvitsee. Portti on `can('admin')` eikä `isAdmin`, jotta nappi
+          katoaa myös view-as-tilassa — muuten linssi näyttäisi jotain mitä
+          se käyttäjä ei oikeasti näe. */}
+      {can('admin') && <ExportButton userId={user?.id} />}
 
       {/* Footer */}
       <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
