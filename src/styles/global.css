@@ -346,8 +346,18 @@ input[type="date"], select { color-scheme: dark; }
   from { opacity: 0; transform: translateY(7px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* fill-mode on `backwards`, EI `both` — ja se on korjaus, ei tyylivalinta.
+   `both` jättää loppuruudun `transform: translateY(0)` voimaan animaation
+   jälkeen ikuisiksi ajoiksi, ja CSS-animaatio voittaa kaskadissa inline-tyylin.
+   Raahattavassa listassa se jäädyttää kortin paikalleen: Motion kirjoittaa
+   vedon transformin inline-tyyliin, mutta täytetty animaatio ylikirjoittaa sen
+   eikä kortti liiku sormen mukana.
+
+   `backwards` näyttää alkuruudun viiveen ajan (ei välähdystä) mutta ei jätä
+   mitään voimaan lopussa. Ulkoasu on identtinen, koska loppuruutu on sama kuin
+   elementin luonnollinen tila. */
 .list-stagger > * {
-  animation: listItemIn 0.22s var(--ease-out) both;
+  animation: listItemIn 0.22s var(--ease-out) backwards;
 }
 .list-stagger > *:nth-child(1)  { animation-delay:   0ms; }
 .list-stagger > *:nth-child(2)  { animation-delay:  28ms; }
