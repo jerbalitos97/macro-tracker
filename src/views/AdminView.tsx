@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, Eye, ShieldCheck } from 'lucide-react'
+import { AlertCircle, Check, Copy, Eye, Link2, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
 import {
@@ -7,6 +7,9 @@ import {
   defaultToolsFor, effectiveTools, normalizeTools, type Tool,
 } from '../lib/roles'
 import { listAllToolOverrides, listAppUsers, setToolsFor, type AppUser } from '../lib/userTools'
+import {
+  createInvite, inviteUrl, listOpenInvites, revokeInvite, type Invite,
+} from '../lib/invites'
 
 // Työkalujen jako per käyttäjä.
 //
@@ -42,6 +45,20 @@ export function AdminView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [invites, setInvites] = useState<Invite[]>([])
+  const [inviteLabel, setInviteLabel] = useState('')
+  const [creatingInvite, setCreatingInvite] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const loadInvites = useCallback(async () => {
+    try {
+      setInvites(await listOpenInvites())
+    } catch {
+      // Kutsulista on toissijainen: sen kaatuminen ei saa estää
+      // käyttäjäoikeuksien hallintaa, joka on tämän näkymän päätehtävä.
+    }
+  }, [])
+
   const load = useCallback(async () => {
     setError(null)
     try {
@@ -75,7 +92,52 @@ export function AdminView() {
       return
     }
     void load()
-  }, [isAdmin, load])
+    void loadInvites()
+  }, [isAdmin, load, loadInvites])
+
+  const newInvite = async () => {
+    if (!user) return
+    setCreatingInvite(true)
+    setError(null)
+    try {
+      // Kutsutun oletus on pelkkä Workout. Se on tarkoituksellisen kapea:
+      // kutsulinkin voi välittää eteenpäin, joten sen takaa ei pidä avautua
+      // enempää kuin on pakko. Loput myönnetään tästä samasta näkymästä sen
+      // jälkeen kun tiedetään kuka sisään tuli.
+      const inv = await createInvite(user.id, ['workout'], inviteLabel.trim())
+      setInvites((prev) => [inv, ...prev])
+      setInviteLabel('')
+      await copy(inv.token)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kutsun luonti ei onnistunut')
+    } finally {
+      setCreatingInvite(false)
+    }
+  }
+
+  const copy = async (token: string) => {
+    const link = inviteUrl(token)
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(token)
+      window.setTimeout(() => setCopied((c) => (c === token ? null : c)), 2000)
+    } catch {
+      // Leikepöytä vaatii turvallisen kontekstin ja voi olla estetty. Näytetään
+      // linkki valittuna, jotta sen voi kopioida käsin — hiljainen
+      // epäonnistuminen jättäisi adminin luulemaan että kopiointi onnistui.
+      window.prompt('Kopioi kutsulinkki:', link)
+    }
+  }
+
+  const drop = async (token: string) => {
+    setError(null)
+    try {
+      await revokeInvite(token)
+      setInvites((prev) => prev.filter((i) => i.token !== token))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kutsun peruminen ei onnistunut')
+    }
+  }
 
   const toggle = async (u: AppUser, tool: Tool) => {
     const current = assigned[u.userId] ?? []
@@ -146,6 +208,75 @@ export function AdminView() {
           {error}
         </p>
       )}
+
+      {/* ── Kutsulinkit ─────────────────────────────────────────────── */}
+      <div className="rounded-panel border border-violet/25 bg-violet/[0.05] p-4 [backdrop-filter:blur(14px)]">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-violet">
+          <Link2 size={13} />
+          Kutsu uusi käyttäjä
+        </div>
+        <p className="mt-1.5 text-[12px] leading-snug text-fg-muted">
+          Linkki on kertakäyttöinen ja vanhenee viikossa. Kutsuttu luo itse
+          tunnuksensa ja saa aluksi vain Workoutin — muut työkalut myönnät alta
+          kun hän on kirjautunut ensimmäisen kerran.
+        </p>
+
+        <div className="mt-3 flex gap-2">
+          <input
+            type="text"
+            value={inviteLabel}
+            onChange={(e) => setInviteLabel(e.target.value)}
+            placeholder="Kenelle? (valinnainen)"
+            aria-label="Kutsun saaja"
+            className="min-w-0 flex-1 rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-base text-text placeholder:text-fg-ghost [color-scheme:dark]"
+          />
+          <button
+            type="button"
+            disabled={creatingInvite}
+            onClick={() => void newInvite()}
+            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-violet disabled:opacity-50"
+          >
+            {creatingInvite ? 'Luodaan…' : 'Luo linkki'}
+          </button>
+        </div>
+
+        {invites.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {invites.map((inv) => (
+              <li
+                key={inv.token}
+                className="flex items-center justify-between gap-2 rounded-input border border-white/[0.08] bg-black/25 px-3 py-2"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] text-text">
+                    {inv.label || 'Nimetön kutsu'}
+                  </span>
+                  <span className="block font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost">
+                    vanhenee {new Date(inv.expiresAt).toLocaleDateString('fi-FI')}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void copy(inv.token)}
+                  aria-label="Kopioi kutsulinkki"
+                  className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-input border border-white/10 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+                >
+                  {copied === inv.token ? <Check size={12} /> : <Copy size={12} />}
+                  {copied === inv.token ? 'Kopioitu' : 'Kopioi'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void drop(inv.token)}
+                  aria-label="Peru kutsu"
+                  className="shrink-0 cursor-pointer p-1.5 text-fg-ghost"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {loading ? (
         <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>

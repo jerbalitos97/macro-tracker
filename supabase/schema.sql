@@ -418,3 +418,28 @@ create policy "mobility_logs: own rows only"
   with check (auth.uid() = user_id);
 
 create index if not exists mobility_logs_user_date on mobility_logs (user_id, log_date);
+
+-- ── Kutsulinkit ──────────────────────────────────────────────
+-- Kertakäyttöinen tunnus jolla uusi ihminen luo itselleen tunnukset. Kutsu
+-- kantaa mukanaan sen työkalulistan jonka kutsuttu saa. Lunastus kulkee
+-- palvelinfunktion kautta (api/kutsu.ts), joten tätä taulua ei lueta selaimesta
+-- muuten kuin adminina.
+create table if not exists invites (
+  token      uuid primary key default gen_random_uuid(),
+  tools      text[] not null default '{}',
+  label      text not null default '',
+  created_by uuid not null references auth.users on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '7 days',
+  used_at    timestamptz,
+  used_by    uuid references auth.users on delete set null
+);
+
+alter table invites enable row level security;
+
+create policy "invites: admin only"
+  on invites for all
+  using (is_app_admin())
+  with check (is_app_admin());
+
+create index if not exists invites_open on invites (expires_at) where used_at is null;
