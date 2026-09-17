@@ -6,6 +6,7 @@ import { HabitFormModal } from '../components/HabitFormModal'
 import { HabitDetailModal } from '../components/HabitDetailModal'
 import { HabitsHistoryView } from './HabitsHistoryView'
 import { Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
+import { celebrate } from '../lib/flash'
 
 interface Props {
   habits: Habit[]
@@ -264,6 +265,7 @@ export function HabitsView({
                 role="button"
                 tabIndex={0}
                 ariaLabel={`${habit.name}, ${value} / ${goal}`}
+                flashTint={habit.color}
                 className="relative cursor-pointer overflow-hidden rounded-row border [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]"
                 style={{
                   backgroundColor: `${habit.color}12`,
@@ -295,7 +297,13 @@ export function HabitsView({
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       {isBinary ? (
                         <button
-                          onClick={() => onSetBinary(habit, !reached, selectedDate)}
+                          onClick={(e) => {
+                            onSetBinary(habit, !reached, selectedDate)
+                            // Vain tehdyksi merkintä juhlitaan. Merkinnän
+                            // poisto on korjaus, ja korjauksen palkitseminen
+                            // tekisi molemmista yhtä merkityksettömiä.
+                            if (!reached) celebrate(e.currentTarget, habit.color)
+                          }}
                           aria-label={reached ? 'Poista merkintä' : 'Merkitse tehdyksi'}
                           className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full p-0"
                           style={{
@@ -317,7 +325,12 @@ export function HabitsView({
                             <Minus size={14} />
                           </button>
                           <button
-                            onClick={() => onIncrement(habit, +1, selectedDate)}
+                            onClick={(e) => {
+                              onIncrement(habit, +1, selectedDate)
+                              // Juhlitaan tavoitteen täyttyminen, ei jokaista
+                              // askelta sitä kohti.
+                              if (!reached && value + 1 >= goal) celebrate(e.currentTarget, habit.color)
+                            }}
                             aria-label="Kasvata"
                             className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full p-0"
                             style={{

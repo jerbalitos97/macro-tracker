@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Check, Share2, Trash2, ShoppingBasket, Undo2, Tag } from 'lucide-react'
 import { Card, Button, Sheet } from '../components/ui'
+import { celebrate } from '../lib/flash'
 import { useAuth } from '../contexts/AuthContext'
 import {
   CATEGORY_LABEL, STORE_LABEL, STORE_ORDER, normalizeCategory,
@@ -234,16 +235,20 @@ export function GroceryView() {
               {secItems.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-2.5 [backdrop-filter:blur(14px)]"
+                  data-flash
+                  className="relative flex items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-2.5 [backdrop-filter:blur(14px)]"
                 >
                   <button
-                    onClick={() => toggle(it, true)}
+                    onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
                     aria-label="Merkitse otetuksi"
                     className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-white/25 text-transparent transition-colors active:border-cyan active:bg-cyan active:text-bg"
                   >
                     <Check size={13} strokeWidth={3} />
                   </button>
-                  <button onClick={() => toggle(it, true)} className="min-w-0 flex-1 bg-transparent p-0 text-left">
+                  <button
+                    onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
+                    className="min-w-0 flex-1 bg-transparent p-0 text-left"
+                  >
                     <div className="truncate text-[14px] text-text">{it.name}</div>
                   </button>
                   {amountLabel(it) && (

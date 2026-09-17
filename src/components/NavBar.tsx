@@ -154,10 +154,18 @@ export function NavBar({ view, setView }: Props) {
             }`}
             onClick={() => setView(tab.id)}
           >
+            {/* Valittu ikoni nousee jousella. Skaalaus ei muuta asettelua,
+                koska riviä hallitsee tekstin korkeus — ikoni kasvaa omassa
+                laatikossaan eikä työnnä naapureita. Ylitys tulee käyrästä:
+                1.12:een asti ja takaisin 1.10:een. */}
             <tab.Icon
               size={18}
               strokeWidth={active ? 2.0 : 1.4}
-              style={{ transition: 'stroke-width 0.2s ease' }}
+              style={{
+                transform: active ? 'scale(1.10)' : 'scale(1)',
+                transition: 'transform 0.42s var(--spring), stroke-width 0.2s ease',
+                filter: active ? 'drop-shadow(0 0 10px rgba(34,211,238,0.55))' : 'none',
+              }}
             />
             <span
               className={`max-w-full truncate font-mono text-[8px] uppercase leading-none tracking-[0.03em] ${

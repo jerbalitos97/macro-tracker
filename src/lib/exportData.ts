@@ -180,7 +180,7 @@ const README: Record<string, string> = {
     'is absent from `workouts` and from every day row. Do not add these to ' +
     'training load. null means the fetch failed, not "none".',
   wealth: 'Assets, their valuations over time, and the wealth goal (cloud-stored).',
-  uiPrefs: 'Saved UI arrangement, e.g. the order of tools on the launcher.',
+  uiPrefs: 'Saved UI arrangement: the order of tools on the launcher, and `haptics` (false = the user turned press vibration off).',
   protein:
     'target is the figure in force; recommended is what the active training block and ' +
     'nutrition phase call for, with the reasoning. A target set above the recommendation ' +

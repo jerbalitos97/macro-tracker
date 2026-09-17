@@ -235,25 +235,84 @@ button {
   min-width:  44px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* ─── Painalluksen fysiikka ────────────────────────────────────────────────────
+   Alas heti, takaisin jousella. Epäsymmetria on koko juju: painallus on
+   vastaus sormelle ja sen pitää ehtiä ennen kuin sormi on edes pysähtynyt
+   (55 ms), kun taas palautus saa keinahtaa, koska se on elettä seuraava
+   liike eikä vastaus mihinkään. Sama aika molempiin suuntiin tuntuu
+   kumimaiselta, ja hidas alastulo tuntuu siltä että sovellus miettii.
+
+   `[data-dragid]` on jätetty ulos tarkoituksella: Motion kirjoittaa vedon
+   transformin inline-tyyliin, ja transformin transitio tekisi raahauksesta
+   viipyvän — sormi edellä, kortti perässä. Ne kortit painuvat whileTapilla.
+
+   Sääntö on kerrostamaton ja siksi voittaa Tailwindin transition-utilityt.
+   Se on status quo `button`ille; `[role=button]` ja `.pressable` liittyvät
+   samaan sopimukseen. */
+button,
+[role="button"]:not([data-dragid]),
+[role="tab"],
+.pressable:not([data-dragid]) {
   transition:
-    transform        var(--dur-fast) var(--ease-out),
-    opacity          var(--dur-fast) var(--ease-out),
+    transform        260ms var(--spring),
     background-color var(--dur-base) var(--smooth),
     color            var(--dur-base) var(--smooth),
     border-color     var(--dur-base) var(--smooth),
     box-shadow       var(--dur-base) var(--smooth);
 }
-button:active {
-  transform: scale(0.94);
-  opacity: 0.80;
+
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  [role="button"]:not([data-dragid]):not([aria-disabled="true"]):active,
+  [role="tab"]:active,
+  .pressable:not([data-dragid]):active {
+    transform: scale(0.965);
+    transition-duration: 55ms;
+    transition-timing-function: var(--smooth);
+  }
+
+  /* Nav buttons need a tighter press—don't let scale jiggle the layout */
+  .nav-btn:active { transform: scale(0.90); }
+
+  /* Icon-only buttons */
+  .icon-btn:active { transform: scale(0.86); }
 }
 
-/* Nav buttons need a tighter press—don't let scale jiggle the layout */
 .nav-btn { min-height: auto; min-width: auto; }
-.nav-btn:active { transform: scale(0.90); opacity: 0.75; }
 
-/* Icon-only buttons */
-.icon-btn:active { transform: scale(0.85); opacity: 0.65; }
+/* ─── Painava nappi (päätoiminnot) ─────────────────────────────────────────────
+   Napin alla on kiinteä reunus, ja painettaessa nappi laskeutuu sen päälle
+   niin että reunus katoaa. Se on sama tikku jolla Duolingon napit tuntuvat
+   fyysisiltä: varjo ei sumene vaan on kappaleen paksuus, ja painallus todella
+   kuluttaa sen.
+
+   Vain päätoiminnoille. Jos jokainen nappi olisi painava, mikään ei olisi.
+
+   Oletukset ovat var()-fallbackeja eivätkä omia määrittelyjä, ja se on
+   kaskadipakko eikä tyylivalinta: tämä sääntö on kerrostamaton, joten se
+   voittaisi Tailwindin utility-kerroksen — nappi joka asettaa oman
+   `[--ledge-color:…]`-arvonsa jäisi silti mustan alle. Fallback antaa saman
+   oletuksen asettamatta muuttujaa, joten utility pääsee kirjoittamaan sen. */
+.press-3d {
+  box-shadow:
+    0 var(--ledge, 4px) 0 0 var(--ledge-color, rgba(0, 0, 0, 0.55)),
+    var(--ledge-glow, 0 0 0 rgba(0, 0, 0, 0));
+  transform: translateY(0);
+}
+.press-3d:not(:disabled):active {
+  transform: translateY(var(--ledge, 4px));
+  box-shadow:
+    0 0 0 0 var(--ledge-color, rgba(0, 0, 0, 0.55)),
+    var(--ledge-glow, 0 0 0 rgba(0, 0, 0, 0));
+}
+/* Liikkeen poisto vie laskeutumisen, muttei palautetta: reunus katoaa silti,
+   ja nyt heti eikä 220 ms:n liu'ulla — ilman liikettä hidas häivytys olisi
+   ainoa jäljellä oleva vihje ja tulisi liian myöhään ollakseen vastaus. */
+@media (prefers-reduced-motion: reduce) {
+  .press-3d:not(:disabled):active { transition-duration: 0s; }
+}
 
 /* Extends a small control's touch target to at least 44×44 without changing
    how big it looks. WCAG 2.5.8 asks for 24×24; Apple's HIG asks for 44pt, and
@@ -443,15 +502,6 @@ input[type="date"], select { color-scheme: dark; }
   to   { opacity: 1; }
 }
 
-/* Painalluspalaute — jokainen oikea nappi painuu sormen alla.
-   Tahallaan ilman transitionia: elementtitason transition-sääntö voittaisi
-   spesifisyydellä Tailwindin transition-colors-utilityn ja sammuttaisi
-   värisiirtymät ympäri appia. Välitön skaalaus lukee natiivilta painallukselta,
-   ja sama käytös joka napissa on arvokkaampaa kuin pehmennys osassa. */
-@media (prefers-reduced-motion: no-preference) {
-  button:not(:disabled):active { transform: scale(0.96); }
-}
-
 /* Kuittauksen pop — pieni ylilyönti kun tehtävä merkitään tehdyksi.
    Käyttää --spring-käyrää, joten ylitys tulee käyrästä eikä keyframesta. */
 @keyframes checkPop {
@@ -459,3 +509,63 @@ input[type="date"], select { color-scheme: dark; }
   to   { opacity: 1; transform: scale(1); }
 }
 .check-pop { animation: checkPop 0.3s var(--spring) both; }
+
+/* ─── Onnistumisen välähdys ────────────────────────────────────────────────────
+   Kun jotain menee oikein, se sanotaan kolmella asialla yhtä aikaa: kappale
+   nytkähtää, sen yli kulkee kerran valojuova, ja väri käy vihreässä. Mikään
+   niistä ei jää päälle — tila on jo tallessa muualla, tämä on vain se hetki
+   jolloin käyttäjä näkee että se meni perille.
+
+   `--flash` antaa sävyn, joten sama luokka kelpaa myös virheelle. */
+@keyframes flashPulse {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+@keyframes flashTint {
+  0%   { opacity: 0; }
+  28%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes flashSweep {
+  from { transform: translateX(-130%) skewX(-18deg); }
+  to   { transform: translateX(240%)  skewX(-18deg); }
+}
+
+/* Molemmat kerrokset ovat omia elementtejään — kumpikaan ei koske isännän
+   taustaan. Taustan animointi olisi pyyhkinyt kortin oman lasipinnan pois
+   välähdyksen ajaksi, eli onnistuminen olisi näyttänyt katoamiselta. */
+.flash {
+  --flash: #34d399;
+  position: relative;
+  overflow: hidden;
+  animation: flashPulse 560ms var(--spring);
+}
+.flash::before,
+.flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.flash::before {
+  background: color-mix(in srgb, var(--flash) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--flash) 55%, transparent);
+  animation: flashTint 560ms var(--ease-out);
+  opacity: 0;
+}
+.flash::after {
+  background: linear-gradient(
+    100deg,
+    transparent 38%,
+    color-mix(in srgb, var(--flash) 34%, transparent) 50%,
+    transparent 62%
+  );
+  animation: flashSweep 560ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+  .flash::after { animation: none; opacity: 0; }
+}

@@ -11,6 +11,15 @@ export interface UiPrefs {
    *  list doesn't mention keep their built-in position at the end, so shipping a
    *  new tool never hides it behind a stale saved order. */
   homeToolOrder?: string[]
+  /** Värähtääkö laite painalluksista. Oletus on päällä, ja poissaolo luetaan
+   *  päälle — vanha tallennettu asetus ei siis hiljennä laitetta. */
+  haptics?: boolean
+}
+
+/** Yksi paikka jossa oletus asuu, jotta "ei tallennettu" ja "päällä" eivät
+ *  pääse eroamaan toisistaan kutsupaikkojen välillä. */
+export function hapticsOn(p: UiPrefs = getPrefs()): boolean {
+  return p.haptics !== false
 }
 
 export function getPrefs(): UiPrefs {

@@ -8,6 +8,8 @@ import { MealCapture } from '../components/ruoka/MealCapture'
 import { useTools } from '../contexts/ToolsContext'
 import { ProgressBar } from '../components/ProgressBar'
 import { Card, Button, Field, RingGauge } from '../components/ui'
+import { useCountUp } from '../lib/useCountUp'
+import { haptic } from '../lib/haptics'
 
 const DAY_TYPE_LABEL: Record<string, string> = {
   rest:       'Lepopäivä',
@@ -68,11 +70,15 @@ export function TodayView({
   // subtracting from food eaten — same math, more intuitive presentation.
   const effectiveBudget = day.budget + totalBurnKcal
   const remaining = effectiveBudget - day.consumed
+  const shownRemaining = useCountUp(remaining)
   const proteinRemaining = Math.max(0, proteinTarget - day.protein)
   const pctConsumed = effectiveBudget > 0 ? day.consumed / effectiveBudget : 0
 
   const flashSaved = () => {
     setSavedFlash(true)
+    // Kirjaus on se hetki jonka takia koko ruutu on olemassa, joten se
+    // kuitataan myös sormille eikä vain silmille.
+    haptic('success')
     setTimeout(() => setSavedFlash(false), 1000)
   }
 
@@ -142,10 +148,13 @@ export function TodayView({
           glow={isOver ? 'rgba(248,113,113,0.5)' : 'rgba(34,211,238,0.5)'}
           size={168}
         >
+          {/* Juokseva luku. `tabular-nums` on tässä ehto eikä tyyli: ilman sitä
+              numeroiden leveys vaihtelisi joka framella ja koko luku tärisisi
+              renkaan sisällä. */}
           <span
             className={`font-display text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isOver ? 'text-danger' : 'text-aurora'}`}
           >
-            {remaining >= 0 ? '+' : ''}{Math.round(remaining).toLocaleString('fi-FI')}
+            {remaining >= 0 ? '+' : ''}{Math.round(shownRemaining).toLocaleString('fi-FI')}
           </span>
           <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-muted">kcal jäljellä</span>
         </RingGauge>

@@ -5,6 +5,16 @@ import App from './App'
 import { AuroraBackground } from './components/AuroraBackground'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToolsProvider } from './contexts/ToolsContext'
+import { installPressFeedback } from './lib/pressFeedback'
+import { setHapticsEnabled } from './lib/haptics'
+import { hapticsOn } from './lib/uiPrefs'
+
+// Painallus- ja tuntopalaute kiinnitetään dokumenttiin kerran, ennen ensimmäistä
+// paintia. Asetus luetaan välimuistista synkronisesti: pilvestä saapuva arvo
+// tulisi vasta kirjautumisen jälkeen, ja siihen asti laite olisi väärässä
+// tilassa — se on juuri se hetki jolloin ensimmäiset painallukset osuvat.
+setHapticsEnabled(hapticsOn())
+installPressFeedback()
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {

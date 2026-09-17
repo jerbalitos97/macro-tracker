@@ -7,7 +7,8 @@ import { DragItem, useDragReorder, moveById, moveByDelta } from '../components/u
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
 import type { Tool } from '../lib/roles'
-import { getPrefs, savePrefsLocal, pullPrefs, syncPrefsCloud, applyOrder } from '../lib/uiPrefs'
+import { getPrefs, savePrefsLocal, pullPrefs, syncPrefsCloud, applyOrder, hapticsOn } from '../lib/uiPrefs'
+import { setHapticsEnabled } from '../lib/haptics'
 import { exportAll } from '../lib/exportData'
 import type { ExportOutcome } from '../lib/exportData'
 
@@ -47,7 +48,13 @@ export function HomeView({ setView }: Props) {
   useEffect(() => {
     if (!user) return
     let alive = true
-    pullPrefs(user.id).then((p) => { if (alive) setOrder(p.homeToolOrder) })
+    pullPrefs(user.id).then((p) => {
+      if (!alive) return
+      setOrder(p.homeToolOrder)
+      // Sama asetus seuraa käyttäjää laitteelta toiselle. Käynnistys luki
+      // välimuistin; tämä on ensimmäinen hetki jolloin pilven arvo on tiedossa.
+      setHapticsEnabled(hapticsOn(p))
+    })
     return () => { alive = false }
   }, [user])
 

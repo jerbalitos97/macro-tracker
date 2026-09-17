@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { m, useDragControls } from 'motion/react'
+import { haptic } from '../../lib/haptics'
 
 // Shared long-press-to-drag reordering, extracted from the workout logger so
 // the template grid, the warm-up editor and the template editor all behave the
@@ -85,6 +86,10 @@ interface Props {
   ariaLabel?: string
   /** For items that reorder but can't be activated (a "coming soon" tile). */
   ariaDisabled?: boolean
+  /** Marks the item as the target of a success flash and names its colour, so a
+   *  button *inside* the item can light the whole row up (`lib/flash.ts`)
+   *  without a ref being threaded through this component. */
+  flashTint?: string
   className?: string
   style?: CSSProperties
   children: ReactNode | ((api: DragItemApi) => ReactNode)
@@ -92,7 +97,7 @@ interface Props {
 
 export function DragItem({
   id, reorder, longPress = false, onActivate, onMove,
-  role, tabIndex, ariaLabel, ariaDisabled, className, style, children,
+  role, tabIndex, ariaLabel, ariaDisabled, flashTint, className, style, children,
 }: Props) {
   const controls = useDragControls()
   const [lifted, setLifted] = useState(false)
@@ -113,8 +118,9 @@ export function DragItem({
     setLifted(true)
     reorder.measure()
     controls.start(e)
-    // Light haptic where supported (Android); a no-op on iOS Safari.
-    navigator.vibrate?.(12)
+    // Nosto on oma tuntemuksensa, painallusta painavampi. lib/haptics hoitaa
+    // sekä Androidin värähdyksen että iOS:n naksautuksen.
+    haptic('lift')
   }, [cancelPress, controls, reorder])
 
   // The item keeps `touch-action: auto` so the page still scrolls under a
@@ -158,6 +164,7 @@ export function DragItem({
     <m.div
       layout
       data-dragid={id}
+      data-flash={flashTint ? '' : undefined}
       role={role}
       tabIndex={tabIndex}
       aria-label={ariaLabel}
@@ -206,7 +213,7 @@ export function DragItem({
         onActivate()
       } : undefined}
       className={className}
-      style={style}
+      style={flashTint ? ({ ...style, '--flash': flashTint } as CSSProperties) : style}
     >
       {typeof children === 'function' ? children({ lifted, handleProps }) : children}
     </m.div>

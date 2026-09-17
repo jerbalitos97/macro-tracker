@@ -1,8 +1,10 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Settings } from '../types'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, Button } from '../components/ui'
+import { getPrefs, savePrefsLocal, syncPrefsCloud, hapticsOn } from '../lib/uiPrefs'
+import { setHapticsEnabled, haptic } from '../lib/haptics'
 
 // App-level settings only: backup, storage, account. Goals, training blocks,
 // TDEE, the weekly rhythm and the protein target moved to Suunnittelu, where
@@ -53,6 +55,9 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
           Suunnittelu-työkalussa.
         </p>
       </div>
+
+      {/* ── Tuntuma ──────────────────────────────────────────────────── */}
+      <HapticsCard userId={user?.id} />
 
       {/* ── Varmuuskopio ─────────────────────────────────────────────── */}
       <Card variant="glass" className="mt-2.5">
@@ -109,5 +114,65 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
       )}
 
     </div>
+  )
+}
+
+/** Tuntopalautteen kytkin.
+ *
+ *  Kytkin värähtää kun se käännetään päälle — se on samalla ainoa tapa kokeilla
+ *  asetusta, ja se kertoo heti myös sen ikävän totuuden jos laite ei osaa
+ *  värähtää lainkaan. Pois päin kääntäessä ei värähdetä, koska juuri sitä
+ *  pyydettiin. */
+function HapticsCard({ userId }: { userId?: string }) {
+  const [on, setOn] = useState(() => hapticsOn())
+
+  const toggle = () => {
+    const next = !on
+    setOn(next)
+    setHapticsEnabled(next)
+    const prefs = savePrefsLocal({ ...getPrefs(), haptics: next })
+    if (userId) syncPrefsCloud(userId, prefs)
+    if (next) haptic('toggle')
+  }
+
+  return (
+    <Card variant="glass" className="mt-2.5">
+      <div className={cardLabel}>Tuntuma</div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        onClick={toggle}
+        data-no-haptic
+        className="flex w-full items-center justify-between gap-4 bg-transparent p-0 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block text-[13px] text-text">Värähdys painalluksista</span>
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-fg-ghost">
+            Lyhyt naksaus napeista ja kuittauksista. Riippuu laitteesta: iPhonella
+            palaute tulee järjestelmältä eikä sen voimakkuutta voi säätää, ja
+            tietokoneella sitä ei ole lainkaan.
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className="relative h-[30px] w-[52px] flex-shrink-0 rounded-full border transition-colors duration-200"
+          style={{
+            backgroundColor: on ? 'rgba(34,211,238,0.30)' : 'rgba(255,255,255,0.06)',
+            borderColor: on ? 'rgba(34,211,238,0.55)' : 'rgba(255,255,255,0.12)',
+          }}
+        >
+          <span
+            className="absolute top-[3px] h-[22px] w-[22px] rounded-full"
+            style={{
+              left: on ? 27 : 3,
+              backgroundColor: on ? '#22d3ee' : '#9ea2b0',
+              boxShadow: on ? '0 0 12px rgba(34,211,238,0.7)' : 'none',
+              transition: 'left 320ms var(--spring), background-color 200ms linear',
+            }}
+          />
+        </span>
+      </button>
+    </Card>
   )
 }

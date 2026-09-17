@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { m, useReducedMotion } from 'motion/react'
 import { Check } from 'lucide-react'
+import { haptic } from '../../lib/haptics'
 
 interface Props {
   onDone: () => void
@@ -12,6 +13,10 @@ export function WorkoutSuccess({ onDone }: Props) {
   const reduce = useReducedMotion()
 
   useEffect(() => {
+    // Treenin päätös on sovelluksen suurin yksittäinen kuittaus. Värähdys
+    // lähtee samalla framella kuin ympyrä ponnahtaa, jotta ne luetaan samaksi
+    // tapahtumaksi eikä kahdeksi.
+    haptic('success')
     const t = setTimeout(onDone, 2000)
     return () => clearTimeout(t)
   }, [onDone])

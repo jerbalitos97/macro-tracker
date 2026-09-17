@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Check, Calendar, Trash2 } from 'lucide-react'
 import type { Task } from '../../lib/tasks'
+import { celebrate } from '../../lib/flash'
 
 interface Props {
   task: Task
@@ -25,14 +27,22 @@ export function TaskItem({ task, onToggle, onReschedule, onDelete }: Props) {
 
   return (
     <li
-      className={`flex flex-col gap-2 rounded-row border p-4 [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)] ${
+      data-flash
+      style={{ '--flash': '#22d3ee' } as CSSProperties}
+      className={`relative flex flex-col gap-2 rounded-row border p-4 [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)] ${
         task.done ? 'border-white/[0.06] bg-[rgba(9,11,20,0.30)]' : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
       }`}
     >
       <div className="flex items-start gap-3">
         <button
           type="button"
-          onClick={() => run(() => onToggle(task.id, !task.done))}
+          onClick={(e) => {
+            // Kuittaus välähtää heti, ei tallennuksen jälkeen. Vahvistus
+            // kuuluu painallukseen; tallennus on jonossa oleva asia, jonka
+            // epäonnistuminen näkyy tilan palautumisena.
+            if (!task.done) celebrate(e.currentTarget)
+            void run(() => onToggle(task.id, !task.done))
+          }}
           disabled={busy}
           aria-pressed={task.done}
           aria-label={task.done ? `Merkitse tekemättömäksi: ${task.title}` : `Merkitse tehdyksi: ${task.title}`}

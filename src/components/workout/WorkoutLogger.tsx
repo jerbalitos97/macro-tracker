@@ -11,6 +11,7 @@ import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig, WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
 import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 import type { GateState } from '../../lib/gates'
+import { celebrate } from '../../lib/flash'
 
 interface Props {
   workout: Workout
@@ -57,7 +58,8 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
       role="button"
       tabIndex={0}
       ariaLabel={`${ex.name}, ${blockSummary(ex)}`}
-      className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
+      flashTint={accent}
+      className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
       style={{
         backgroundColor: done ? `${accent}1A` : 'rgba(255,255,255,0.05)',
         borderColor: done ? `${accent}4D` : 'rgba(255,255,255,0.10)',
@@ -74,7 +76,11 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
           </div>
 
           <button
-            onClick={(e) => { e.stopPropagation(); onToggleDone() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleDone()
+              if (!done) celebrate(e.currentTarget, accent)
+            }}
             aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
             className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
               done ? 'text-bg' : 'border border-white/20 text-fg-faint'
