@@ -341,6 +341,7 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
           onMoveUp={moveUp}
           onMoveDown={moveDown}
           onShowInfo={() => { setInfoReturnTo(open.id); setInfoFor(open.id); setOpenId(null) }}
+          workoutId={workout.id}
           onClose={() => setOpenId(null)}
         />
       ) : (

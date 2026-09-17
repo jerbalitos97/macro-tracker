@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, PartyPopper, Dumbbell, Sliders, Trash2, Plus
 import type { ComputedResult, ComputedDay, SpecialEvent, ExtraWorkout, Meal, TrainingBurn, DailyAdjustment } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { parsePositiveInt, parsePositiveDecimal } from '../lib/format'
-import { dayDelta, isCompensated, compensatedKcal } from '../lib/compensation'
+import { dayDelta, isCompensated, compensatedKcal, SETTLE_FLOOR_KCAL } from '../lib/compensation'
 import { RolloutModal } from '../components/RolloutModal'
 import { CalendarGrid } from '../components/CalendarGrid'
 import { DayBreakdown } from '../components/DayBreakdown'
@@ -390,20 +390,22 @@ function SettleRow({
 }) {
   if (day.date >= todayISO) return null
   const delta = dayDelta(day)
-  if (delta === null || Math.abs(delta) < 50) return null
+  if (delta === null || Math.abs(delta) < SETTLE_FLOOR_KCAL) return null
 
   const done = isCompensated(adjustments, day.date)
   const settled = compensatedKcal(adjustments, day.date)
-  const short = delta < 0
+  // delta > 0 means the day came in under its budget; < 0 means it went over.
+  const over = delta < 0
 
-  // DayBreakdown already prints "Ero suunnitelmaan" just above, so this only
-  // adds the action for it.
+  // DayBreakdown prints the budget comparison just above, so this only adds the
+  // action — and names the amount, because "the difference" is exactly the
+  // thing the old wording left the reader to work out.
   return (
     <div className="mt-3">
       {done ? (
         <div className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[rgba(100,200,120,0.28)] bg-[rgba(100,200,120,0.08)] px-4 py-[11px] text-[12px] text-[#7fd694]">
           <Check size={14} />
-          {short ? 'Vaje kompensoitu' : 'Ylimeno kompensoitu'}
+          {over ? 'Ylimeno jalkautettu' : 'Ylijäämä jalkautettu'}
           <span className="text-[10px] text-[#7fd694]/70">
             ({settled > 0 ? '+' : ''}{settled.toLocaleString('fi-FI')} kcal)
           </span>
@@ -414,7 +416,9 @@ function SettleRow({
           className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/[0.14] bg-white/[0.03] px-4 py-[11px] text-[12px] text-text"
         >
           <CornerDownRight size={14} />
-          Jalkauta ero tuleville päiville
+          {over
+            ? `Jalkauta ${Math.abs(delta).toLocaleString('fi-FI')} kcal ylimeno eteenpäin`
+            : `Jalkauta ${Math.abs(delta).toLocaleString('fi-FI')} kcal ylijäämä eteenpäin`}
         </button>
       )}
     </div>

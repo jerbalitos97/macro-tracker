@@ -59,45 +59,62 @@ export function DayBreakdown({ day }: Props) {
         </span>
       </div>
 
-      {/* Toteutuma — actual consumed and resulting deficit vs the planned baseline */}
-      {(day.consumed > 0 || day.burnKcal > 0) && day.actualDeficit !== undefined && (
+      {/* Toteutuma.
+          The old version printed three signed numbers — "Toteutunut vaje
+          +1 879", "Suunniteltu vaje +1 500", "Ero suunnitelmaan +379" — in a
+          convention where a deficit counts as positive. That reads backwards
+          to anyone who has just eaten: a plus sign next to a number of
+          calories looks like food, not like a shortfall. So the answer comes
+          first, in words, against the budget this day actually had. */}
+      {(day.consumed > 0 || day.burnKcal > 0) && (
         <>
           <div className="mb-1 mt-3.5 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
             Toteutuma
           </div>
-          <div className={row}>
-            <span className={label}>Syöty</span>
-            <span className={val}>
-              {day.consumed.toLocaleString('fi-FI')} kcal
-            </span>
-          </div>
           {(() => {
-            const actual = day.actualDeficit ?? 0
-            const planned = day.dailyDeficitBase
-            const diff = actual - planned
-            const deficitColor =
-              diff >= 100 ? 'text-[#34d399]' : diff <= -100 ? 'text-danger' : 'text-accent'
+            const allowed = day.budget + day.burnKcal
+            const left = Math.round(allowed - day.consumed)
+            const under = left >= 0
+            const pct = allowed > 0 ? Math.min(1, day.consumed / allowed) : 0
+            const tone = under ? 'text-[#7fd694]' : 'text-danger'
             return (
               <>
                 <div className={row}>
-                  <span className={label}>Toteutunut vaje</span>
-                  <span className={`${val} font-semibold ${deficitColor}`}>
-                    {actual >= 0 ? '+' : '−'}
-                    {Math.abs(Math.round(actual)).toLocaleString('fi-FI')} kcal
+                  <span className={label}>Syöty</span>
+                  <span className={val}>
+                    {day.consumed.toLocaleString('fi-FI')} / {allowed.toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
-                <div className={row}>
-                  <span className={`${label} text-fg-faint`}>Suunniteltu vaje</span>
-                  <span className={`${val} text-fg-faint`}>
-                    +{planned.toLocaleString('fi-FI')} kcal
+                <div className="mt-1.5 h-1 overflow-hidden rounded-sm bg-white/[0.07]">
+                  <div
+                    className="h-full rounded-sm"
+                    style={{
+                      width: `${pct * 100}%`,
+                      backgroundColor: under ? '#7fd694' : '#f87171',
+                    }}
+                  />
+                </div>
+                <div className={`${row} mt-1.5 border-t border-white/[0.1] pt-2`}>
+                  <span className={`${label} font-semibold text-text`}>
+                    {under ? 'Budjetin alle' : 'Budjetin yli'}
+                  </span>
+                  <span className={`flex-shrink-0 tabular-nums text-[15px] font-bold ${tone}`}>
+                    {Math.abs(left).toLocaleString('fi-FI')} kcal
                   </span>
                 </div>
-                <div className={row}>
-                  <span className={`${label} text-fg-faint`}>Ero suunnitelmaan</span>
-                  <span className={`${val} ${deficitColor}`}>
-                    {diff >= 0 ? '+' : '−'}{Math.abs(Math.round(diff)).toLocaleString('fi-FI')} kcal
-                  </span>
-                </div>
+                {/* The budget already nets out training and any manual
+                    adjustment, so say so rather than leaving the reader to
+                    wonder whether their session counted. */}
+                {(day.burnKcal > 0 || (day.adjustment && day.adjustment.kcal !== 0)) && (
+                  <p className="m-0 mt-1 text-[10px] leading-snug text-fg-ghost">
+                    Budjetissa mukana
+                    {day.burnKcal > 0 && ` treenikulutus +${day.burnKcal.toLocaleString('fi-FI')}`}
+                    {day.burnKcal > 0 && day.adjustment && day.adjustment.kcal !== 0 && ' ja'}
+                    {day.adjustment && day.adjustment.kcal !== 0 &&
+                      ` säätö ${day.adjustment.kcal > 0 ? '+' : '−'}${Math.abs(day.adjustment.kcal).toLocaleString('fi-FI')}`}
+                    .
+                  </p>
+                )}
               </>
             )
           })()}

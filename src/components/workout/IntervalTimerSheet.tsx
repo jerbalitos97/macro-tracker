@@ -3,6 +3,10 @@ import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info, Plus } from 'l
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
 import { beep, primeAudio } from '../../lib/audio'
+import {
+  runFor, startRun, pauseRun, resumeRun, clearRun, stateOf, contractionSeconds,
+} from '../../lib/intervalClock'
+import type { IntervalRun, Phase } from '../../lib/intervalClock'
 
 interface Props {
   exercise: LoggedExercise & { interval: IntervalConfig }
@@ -13,17 +17,30 @@ interface Props {
   onMoveDown: (() => void) | null
   /** Show what the template prescribed for this movement. */
   onShowInfo?: () => void
+  /** Recorded on the run so a clock left going is attributable to its session. */
+  workoutId?: string
   onClose: () => void
 }
 
-type Phase = 'countdown' | 'work' | 'rest' | 'switch'
+/** The between-sides checkpoint is UI state, not clock state: it waits for a
+ *  tap rather than counting, so it never belongs in a derived phase. */
+type Shown = Phase | 'switch'
 
-interface Run {
-  setIndex: number
-  phase: Phase
-  side: 1 | 2
-  round: number
-  secondsLeft: number
+/** Tell the user the set finished when they are not looking at the screen.
+ *
+ *  Best-effort by construction: a web app gets no guaranteed wake-up, so this
+ *  only fires while the page is still alive in the background. When the phone
+ *  suspended it entirely the notification is missed — but the clock is derived
+ *  from time, so returning to the app still shows the set correctly finished.
+ *  Nothing is lost except the nudge. */
+function notifyDone(title: string): void {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    if (document.visibilityState === 'visible') return // the screen already says so
+    new Notification(title, { tag: 'friday-interval', silent: false })
+  } catch {
+    // a failed notification is never worth breaking a set over
+  }
 }
 
 function speak(text: string): void {
@@ -36,11 +53,24 @@ function speak(text: string): void {
   } catch { /* no speech available */ }
 }
 
-export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onShowInfo, onClose }: Props) {
+export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onShowInfo, workoutId, onClose }: Props) {
   const iv = exercise.interval
-  const [run, setRun] = useState<Run | null>(null)
-  const [paused, setPaused] = useState(false)
+  // The run lives in localStorage and is derived from the wall clock, so the
+  // sheet is a window onto it rather than its owner. Closing this sheet, or the
+  // app, leaves the set running.
+  const [run, setRunState] = useState<IntervalRun | null>(() => runFor(exercise.id))
+  const [switching, setSwitching] = useState(false)
+  const [, tick] = useState(0)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
+
+  const setRun = (r: IntervalRun | null) => {
+    if (r) saveAndSet(r)
+    else { clearRun(); setRunState(null) }
+  }
+  const saveAndSet = (r: IntervalRun) => setRunState(r)
+
+  const paused = run?.pausedAt != null
+  const state = run ? stateOf(run) : null
 
   // Keep the screen awake while clocking.
   useEffect(() => {
@@ -59,17 +89,35 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     }
   }, [run])
 
+  // Re-read the clock once a second, and again whenever the app comes back to
+  // the foreground — that second read is what makes a backgrounded set correct
+  // rather than frozen.
+  useEffect(() => {
+    if (!run || paused) return
+    const id = window.setInterval(() => tick((n) => n + 1), 250)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setRunState(runFor(exercise.id))
+        tick((n) => n + 1)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [run, paused, exercise.id])
+
   const completeSet = (setIndex: number) => {
-    // Record total contraction time so the summary has something to show.
-    const sides = iv.perSide ? 2 : 1
-    const total = iv.workSeconds * iv.rounds * sides
     onChange({
       ...exercise,
-      sets: exercise.sets.map((s, i) => (i === setIndex ? { ...s, duration: total, done: true } : s)),
+      sets: exercise.sets.map((s, i) =>
+        (i === setIndex ? { ...s, duration: contractionSeconds(iv), done: true } : s)),
     })
     beep(1320); setTimeout(() => beep(1320), 200); setTimeout(() => beep(1760), 400)
     speak('Sarja valmis')
-    setPaused(false)
+    notifyDone(`${exercise.name}: sarja valmis`)
+    setSwitching(false)
     setRun(null)
   }
 
@@ -77,84 +125,81 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
    *  round to clock and removing one drops a round that did not happen. */
   const addSet = () => onChange({ ...exercise, sets: [...exercise.sets, {}] })
 
+  /** Mark a set done — or undone — without the clock. Marking it by hand
+   *  records no duration, because none was measured; inventing one would put a
+   *  number in the log that nothing observed. */
+  const toggleDone = (i: number) =>
+    onChange({
+      ...exercise,
+      sets: exercise.sets.map((s, idx) => (idx === i ? { ...s, done: !s.done } : s)),
+    })
+
   const removeSet = (i: number) => {
     if (exercise.sets.length <= 1) return
-    if (run) { setPaused(false); setRun(null) }
+    if (run) { setSwitching(false); setRun(null) }
     onChange({ ...exercise, sets: exercise.sets.filter((_, idx) => idx !== i) })
   }
 
   const startClock = (setIndex: number, side: 1 | 2 = 1) => {
-    setPaused(false)
     primeAudio() // this tap is the gesture that lets later beeps be heard
     beep(880)
     speak('Valmistaudu')
-    setRun({ setIndex, phase: 'countdown', side, round: 1, secondsLeft: 3 })
+    setSwitching(false)
+    setRunState(startRun(exercise.id, setIndex, iv, side, workoutId))
   }
 
-  // One state transition per second while a phase is running. The effect
-  // re-arms on every `run` change, so the closure always sees fresh state.
+  // Announce phase changes. The clock does not emit events — it is a function
+  // of time — so a transition is "the phase we are showing differs from the one
+  // we last spoke". That also means a phase whose whole span passed while the
+  // app was closed is simply never announced, which is correct: it is over.
+  const spoken = useRef<string | null>(null)
   useEffect(() => {
-    if (!run || run.phase === 'switch' || paused) return
-    const t = setTimeout(() => {
-      const r = run
-      if (r.secondsLeft > 1) {
-        if (r.phase === 'countdown') beep(880)
-        setRun({ ...r, secondsLeft: r.secondsLeft - 1 })
-        return
+    if (!run || !state || paused) return
+    const key = `${run.startedAt}:${run.side}:${state.phase}:${state.round}`
+    if (spoken.current === key) return
+    const first = spoken.current === null
+    spoken.current = key
+    if (first) return // opening onto a run in progress should not re-announce it
+    if (state.phase === 'work') { beep(1320); speak('Contraction') }
+    else if (state.phase === 'rest') { beep(660); speak('Lepo') }
+  }, [run, state?.phase, state?.round, paused])
+
+  // Completion is also derived: when the clock says this side is done, either
+  // hand over to side 2 or finish the set.
+  useEffect(() => {
+    if (!run || !state || paused || state.phase !== 'done') return
+    if (iv.perSide && run.side === 1) {
+      if (!switching) {
+        beep(660); setTimeout(() => beep(660), 200)
+        speak('Vaihda jalka')
+        notifyDone(`${exercise.name}: vaihda jalka`)
+        setSwitching(true)
       }
-      // Phase over → decide what comes next.
-      const startWork = (round: number) => {
-        beep(1320)
-        speak('Contraction')
-        setRun({ ...r, phase: 'work', round, secondsLeft: iv.workSeconds })
-      }
-      if (r.phase === 'countdown') {
-        startWork(r.round)
-        return
-      }
-      if (r.phase === 'work') {
-        if (r.round < iv.rounds) {
-          if (iv.restSeconds < 1) {
-            startWork(r.round + 1)
-            return
-          }
-          beep(660)
-          speak('Lepo')
-          setRun({ ...r, phase: 'rest', secondsLeft: iv.restSeconds })
-          return
-        }
-        // Last round done for this side.
-        if (iv.perSide && r.side === 1) {
-          beep(660); setTimeout(() => beep(660), 200)
-          speak('Vaihda jalka')
-          setRun({ ...r, phase: 'switch', secondsLeft: 0 })
-          return
-        }
-        completeSet(r.setIndex)
-        return
-      }
-      // rest → next round
-      startWork(r.round + 1)
-    }, 1000)
-    return () => clearTimeout(t)
+      return
+    }
+    completeSet(run.setIndex)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run, paused])
+  }, [run, state?.phase, paused, switching])
 
   const configLabel = `${iv.workSeconds}s contraction / ${iv.restSeconds}s lepo × ${iv.rounds}${iv.perSide ? ' · per puoli' : ''}`
 
-  const phaseLabel: Record<Phase, string> = {
+  const phaseLabel: Record<Shown, string> = {
     countdown: 'Valmistaudu',
     work: 'Contraction',
     rest: 'Lepo',
+    done: 'Valmis',
     switch: 'Vaihda jalka',
   }
 
-  const phaseColor: Record<Phase, string> = {
+  const phaseColor: Record<Shown, string> = {
     countdown: 'text-fg-muted',
     work: 'text-cyan',
     rest: 'text-violet',
+    done: 'text-cyan',
     switch: 'text-accent',
   }
+
+  const shown: Shown = switching ? 'switch' : (state?.phase ?? 'countdown')
 
   return (
     <Sheet open onClose={onClose} title={<span className="normal-case">{exercise.name}</span>}>
@@ -171,20 +216,20 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
         {configLabel}
       </div>
 
-      {run ? (
+      {run && state ? (
         <div className="flex flex-col items-center py-4">
           <div
-            className={`font-mono text-[13px] uppercase tracking-[0.2em] ${paused ? 'text-accent' : phaseColor[run.phase]}`}
+            className={`font-mono text-[13px] uppercase tracking-[0.2em] ${paused ? 'text-accent' : phaseColor[shown]}`}
             aria-live="polite"
           >
-            {paused ? `${phaseLabel[run.phase]} · tauolla` : phaseLabel[run.phase]}
+            {paused ? `${phaseLabel[shown]} · tauolla` : phaseLabel[shown]}
           </div>
 
-          {run.phase !== 'switch' ? (
+          {shown !== 'switch' ? (
             <div
-              className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums transition-opacity ${phaseColor[run.phase]} ${paused ? 'opacity-40' : ''}`}
+              className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums transition-opacity ${phaseColor[shown]} ${paused ? 'opacity-40' : ''}`}
             >
-              {run.secondsLeft}
+              {state.secondsLeft}
             </div>
           ) : (
             <button
@@ -197,21 +242,27 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
           <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-fg-faint">
             Sarja {run.setIndex + 1}/{exercise.sets.length}
-            {' · '}Kierros {run.round}/{iv.rounds}
+            {' · '}Kierros {state.round}/{iv.rounds}
             {iv.perSide && <>{' · '}Puoli {run.side}/2</>}
           </div>
 
-          <div className="mt-5 flex items-center gap-2">
-            {run.phase !== 'switch' && (
+          {/* The clock is derived from the wall clock, so saying so is not a
+              reassurance — it is the reason closing this is safe. */}
+          <p className="mt-2 max-w-[260px] text-center text-[10px] leading-snug text-fg-ghost">
+            Voit sulkea tämän tai koko sovelluksen — kello jatkaa ja ilmoittaa kun sarja on valmis.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            {shown !== 'switch' && (
               <button
-                onClick={() => setPaused((p) => !p)}
+                onClick={() => setRunState(paused ? resumeRun(run) : pauseRun(run))}
                 className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
               >
                 {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}
               </button>
             )}
             <button
-              onClick={() => { setPaused(false); setRun(null) }}
+              onClick={() => { setSwitching(false); setRun(null) }}
               className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
             >
               <X size={14} /> Keskeytä
@@ -235,14 +286,27 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Ticking a set off by hand, without clocking it. Plenty of
+                      mobility work gets done away from the phone — counted in
+                      the head, or on a set already in progress when the app was
+                      opened — and the clock being the only way to mark it meant
+                      the log said "not done" for work that was. */}
+                  <button
+                    onClick={() => toggleDone(i)}
+                    aria-label={s.done ? `Merkitse sarja ${i + 1} tekemättömäksi` : `Merkitse sarja ${i + 1} tehdyksi`}
+                    aria-pressed={s.done === true}
+                    className={`flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+                      s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
+                    }`}
+                  >
+                    <Check size={15} strokeWidth={3} />
+                  </button>
                   <button
                     onClick={() => startClock(i)}
                     aria-label={`Kellota sarja ${i + 1}`}
-                    className={`flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full ${
-                      s.done ? 'border border-cyan/40 text-cyan' : 'bg-gradient-to-br from-cyan to-violet text-bg'
-                    }`}
+                    className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg"
                   >
-                    {s.done ? <Check size={15} strokeWidth={3} /> : <Play size={15} />}
+                    <Play size={15} />
                   </button>
                   <button
                     onClick={() => removeSet(i)}

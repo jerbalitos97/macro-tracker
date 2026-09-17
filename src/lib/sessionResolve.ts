@@ -20,7 +20,7 @@
 import type {
   GateSpec, LoggedExercise, Prescription, SetEntry, TemplateExercise, WorkoutTemplate, Workout,
 } from './workouts'
-import { uid } from './workouts'
+import { uid, copySetsForNewSession } from './workouts'
 import type { GateState, GateStates } from './gates'
 import type { TrainingLocation } from './locations'
 import { locationHas } from './locations'
@@ -281,8 +281,12 @@ function toLogged(
   const planChanged =
     resolution?.envFallback === true ||
     (resolution?.gateState != null && resolution.gateState !== 'develop')
+  // Numbers carry over; the ticks do not. Prefilling from a finished session
+  // brought its `done: true` along, so every exercise in a repeated template
+  // opened already crossed off — the log then claimed work that had not
+  // happened yet, and un-ticking it was the first thing every session needed.
   const last = planChanged ? null : lastSetsFor?.(p.name)
-  const sets = last && last.length > 0 ? last : setsFrom(p)
+  const sets = last && last.length > 0 ? copySetsForNewSession(last) : setsFrom(p)
   return {
     id: uid(),
     name: p.name,

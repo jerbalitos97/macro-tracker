@@ -82,15 +82,28 @@ export function planRollout(
   return out.filter((d) => d.kcal !== 0)
 }
 
-/** How far a day's result landed from what its plan asked. Positive means the
- *  day beat its plan (room to loosen later), negative means it fell short
- *  (needs making up). Null when nothing was logged — a gap, not a zero. */
+/** How far a day's eating landed from what that day actually allowed.
+ *
+ *  Measured against the day's own budget, not the period average. The budget
+ *  already carries everything that legitimately moved the target: the day
+ *  type's planned deficit (zero on a weekend under weekend maintenance),
+ *  events and their buffers, manual adjustments, and — added here — the
+ *  training actually logged. Comparing against the flat average instead called
+ *  a day "over" whenever it was a rest day, or whenever a session had been
+ *  logged that already paid for the food, and then offered to roll a
+ *  difference forward that the day had already settled by itself.
+ *
+ *  Positive means the day came in under its budget (room to loosen later),
+ *  negative means it went over (needs making up). Null when nothing was
+ *  logged — a gap, not a zero. */
 export function dayDelta(day: {
   consumed: number
   burnKcal: number
-  actualDeficit?: number | null
-  dailyDeficitBase: number
+  budget: number
 }): number | null {
   if (day.consumed <= 0 && day.burnKcal <= 0) return null
-  return Math.round((day.actualDeficit ?? 0) - day.dailyDeficitBase)
+  return Math.round(day.budget + day.burnKcal - day.consumed)
 }
+
+/** Below this the difference is noise rather than something to settle. */
+export const SETTLE_FLOOR_KCAL = 50
