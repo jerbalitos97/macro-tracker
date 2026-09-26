@@ -55,6 +55,40 @@ reach the client through the normal sync path.
   back in `exercises` makes it look like training volume and inflates every
   session's slot count.
 
+## The MCP can change the plan, never the record
+
+`api/mcp.ts` is one Vercel function serving both halves, and the split between
+them is the rule:
+
+- **Nutrition, weight, habits are read-only.** They are a record of what
+  happened. Nothing reached through a chat should be able to rewrite it.
+- **Templates, blocks and warm-ups are writable**, because they are a plan, and
+  a plan is the thing worth shaping in conversation.
+
+Every write tool follows the same protocol, and a new one must too:
+
+1. **Two calls, never one.** The first validates, returns the exact changes and
+   a `confirmToken`; only a second call carrying that token writes. The token
+   hashes *both* the row as it currently is and the payload, so it cannot
+   confirm different content than was shown — and a row that changed in between
+   invalidates it, which is optimistic locking for free.
+2. **Validate the shape here.** Postgres accepts any jsonb, so a malformed
+   template does not fail on write — it fails on the phone, weeks later,
+   looking like an app bug.
+3. **Log the whole previous object** to `mcp_writes`. Undo restores it wholesale
+   (`undo_write`); a partial restore would leave a state that never existed.
+4. **Unchanged means no write**, same idempotency rule as the content
+   migrations.
+
+`stage()` does 1, 3 and 4 — route new write tools through it rather than
+touching the tables directly, and pass `logBefore`/`logAfter` when the compared
+value is a summary rather than the real object.
+
+**No resolution logic in the MCP.** Gates, environment fallbacks and dose
+arithmetic stay in `src/lib/gates.ts` and `src/lib/sessionResolve.ts`. A second
+implementation next to the writer would be a second truth, and the writer is
+exactly where it would go unnoticed.
+
 ## Conventions worth knowing
 
 - **Goals**: read the goal in force via `getActiveGoal()` /

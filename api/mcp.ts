@@ -1,6 +1,16 @@
-// MCP server for the Macrotracker app. Exposes high-level read tools so
-// Claude.ai (or Claude Code) can answer questions about your data without
-// needing to know the underlying DB schema.
+// MCP server for the Friday app. Exposes high-level tools so Claude.ai (or
+// Claude Code) can answer questions about your data — and, on the programming
+// side, change it — without needing to know the underlying DB schema.
+//
+// Two halves with deliberately different rules:
+//   • Nutrition, weight, habits — read only. These are a record of what
+//     happened, and nothing should be able to rewrite history from a chat.
+//   • Templates, blocks, warm-ups — read and write. These are a plan, and a
+//     plan is exactly the thing worth shaping in conversation. Every write is
+//     two-step, validated, and logged with its previous version (see the
+//     OHJELMOINTI section).
+//
+import { createHash } from 'node:crypto'
 //
 // Transport: stateless Streamable HTTP. Each POST is a self-contained
 // JSON-RPC request. Authentication: a single shared Bearer token
@@ -504,6 +514,795 @@ async function getHabitsToday() {
   })
 }
 
+// ═══════════════════════════════════════════════════════════════
+// OHJELMOINTI — treenipohjat, blokit, lämpöt, paikat
+//
+// Tämä puoli on sekä luettava että kirjoitettava, ja siinä on koko ero
+// edelliseen: keskustelu ohjelmasta muuttuu ohjelmaksi vasta kun se kirjoittuu
+// kantaan. Kolme sääntöä pitävät sen turvallisena.
+//
+// 1. Kirjoitus on aina kaksivaiheinen. Ensimmäinen kutsu ei kirjoita mitään
+//    vaan palauttaa erot ja vahvistustunnuksen. Tunnus on tiiviste siitä mikä
+//    rivi kannassa nyt on JA mitä sinne oltiin laittamassa, joten sillä ei voi
+//    vahvistaa eri sisältöä kuin mikä näytettiin — eikä vanhentunutta:
+//    jos rivi ehti muuttua välissä, tunnus ei enää täsmää ja kierros alkaa
+//    alusta. Optimistinen lukitus tulee siis samasta mekanismista ilmaiseksi.
+//
+// 2. Muuttumaton kirjoitus ei ole kirjoitus. Jos uusi olio on identtinen
+//    nykyisen kanssa, mitään ei kirjoiteta — sama idempotenssisääntö kuin
+//    sisältömigraatioissa, ja se pitää `updated_at`in merkitsevänä.
+//
+// 3. Jokaisesta kirjoituksesta jää lokirivi jossa on koko edellinen versio,
+//    joten peruutus on aina olemassa (`undo_write`).
+//
+// Mitä tämä EI tee: ei portteja, ei ratkaisulogiikkaa, ei annoslaskentaa.
+// Ne ovat sovelluksen koodissa (lib/gates.ts, lib/sessionResolve.ts), ja
+// toinen toteutus täällä olisi toinen totuus. Tämä lukee ja kirjoittaa
+// sisältöä ja tarkistaa sen muodon.
+// ═══════════════════════════════════════════════════════════════
+
+const CAPABILITIES = ['externalLoad', 'muscleUpBar', 'plyoBox', 'anchorAndBand', 'parallettes', 'trapBar']
+const BODY_REGIONS = ['knee', 'back', 'wrist']
+const GATE_VARIANTS = ['develop', 'hybrid', 'treat', 'rest']
+const BLOCK_INTENTS = ['base', 'strength', 'skill', 'peak', 'deload', 'other']
+
+type Json = Record<string, unknown>
+
+// ── Muodon tarkistus ───────────────────────────────────────────
+// Kanta ottaa vastaan minkä tahansa jsonb:n, joten väärä muoto ei kaadu
+// kirjoitettaessa vaan vasta puhelimessa — ja silloin se näyttää sovelluksen
+// bugilta eikä siltä mitä se on. Siksi muoto tarkistetaan täällä.
+
+function isPlain(v: unknown): v is Json {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function checkPrescription(p: unknown, where: string, errs: string[]): void {
+  if (!isPlain(p)) { errs.push(`${where}: pitää olla olio`); return }
+  if (typeof p.name !== 'string' || !p.name.trim()) errs.push(`${where}.name puuttuu`)
+  if (typeof p.sets !== 'number' || !Number.isInteger(p.sets) || p.sets < 1) {
+    errs.push(`${where}.sets pitää olla kokonaisluku ≥ 1`)
+  }
+  if (p.reps !== undefined) {
+    if (typeof p.reps === 'number') {
+      if (p.reps < 1) errs.push(`${where}.reps ≥ 1`)
+    } else if (isPlain(p.reps)) {
+      const { min, max } = p.reps as { min?: unknown; max?: unknown }
+      if (typeof min !== 'number' || typeof max !== 'number') errs.push(`${where}.reps pitää olla luku tai {min,max}`)
+      else if (min > max) errs.push(`${where}.reps.min > max`)
+    } else errs.push(`${where}.reps pitää olla luku tai {min,max}`)
+  }
+  if (p.holdSeconds !== undefined && (typeof p.holdSeconds !== 'number' || p.holdSeconds <= 0)) {
+    errs.push(`${where}.holdSeconds pitää olla > 0`)
+  }
+  for (const k of ['tempo', 'note', 'placeLabel']) {
+    if (p[k] !== undefined && typeof p[k] !== 'string') errs.push(`${where}.${k} pitää olla teksti`)
+  }
+  if (p.env !== undefined) checkEnv(p.env, `${where}.env`, errs)
+  if (p.envOptions !== undefined) checkEnvOptions(p.envOptions, `${where}.envOptions`, errs)
+}
+
+function checkRequires(v: unknown, where: string, errs: string[]): void {
+  if (!Array.isArray(v) || v.length === 0) { errs.push(`${where}.requires pitää olla ei-tyhjä lista`); return }
+  for (const c of v) {
+    if (typeof c !== 'string' || !CAPABILITIES.includes(c)) {
+      errs.push(`${where}.requires: tuntematon kyky "${String(c)}" (sallitut: ${CAPABILITIES.join(', ')})`)
+    }
+  }
+}
+
+function checkEnv(v: unknown, where: string, errs: string[]): void {
+  if (!isPlain(v)) { errs.push(`${where}: pitää olla olio`); return }
+  checkRequires(v.requires, where, errs)
+  if (v.fallback !== null && v.fallback !== undefined) checkPrescription(v.fallback, `${where}.fallback`, errs)
+  else if (v.fallback === undefined) errs.push(`${where}.fallback puuttuu (null = liikettä ei tehdä täällä)`)
+}
+
+function checkEnvOptions(v: unknown, where: string, errs: string[]): void {
+  if (!isPlain(v)) { errs.push(`${where}: pitää olla olio`); return }
+  checkRequires(v.requires, where, errs)
+  if (!Array.isArray(v.options) || v.options.length < 2) {
+    errs.push(`${where}.options: vähintään kaksi vaihtoehtoa, muuten käytä env-kenttää`)
+  } else {
+    v.options.forEach((o, i) => {
+      checkPrescription(o, `${where}.options[${i}]`, errs)
+      if (isPlain(o) && typeof o.placeLabel !== 'string') {
+        errs.push(`${where}.options[${i}].placeLabel puuttuu — rinnakkaisen vaihtoehdon koko pointti on kertoa missä se tehdään`)
+      }
+    })
+  }
+  if (v.fallback !== null && v.fallback !== undefined) checkPrescription(v.fallback, `${where}.fallback`, errs)
+  else if (v.fallback === undefined) errs.push(`${where}.fallback puuttuu`)
+}
+
+function checkTemplateExercise(e: unknown, i: number, seen: Set<string>, errs: string[]): void {
+  const where = `exercises[${i}]`
+  if (!isPlain(e)) { errs.push(`${where}: pitää olla olio`); return }
+  if (typeof e.id !== 'string' || !e.id.trim()) errs.push(`${where}.id puuttuu`)
+  else if (seen.has(e.id)) errs.push(`${where}.id "${e.id}" on jo käytössä — id on se millä ohjelma tunnistaa slotin, eikä se saa toistua`)
+  else seen.add(e.id)
+  if (typeof e.name !== 'string' || !e.name.trim()) errs.push(`${where}.name puuttuu`)
+  if (typeof e.defaultSets !== 'number' || !Number.isInteger(e.defaultSets) || e.defaultSets < 1) {
+    errs.push(`${where}.defaultSets pitää olla kokonaisluku ≥ 1`)
+  }
+  if (e.repRange !== undefined) {
+    const r = e.repRange as { min?: unknown; max?: unknown }
+    if (!isPlain(e.repRange) || typeof r.min !== 'number' || typeof r.max !== 'number') {
+      errs.push(`${where}.repRange pitää olla {min,max}`)
+    } else if (r.min > r.max) errs.push(`${where}.repRange.min > max`)
+  }
+  if (e.interval !== undefined) {
+    const iv = e.interval as Json
+    if (!isPlain(iv)) errs.push(`${where}.interval pitää olla olio`)
+    else {
+      if (typeof iv.workSeconds !== 'number' || iv.workSeconds <= 0) errs.push(`${where}.interval.workSeconds > 0`)
+      if (typeof iv.restSeconds !== 'number' || iv.restSeconds < 0) errs.push(`${where}.interval.restSeconds ≥ 0`)
+      if (typeof iv.rounds !== 'number' || iv.rounds < 1) errs.push(`${where}.interval.rounds ≥ 1`)
+      if (typeof iv.perSide !== 'boolean') errs.push(`${where}.interval.perSide pitää olla true/false`)
+    }
+  }
+  if (e.env !== undefined) checkEnv(e.env, `${where}.env`, errs)
+  if (e.envOptions !== undefined) checkEnvOptions(e.envOptions, `${where}.envOptions`, errs)
+  if (e.gate !== undefined) {
+    const g = e.gate as Json
+    if (!isPlain(g)) { errs.push(`${where}.gate pitää olla olio`); return }
+    if (typeof g.bodyRegion !== 'string' || !BODY_REGIONS.includes(g.bodyRegion)) {
+      errs.push(`${where}.gate.bodyRegion pitää olla ${BODY_REGIONS.join(' | ')}`)
+    }
+    if (!isPlain(g.variants)) { errs.push(`${where}.gate.variants puuttuu`); return }
+    const vs = g.variants as Json
+    if (vs.develop === undefined || vs.develop === null) {
+      errs.push(`${where}.gate.variants.develop on pakollinen — portilla on oltava jokin mitä kohti kehitetään`)
+    } else checkPrescription(vs.develop, `${where}.gate.variants.develop`, errs)
+    for (const k of ['hybrid', 'treat', 'rest']) {
+      if (vs[k] !== undefined && vs[k] !== null) checkPrescription(vs[k], `${where}.gate.variants.${k}`, errs)
+    }
+    for (const k of Object.keys(vs)) {
+      if (!GATE_VARIANTS.includes(k)) errs.push(`${where}.gate.variants.${k}: tuntematon tila`)
+    }
+  }
+}
+
+export function validateTemplate(t: unknown, knownWarmupIds: string[]): string[] {
+  const errs: string[] = []
+  if (!isPlain(t)) return ['template pitää olla olio']
+  if (typeof t.id !== 'string' || !t.id.trim()) errs.push('id puuttuu')
+  if (typeof t.name !== 'string' || !t.name.trim()) errs.push('name puuttuu')
+  if (t.kind !== undefined && t.kind !== 'strength' && t.kind !== 'mobility') {
+    errs.push('kind pitää olla "strength" tai "mobility"')
+  }
+  if (t.color !== undefined && t.color !== null && !/^#[0-9a-fA-F]{6}$/.test(String(t.color))) {
+    errs.push('color pitää olla #rrggbb')
+  }
+  if (t.warmupId !== undefined && t.warmupId !== null) {
+    if (!knownWarmupIds.includes(String(t.warmupId))) {
+      errs.push(`warmupId "${String(t.warmupId)}" ei vastaa mitään lämpöpakettia (tunnetut: ${knownWarmupIds.join(', ') || 'ei yhtään'})`)
+    }
+  }
+  if (!Array.isArray(t.exercises)) errs.push('exercises pitää olla lista')
+  else {
+    const seen = new Set<string>()
+    t.exercises.forEach((e, i) => checkTemplateExercise(e, i, seen, errs))
+  }
+  return errs
+}
+
+export function validateBlock(b: unknown): string[] {
+  const errs: string[] = []
+  if (!isPlain(b)) return ['block pitää olla olio']
+  if (typeof b.id !== 'string' || !b.id.trim()) errs.push('id puuttuu')
+  if (typeof b.name !== 'string' || !b.name.trim()) errs.push('name puuttuu')
+  const iso = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+  if (!iso(b.startDate)) errs.push('startDate pitää olla YYYY-MM-DD')
+  if (!iso(b.endDate)) errs.push('endDate pitää olla YYYY-MM-DD')
+  if (iso(b.startDate) && iso(b.endDate) && String(b.endDate) < String(b.startDate)) {
+    errs.push('endDate on ennen startDatea')
+  }
+  if (b.intent !== undefined && b.intent !== null && !BLOCK_INTENTS.includes(String(b.intent))) {
+    errs.push(`intent pitää olla ${BLOCK_INTENTS.join(' | ')}`)
+  }
+  if (b.color !== undefined && b.color !== null && !/^#[0-9a-fA-F]{6}$/.test(String(b.color))) {
+    errs.push('color pitää olla #rrggbb')
+  }
+  return errs
+}
+
+export function validateWarmup(w: unknown): string[] {
+  const errs: string[] = []
+  if (!isPlain(w)) return ['warmup pitää olla olio']
+  if (typeof w.id !== 'string' || !w.id.trim()) errs.push('id puuttuu')
+  if (typeof w.name !== 'string' || !w.name.trim()) errs.push('name puuttuu')
+  if (!Array.isArray(w.items) || w.items.length === 0) errs.push('items pitää olla ei-tyhjä lista')
+  else {
+    const seen = new Set<string>()
+    w.items.forEach((it, i) => {
+      if (!isPlain(it)) { errs.push(`items[${i}]: pitää olla olio`); return }
+      if (typeof it.id !== 'string' || !it.id.trim()) errs.push(`items[${i}].id puuttuu`)
+      else if (seen.has(it.id)) errs.push(`items[${i}].id "${it.id}" toistuu`)
+      else seen.add(it.id)
+      if (typeof it.name !== 'string' || !it.name.trim()) errs.push(`items[${i}].name puuttuu`)
+      // Annos on tekstiä eikä lukuja: "10 × / puoli" ja "30 s" ovat molemmat
+      // oikeita vastauksia eikä niitä kannata pakottaa samaan muottiin.
+      if (typeof it.dose !== 'string' || !it.dose.trim()) errs.push(`items[${i}].dose puuttuu`)
+      if (it.gateRegion !== undefined && !BODY_REGIONS.includes(String(it.gateRegion))) {
+        errs.push(`items[${i}].gateRegion pitää olla ${BODY_REGIONS.join(' | ')}`)
+      }
+      if (it.escalated !== undefined && it.escalated !== null) {
+        const esc = it.escalated as Json
+        if (!isPlain(esc) || typeof esc.dose !== 'string') errs.push(`items[${i}].escalated.dose puuttuu`)
+      }
+    })
+  }
+  return errs
+}
+
+// ── Erot ───────────────────────────────────────────────────────
+// Listat joissa on id:t sovitetaan id:n mukaan eikä indeksin: yhden liikkeen
+// siirto listassa näyttäisi muuten siltä että kaikki muuttui, ja silloin
+// vahvistusta ei voi lukea.
+
+const MAX_DIFF_LINES = 120
+
+function short(v: unknown): string {
+  if (v === undefined) return '—'
+  const s = typeof v === 'string' ? v : JSON.stringify(v)
+  return s.length > 90 ? `${s.slice(0, 87)}…` : s
+}
+
+function hasIds(a: unknown[]): boolean {
+  return a.length > 0 && a.every((x) => isPlain(x) && typeof x.id === 'string')
+}
+
+export function diff(before: unknown, after: unknown, path: string, out: string[]): void {
+  if (out.length >= MAX_DIFF_LINES) return
+  if (JSON.stringify(before) === JSON.stringify(after)) return
+
+  if (Array.isArray(before) && Array.isArray(after) && hasIds(before) && hasIds(after)) {
+    const bById = new Map(before.map((x) => [(x as Json).id as string, x]))
+    const aById = new Map(after.map((x) => [(x as Json).id as string, x]))
+    for (const [id, b] of bById) {
+      if (!aById.has(id)) out.push(`− poistuu ${path}[${id}] (${short((b as Json).name)})`)
+    }
+    for (const [id, a] of aById) {
+      if (!bById.has(id)) out.push(`+ uusi ${path}[${id}] (${short((a as Json).name)})`)
+      else diff(bById.get(id), a, `${path}[${id}]`, out)
+    }
+    const bOrder = before.map((x) => (x as Json).id).join(',')
+    const aOrder = after.map((x) => (x as Json).id).join(',')
+    if (bOrder !== aOrder) out.push(`~ ${path}: järjestys muuttuu`)
+    return
+  }
+
+  if (isPlain(before) && isPlain(after)) {
+    for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      diff(before[k], after[k], path ? `${path}.${k}` : k, out)
+    }
+    return
+  }
+
+  out.push(`~ ${path}: ${short(before)} → ${short(after)}`)
+}
+
+// ── Kirjoituksen vaiheistus ────────────────────────────────────
+
+export function tokenFor(tool: string, id: string, before: unknown, after: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify([tool, id, before ?? null, after]))
+    .digest('hex')
+    .slice(0, 16)
+}
+
+interface StageArgs {
+  tool: string
+  table: string
+  id: string
+  /** Mitä verrataan ja mitä vahvistustunnus sitoo. Aikaleimat kannattaa
+   *  nollata täältä, muuten mikään ei koskaan ole muuttumaton. */
+  before: unknown
+  after: unknown
+  /** Mitä lokiin kirjataan, jos se on eri kuin vertailtava. Peruutus
+   *  kirjoittaa juuri tämän takaisin, joten sen on oltava kokonainen ja
+   *  todellinen olio — vertailua varten siivottu versio palauttaisi kantaan
+   *  jotain mitä siellä ei ole koskaan ollut. */
+  logBefore?: unknown
+  logAfter?: unknown
+  confirm?: string
+  errors: string[]
+  apply: () => Promise<{ error: { message: string } | null }>
+}
+
+export async function stage(a: StageArgs): Promise<unknown> {
+  if (a.errors.length > 0) {
+    return { ok: false, wrote: false, errors: a.errors, hint: 'Korjaa virheet ja kutsu uudelleen. Mitään ei kirjoitettu.' }
+  }
+  if (JSON.stringify(a.before) === JSON.stringify(a.after)) {
+    return { ok: true, wrote: false, unchanged: true, message: 'Sisältö on jo täsmälleen tämä — ei kirjoitettu mitään.' }
+  }
+
+  const token = tokenFor(a.tool, a.id, a.before, a.after)
+  const changes: string[] = []
+  if (a.before === null) changes.push(`+ uusi rivi ${a.table}[${a.id}]`)
+  else diff(a.before, a.after, '', changes)
+
+  if (a.confirm !== token) {
+    return {
+      ok: true,
+      wrote: false,
+      dryRun: true,
+      target: `${a.table}[${a.id}]`,
+      changes: changes.slice(0, MAX_DIFF_LINES),
+      truncated: changes.length > MAX_DIFF_LINES,
+      confirmToken: token,
+      hint: a.confirm
+        ? 'Vahvistustunnus ei täsmää. Joko argumentit muuttuivat tai rivi kannassa muuttui sillä välin — tässä on tuore ero ja tuore tunnus.'
+        : `Näytä nämä erot käyttäjälle. Kirjoita vasta kun hän hyväksyy: sama kutsu ja confirm: "${token}".`,
+    }
+  }
+
+  const { error } = await a.apply()
+  if (error) return { ok: false, wrote: false, errors: [error.message] }
+
+  const { data: logRow } = await supabase
+    .from('mcp_writes')
+    .insert({
+      user_id: USER_ID,
+      tool: a.tool,
+      target_table: a.table,
+      target_id: a.id,
+      before: (a.logBefore !== undefined ? a.logBefore : a.before) ?? null,
+      after: (a.logAfter !== undefined ? a.logAfter : a.after) ?? null,
+    })
+    .select('id')
+    .maybeSingle()
+
+  return {
+    ok: true,
+    wrote: true,
+    target: `${a.table}[${a.id}]`,
+    changes: changes.slice(0, MAX_DIFF_LINES),
+    writeId: (logRow as { id?: number } | null)?.id ?? null,
+    note: 'Kirjoitettu. Puhelin näkee muutoksen seuraavalla synkalla. Peruutus: undo_write tällä writeId:llä.',
+  }
+}
+
+// ── Rivimuunnokset (peilaa src/lib/workouts.ts, blocks.ts, warmups.ts) ──
+
+interface TemplateRow {
+  id: string; name: string; kind: string | null; color: string | null
+  position: number | null; exercises: unknown[]; note: string | null
+  warmup_id: string | null; warmup_progressive: boolean | null
+  archived_at: string | null; created_at: string; updated_at: string
+}
+
+const templateFromRow = (r: TemplateRow) => ({
+  id: r.id,
+  name: r.name,
+  kind: r.kind === 'mobility' ? 'mobility' : 'strength',
+  color: r.color ?? undefined,
+  position: r.position ?? undefined,
+  exercises: Array.isArray(r.exercises) ? r.exercises : [],
+  note: r.note ?? undefined,
+  warmupId: r.warmup_id ?? null,
+  warmupProgressive: r.warmup_progressive === true,
+  archivedAt: r.archived_at ?? null,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+})
+
+const templateToRow = (t: Json) => ({
+  id: t.id as string,
+  user_id: USER_ID,
+  name: t.name as string,
+  kind: (t.kind as string) ?? 'strength',
+  color: (t.color as string) ?? null,
+  position: (t.position as number) ?? null,
+  exercises: t.exercises,
+  note: (t.note as string) ?? null,
+  warmup_id: (t.warmupId as string) ?? null,
+  warmup_progressive: t.warmupProgressive === true,
+  archived_at: (t.archivedAt as string) ?? null,
+  created_at: t.createdAt as string,
+  updated_at: t.updatedAt as string,
+})
+
+interface BlockRow {
+  id: string; name: string; start_date: string; end_date: string
+  color: string | null; note: string | null; intent: string | null
+  created_at: string; updated_at: string
+}
+
+const blockFromRow = (r: BlockRow) => ({
+  id: r.id, name: r.name, startDate: r.start_date, endDate: r.end_date,
+  color: r.color ?? '#22d3ee', note: r.note ?? undefined,
+  intent: r.intent ?? undefined, createdAt: r.created_at, updatedAt: r.updated_at,
+})
+
+async function loadTemplates(): Promise<Json[]> {
+  const { data } = await supabase.from('workout_templates').select('*').eq('user_id', USER_ID)
+  return (data ?? []).map((r) => templateFromRow(r as TemplateRow) as unknown as Json)
+}
+
+async function loadWarmupIds(): Promise<string[]> {
+  const { data } = await supabase.from('workout_warmups').select('id').eq('user_id', USER_ID)
+  return (data ?? []).map((r) => (r as { id: string }).id)
+}
+
+const nowIso = () => new Date().toISOString()
+
+/** The upsert keys on `id` alone, and the service role bypasses RLS — so an id
+ *  that happens to belong to another account would be overwritten rather than
+ *  rejected. Nothing in a normal conversation produces such an id, but "only
+ *  reachable by mistake" is not a boundary. This is. */
+async function foreignRow(table: string, id: string): Promise<string[]> {
+  const { data } = await supabase.from(table).select('user_id').eq('id', id).maybeSingle()
+  const owner = (data as { user_id?: string } | null)?.user_id
+  if (owner && owner !== USER_ID) {
+    return [`Id "${id}" on jo varattu toisella tilillä taulussa ${table}. Valitse toinen id.`]
+  }
+  return []
+}
+
+// ── Lukutyökalut ───────────────────────────────────────────────
+
+function doseOf(e: Json): string {
+  const reps = e.repRange as { min: number; max: number } | undefined
+  const r = reps ? (reps.min === reps.max ? `${reps.min}` : `${reps.min}–${reps.max}`) : null
+  const iv = e.interval as { workSeconds: number; restSeconds: number; rounds: number; perSide: boolean } | undefined
+  if (iv) return `${iv.rounds} × ${iv.workSeconds}s / ${iv.restSeconds}s${iv.perSide ? ' per puoli' : ''}`
+  if (e.defaultDuration) return `${e.defaultSets} × ${e.defaultDuration} s`
+  return r ? `${e.defaultSets} × ${r}` : `${e.defaultSets} sarjaa`
+}
+
+async function listWorkoutTemplates(args: { includeArchived?: boolean }) {
+  const all = await loadTemplates()
+  const rows = all.filter((t) => args.includeArchived === true || !t.archivedAt)
+  return rows
+    .sort((a, b) => ((a.position as number) ?? 99) - ((b.position as number) ?? 99))
+    .map((t) => ({
+      id: t.id, name: t.name, kind: t.kind, color: t.color, position: t.position,
+      warmupId: t.warmupId, warmupProgressive: t.warmupProgressive,
+      archived: Boolean(t.archivedAt), note: t.note,
+      updatedAt: t.updatedAt,
+      exercises: (t.exercises as Json[]).map((e) => ({
+        id: e.id,
+        name: e.name,
+        dose: doseOf(e),
+        gated: e.gate ? (e.gate as Json).bodyRegion : undefined,
+        needs: (e.env as Json | undefined)?.requires ?? (e.envOptions as Json | undefined)?.requires,
+        hasOptions: Array.isArray((e.envOptions as Json | undefined)?.options),
+      })),
+    }))
+}
+
+async function getWorkoutTemplate(args: { id?: string; name?: string }) {
+  const all = await loadTemplates()
+  const t = args.id
+    ? all.find((x) => x.id === args.id)
+    : all.find((x) => String(x.name).toLowerCase().includes(String(args.name ?? '').toLowerCase()))
+  if (!t) return { error: 'Pohjaa ei löytynyt.', known: all.map((x) => ({ id: x.id, name: x.name })) }
+  return t
+}
+
+async function listTrainingLocations() {
+  const { data } = await supabase.from('workout_locations').select('*').eq('user_id', USER_ID)
+  type R = Record<string, unknown>
+  return (data ?? [])
+    .map((r: R) => ({
+      id: r.id, name: r.name, position: r.position,
+      capabilities: [
+        r.has_external_load ? 'externalLoad' : null,
+        r.can_muscle_up ? 'muscleUpBar' : null,
+        r.has_plyo_box ? 'plyoBox' : null,
+        r.has_anchor_and_band ? 'anchorAndBand' : null,
+        r.has_parallettes ? 'parallettes' : null,
+        r.has_trap_bar ? 'trapBar' : null,
+      ].filter(Boolean),
+    }))
+    .sort((a, b) => ((a.position as number) ?? 99) - ((b.position as number) ?? 99))
+}
+
+async function listWarmupPackages() {
+  const { data } = await supabase.from('workout_warmups').select('*').eq('user_id', USER_ID)
+  type R = Record<string, unknown>
+  return (data ?? []).map((r: R) => ({
+    id: r.id, name: r.name, note: r.note, items: r.items, updatedAt: r.updated_at,
+  }))
+}
+
+async function listTrainingBlocks() {
+  const { data } = await supabase.from('workout_blocks').select('*').eq('user_id', USER_ID)
+  const blocks = (data ?? []).map((r) => blockFromRow(r as BlockRow))
+  blocks.sort((a, b) => a.startDate.localeCompare(b.startDate))
+  const today = toISO(new Date())
+  return {
+    today,
+    current: blocks.find((b) => today >= b.startDate && today <= b.endDate) ?? null,
+    next: blocks.find((b) => b.startDate > today) ?? null,
+    blocks,
+  }
+}
+
+async function listRecentWorkouts(args: { days?: number }) {
+  const days = Math.max(1, Math.min(180, args.days ?? 28))
+  const since = addDays(toISO(new Date()), -days + 1)
+  const { data } = await supabase
+    .from('workouts')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('completed', true)
+    .gte('date', since)
+  type R = Record<string, unknown>
+  const rows = (data ?? []) as R[]
+  return {
+    since,
+    count: rows.length,
+    workouts: rows
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .map((w) => ({
+        id: w.id, date: w.date, name: w.name, templateId: w.template_id,
+        locationId: w.location_id, warmupDone: w.warmup_done,
+        exercises: ((w.exercises as Json[]) ?? []).map((e) => ({
+          name: e.name,
+          // Vain tehdyt sarjat: kuittaamaton sarja on suunnitelma, ei tulos,
+          // ja sen laskeminen mukaan näyttäisi volyymia jota ei tehty.
+          sets: ((e.sets as Json[]) ?? []).filter((s) => s.done === true).map((s) => ({
+            reps: s.reps, weight: s.weight, duration: s.duration,
+          })),
+          variant: (e.resolution as Json | undefined)?.gateState,
+          baseName: (e.resolution as Json | undefined)?.baseName,
+          unavailable: (e.resolution as Json | undefined)?.unavailable,
+        })),
+      })),
+  }
+}
+
+async function getExerciseHistory(args: { name: string; limit?: number }) {
+  const limit = Math.max(1, Math.min(40, args.limit ?? 12))
+  const { data } = await supabase
+    .from('workouts')
+    .select('date, name, exercises')
+    .eq('user_id', USER_ID)
+    .eq('completed', true)
+  type R = Record<string, unknown>
+  const needle = String(args.name ?? '').toLowerCase()
+  const hits: unknown[] = []
+  for (const w of ((data ?? []) as R[]).sort((a, b) => String(b.date).localeCompare(String(a.date)))) {
+    for (const e of ((w.exercises as Json[]) ?? [])) {
+      const nm = String(e.name ?? '').toLowerCase()
+      const base = String((e.resolution as Json | undefined)?.baseName ?? '').toLowerCase()
+      if (!nm.includes(needle) && !base.includes(needle)) continue
+      const done = ((e.sets as Json[]) ?? []).filter((s) => s.done === true)
+      if (done.length === 0) continue
+      hits.push({
+        date: w.date, session: w.name, name: e.name,
+        variant: (e.resolution as Json | undefined)?.gateState,
+        sets: done.map((s) => ({ reps: s.reps, weight: s.weight, duration: s.duration })),
+        topWeight: Math.max(...done.map((s) => Number(s.weight ?? 0))) || null,
+        totalReps: done.reduce((n, s) => n + Number(s.reps ?? 0), 0) || null,
+      })
+      if (hits.length >= limit) return { query: args.name, found: hits.length, sessions: hits }
+    }
+  }
+  return { query: args.name, found: hits.length, sessions: hits }
+}
+
+// ── Kirjoitustyökalut ──────────────────────────────────────────
+
+async function putWorkoutTemplate(args: { template?: Json; confirm?: string }) {
+  const t = args.template
+  if (!isPlain(t)) return { ok: false, errors: ['template puuttuu'] }
+  const [all, warmupIds] = await Promise.all([loadTemplates(), loadWarmupIds()])
+  const before = all.find((x) => x.id === t.id) ?? null
+
+  const errors = [
+    ...validateTemplate(t, warmupIds),
+    ...(before ? [] : await foreignRow('workout_templates', String(t.id))),
+  ]
+  // Aikaleimat eivät tule kutsujalta: luontihetki säilyy ja muokkaushetki on
+  // nyt. Jos ne olisivat argumentteja, ne olisi mahdollista kirjoittaa väärin
+  // ja pohjien järjestys sekä synkka menisivät sen mukana.
+  const after: Json = {
+    ...t,
+    kind: (t.kind as string) ?? 'strength',
+    warmupId: t.warmupId ?? null,
+    warmupProgressive: t.warmupProgressive === true,
+    archivedAt: before ? (before.archivedAt ?? null) : null,
+    createdAt: before ? before.createdAt : nowIso(),
+    updatedAt: nowIso(),
+  }
+  // Vertailu ilman updatedAt:ia, muuten mikään ei koskaan olisi muuttumaton.
+  const cmpBefore = before ? { ...before, updatedAt: '' } : null
+  const cmpAfter = { ...after, updatedAt: '' }
+
+  return stage({
+    tool: 'put_workout_template',
+    table: 'workout_templates',
+    id: String(t.id),
+    before: cmpBefore,
+    after: cmpAfter,
+    logBefore: before,
+    logAfter: after,
+    confirm: args.confirm,
+    errors,
+    apply: async () => supabase.from('workout_templates').upsert(templateToRow(after)),
+  })
+}
+
+async function setTemplateArchived(args: { id?: string; archived?: boolean; confirm?: string }) {
+  const all = await loadTemplates()
+  const before = all.find((x) => x.id === args.id) ?? null
+  if (!before) return { ok: false, errors: [`Pohjaa "${String(args.id)}" ei löytynyt.`] }
+  const archived = args.archived !== false
+  const after = { ...before, archivedAt: archived ? nowIso() : null, updatedAt: nowIso() }
+  // Vertailu pelkästä tilasta: aikaleima eroaa aina, ja "arkistoitu → yhä
+  // arkistoitu, eri kellonaika" ei ole muutos josta kannattaa kysyä.
+  const cmpBefore = { name: before.name, archived: Boolean(before.archivedAt) }
+  const cmpAfter = { name: before.name, archived }
+
+  return stage({
+    tool: 'set_template_archived',
+    table: 'workout_templates',
+    id: String(args.id),
+    before: cmpBefore,
+    after: cmpAfter,
+    logBefore: before,
+    logAfter: after,
+    confirm: args.confirm,
+    errors: [],
+    apply: async () =>
+      supabase.from('workout_templates')
+        .update({ archived_at: after.archivedAt, updated_at: after.updatedAt })
+        .eq('id', String(args.id)).eq('user_id', USER_ID),
+  })
+}
+
+async function putTrainingBlock(args: { block?: Json; confirm?: string }) {
+  const b = args.block
+  if (!isPlain(b)) return { ok: false, errors: ['block puuttuu'] }
+  const { data } = await supabase.from('workout_blocks').select('*').eq('user_id', USER_ID)
+  const all = (data ?? []).map((r) => blockFromRow(r as BlockRow))
+  const before = all.find((x) => x.id === b.id) ?? null
+
+  const errors = [
+    ...validateBlock(b),
+    ...(before ? [] : await foreignRow('workout_blocks', String(b.id))),
+  ]
+  // Päällekkäisyys ei ole virhe vaan huomautus: kaksi blokkia voi mennä
+  // limittäin siirtymäviikolla, mutta se on harvoin tahallista.
+  const overlaps = all
+    .filter((x) => x.id !== b.id && String(b.startDate) <= x.endDate && String(b.endDate) >= x.startDate)
+    .map((x) => `${x.name} (${x.startDate}…${x.endDate})`)
+
+  const after: Json = {
+    ...b,
+    color: (b.color as string) ?? '#22d3ee',
+    createdAt: before ? before.createdAt : nowIso(),
+    updatedAt: nowIso(),
+  }
+  const cmpBefore = before ? { ...before, updatedAt: '' } : null
+  const cmpAfter = { ...after, updatedAt: '' }
+
+  const res = await stage({
+    tool: 'put_training_block',
+    table: 'workout_blocks',
+    id: String(b.id),
+    before: cmpBefore,
+    after: cmpAfter,
+    logBefore: before,
+    logAfter: after,
+    confirm: args.confirm,
+    errors,
+    apply: async () => supabase.from('workout_blocks').upsert({
+      id: b.id as string, user_id: USER_ID, name: b.name as string,
+      start_date: b.startDate as string, end_date: b.endDate as string,
+      color: after.color as string, note: (b.note as string) ?? null,
+      intent: (b.intent as string) ?? null,
+      created_at: after.createdAt as string, updated_at: after.updatedAt as string,
+    }),
+  })
+  return overlaps.length > 0 ? { ...(res as Json), warning: `Menee päällekkäin: ${overlaps.join(', ')}` } : res
+}
+
+async function putWarmupPackage(args: { warmup?: Json; confirm?: string }) {
+  const w = args.warmup
+  if (!isPlain(w)) return { ok: false, errors: ['warmup puuttuu'] }
+  const { data } = await supabase.from('workout_warmups').select('*').eq('user_id', USER_ID)
+  type R = Record<string, unknown>
+  const rows = (data ?? []) as R[]
+  const row = rows.find((r) => r.id === w.id)
+  const before = row ? { id: row.id, name: row.name, note: row.note ?? undefined, items: row.items } : null
+
+  const errors = [
+    ...validateWarmup(w),
+    ...(before ? [] : await foreignRow('workout_warmups', String(w.id))),
+  ]
+  const after: Json = { id: w.id, name: w.name, note: w.note ?? undefined, items: w.items }
+
+  return stage({
+    tool: 'put_warmup_package',
+    table: 'workout_warmups',
+    id: String(w.id),
+    before,
+    after,
+    confirm: args.confirm,
+    errors,
+    apply: async () => supabase.from('workout_warmups').upsert({
+      id: w.id as string, user_id: USER_ID, name: w.name as string,
+      items: w.items, note: (w.note as string) ?? null, updated_at: nowIso(),
+    }),
+  })
+}
+
+async function listWrites(args: { limit?: number }) {
+  const limit = Math.max(1, Math.min(50, args.limit ?? 10))
+  const { data } = await supabase
+    .from('mcp_writes')
+    .select('id, at, tool, target_table, target_id, undone_at')
+    .eq('user_id', USER_ID)
+    .order('at', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+async function undoWrite(args: { writeId?: number; confirm?: string }) {
+  const { data } = await supabase
+    .from('mcp_writes').select('*').eq('user_id', USER_ID).eq('id', args.writeId ?? -1).maybeSingle()
+  const row = data as Json | null
+  if (!row) return { ok: false, errors: [`Kirjoitusta ${String(args.writeId)} ei löytynyt.`] }
+  if (row.undone_at) return { ok: false, errors: ['Tämä kirjoitus on jo peruutettu.'] }
+
+  const table = String(row.target_table)
+  const id = String(row.target_id)
+  const back = row.before as Json | null
+
+  // Peruutus kirjoittaa takaisin koko edellisen olion. Jos riviä ei ollut
+  // ennen kirjoitusta, peruutus on poisto — muuten tyhjästä luotu pohja jäisi
+  // roikkumaan puolitiehen.
+  const apply = async () => {
+    if (!back) {
+      return supabase.from(table).delete().eq('id', id).eq('user_id', USER_ID)
+    }
+    if (table === 'workout_templates') {
+      return supabase.from(table).upsert(templateToRow({ ...back, updatedAt: nowIso() }))
+    }
+    if (table === 'workout_blocks') {
+      return supabase.from(table).upsert({
+        id, user_id: USER_ID, name: back.name as string,
+        start_date: back.startDate as string, end_date: back.endDate as string,
+        color: (back.color as string) ?? null, note: (back.note as string) ?? null,
+        intent: (back.intent as string) ?? null,
+        created_at: (back.createdAt as string) ?? nowIso(), updated_at: nowIso(),
+      })
+    }
+    if (table === 'workout_warmups') {
+      return supabase.from(table).upsert({
+        id, user_id: USER_ID, name: back.name as string,
+        items: back.items, note: (back.note as string) ?? null, updated_at: nowIso(),
+      })
+    }
+    return { error: { message: `Taulun ${table} peruutusta ei ole toteutettu.` } }
+  }
+
+  const token = tokenFor('undo_write', String(args.writeId), row.after ?? null, back)
+  if (args.confirm !== token) {
+    const changes: string[] = []
+    diff(row.after ?? null, back, '', changes)
+    return {
+      ok: true, wrote: false, dryRun: true,
+      target: `${table}[${id}]`,
+      undoing: { tool: row.tool, at: row.at },
+      changes: changes.slice(0, MAX_DIFF_LINES),
+      confirmToken: token,
+      hint: `Peruutus palauttaa koko edellisen version. Vahvista: confirm: "${token}".`,
+    }
+  }
+
+  const { error } = await apply()
+  if (error) return { ok: false, wrote: false, errors: [error.message] }
+  await supabase.from('mcp_writes').update({ undone_at: nowIso() }).eq('id', args.writeId ?? -1).eq('user_id', USER_ID)
+  return { ok: true, wrote: true, target: `${table}[${id}]`, note: 'Peruutettu.' }
+}
+
 // ── Tool registry ──────────────────────────────────────────────
 const TOOLS = [
   {
@@ -573,6 +1372,146 @@ const TOOLS = [
     description: "Each non-archived habit with today's (or current week's) value vs goal.",
     inputSchema: { type: 'object', properties: {} },
   },
+
+  // ── Ohjelmointi: luku ────────────────────────────────────────
+  {
+    name: 'list_workout_templates',
+    description:
+      'All workout templates (the programme) in display order: name, kind, colour, warm-up package, and for each slot its id, movement, dose, which body-region gate controls it and what equipment it needs. Start here before proposing any change to the programme.',
+    inputSchema: {
+      type: 'object',
+      properties: { includeArchived: { type: 'boolean', description: 'Include retired templates too', default: false } },
+    },
+  },
+  {
+    name: 'get_workout_template',
+    description:
+      'One template in full, exactly as stored: every slot with its gate variants (develop/hybrid/treat/rest), environment requirements and fallbacks. This is the object to edit and hand back to put_workout_template.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Template id' },
+        name: { type: 'string', description: 'Or a substring of the name' },
+      },
+    },
+  },
+  {
+    name: 'list_training_locations',
+    description:
+      'Training places and what each one has (external load, muscle-up bar, plyo box, anchor+band, parallettes, trap bar). A slot may only require capabilities that some place actually offers.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'list_warmup_packages',
+    description: 'Warm-up packages with their items and doses. A template references one by warmupId.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'list_training_blocks',
+    description: 'Training blocks with the one running today and the one coming next.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'list_recent_workouts',
+    description:
+      'Completed sessions from the last N days (default 28) with only the sets that were actually ticked off, plus which gate variant was done. This is what the programme should be judged against.',
+    inputSchema: {
+      type: 'object',
+      properties: { days: { type: 'number', description: 'How many days back', default: 28 } },
+    },
+  },
+  {
+    name: 'get_exercise_history',
+    description:
+      'How one movement has progressed across sessions: matched on the logged name or the template slot name, newest first, with top weight and total reps per session.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Movement name or part of it' },
+        limit: { type: 'number', description: 'How many sessions', default: 12 },
+      },
+      required: ['name'],
+    },
+  },
+
+  // ── Ohjelmointi: kirjoitus ───────────────────────────────────
+  // Jokainen näistä on kaksivaiheinen. Kuvaus sanoo sen ääneen, koska malli
+  // joka ei tiedä sitä kutsuu kerran, näkee "wrote: false" ja luulee
+  // epäonnistuneensa.
+  {
+    name: 'put_workout_template',
+    description:
+      'Create or replace a whole workout template, matched by its stable id. TWO-STEP: the first call writes nothing — it validates, returns the exact changes and a confirmToken. Show those changes to the user, and only once they agree, call again with the identical template plus confirm: "<token>". Pass the whole object (fetch it with get_workout_template and edit it); omitted fields are dropped. Slot ids must stay stable — they are what links a logged session back to the slot it came from. createdAt/updatedAt/archivedAt are managed here, not by you.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        template: { type: 'object', description: 'The full WorkoutTemplate object: id, name, kind, color, position, note, warmupId, warmupProgressive, exercises[]' },
+        confirm: { type: 'string', description: 'The confirmToken from the dry run. Leave out on the first call.' },
+      },
+      required: ['template'],
+    },
+  },
+  {
+    name: 'set_template_archived',
+    description:
+      'Retire a template (or bring it back). Archiving keeps all history and only removes it from the pickers — prefer it over deleting. Two-step like every write.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        archived: { type: 'boolean', description: 'true = retire (default), false = restore' },
+        confirm: { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'put_training_block',
+    description:
+      'Create or replace a training block (id, name, startDate, endDate, intent, color, note). Warns if the dates overlap another block. Two-step like every write.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        block: { type: 'object', description: 'id, name, startDate, endDate (YYYY-MM-DD), intent (base|strength|skill|peak|deload|other), color, note' },
+        confirm: { type: 'string' },
+      },
+      required: ['block'],
+    },
+  },
+  {
+    name: 'put_warmup_package',
+    description:
+      'Create or replace a warm-up package (id, name, note, items[] with id/name/dose/note/progressive/gateRegion/escalated). Two-step like every write.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        warmup: { type: 'object' },
+        confirm: { type: 'string' },
+      },
+      required: ['warmup'],
+    },
+  },
+  {
+    name: 'list_writes',
+    description: 'Recent writes made through this MCP, newest first, with the id needed to undo one.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number', default: 10 } },
+    },
+  },
+  {
+    name: 'undo_write',
+    description:
+      'Restore what a write replaced, by its writeId from list_writes. Puts back the whole previous object; if the write created the row, undoing deletes it. Two-step like every write.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        writeId: { type: 'number' },
+        confirm: { type: 'string' },
+      },
+      required: ['writeId'],
+    },
+  },
 ]
 
 async function dispatch(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -595,6 +1534,35 @@ async function dispatch(name: string, args: Record<string, unknown>): Promise<un
       return listOverBudgetDays(args as { days?: number })
     case 'get_habits_today':
       return getHabitsToday()
+
+    case 'list_workout_templates':
+      return listWorkoutTemplates(args as { includeArchived?: boolean })
+    case 'get_workout_template':
+      return getWorkoutTemplate(args as { id?: string; name?: string })
+    case 'list_training_locations':
+      return listTrainingLocations()
+    case 'list_warmup_packages':
+      return listWarmupPackages()
+    case 'list_training_blocks':
+      return listTrainingBlocks()
+    case 'list_recent_workouts':
+      return listRecentWorkouts(args as { days?: number })
+    case 'get_exercise_history':
+      return getExerciseHistory(args as { name: string; limit?: number })
+
+    case 'put_workout_template':
+      return putWorkoutTemplate(args as { template?: Json; confirm?: string })
+    case 'set_template_archived':
+      return setTemplateArchived(args as { id?: string; archived?: boolean; confirm?: string })
+    case 'put_training_block':
+      return putTrainingBlock(args as { block?: Json; confirm?: string })
+    case 'put_warmup_package':
+      return putWarmupPackage(args as { warmup?: Json; confirm?: string })
+    case 'list_writes':
+      return listWrites(args as { limit?: number })
+    case 'undo_write':
+      return undoWrite(args as { writeId?: number; confirm?: string })
+
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
