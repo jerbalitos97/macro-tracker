@@ -1,5 +1,10 @@
 # Friday
 
+**Vastaa kolmella bulletilla.** Jere lukee vastaukset puhelimelta eikä halua
+pitkää tekstiä: kolme ranskalaista viivaa, ei johdantoa, ei yhteenvetoa.
+Perustelut ja mittaustulokset kuuluvat committiin ja koodin kommentteihin,
+joissa ne myös säilyvät — chatissa ne vain hukkuvat.
+
 Finnish-language, mobile-first PWA. React + TypeScript + Vite + Tailwind v4,
 Supabase for sync, localStorage as the offline cache and source of truth for
 several tools.
