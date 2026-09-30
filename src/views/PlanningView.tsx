@@ -397,7 +397,13 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                     className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-faint"
                     style={{ color: isActive ? color : undefined }}
                   >
-                    {p.status === 'active' ? 'Aktiivinen' : p.status === 'achieved' ? 'Saavutettu' : 'Päätetty'}
+                    {p.status === 'active'
+                      ? 'Aktiivinen'
+                      : p.status === 'planned'
+                        ? 'Suunniteltu'
+                        : p.status === 'achieved'
+                          ? 'Saavutettu'
+                          : 'Päätetty'}
                   </div>
                   {!isActive && (
                     <button

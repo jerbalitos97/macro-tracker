@@ -93,7 +93,8 @@ const README: Record<string, string> = {
     'Weekend readings are deliberately kept in: every 7-day window spans exactly ' +
     'one weekend, so the water cancels out of any comparison between two points.',
   goalPeriods:
-    'The goal history. type is cut/maintenance/refill/bulk, status active/achieved/' +
+    'The goal history. type is cut/maintenance/refill/bulk, status planned (written ' +
+    'ahead, governs nothing until its own start date)/active/achieved/' +
     'ended. weekendMaintenance means the period pushed its whole deficit onto ' +
     'weekdays and ate at maintenance on Sat/Sun. blockId links a period to the ' +
     'training block it was planned against.',

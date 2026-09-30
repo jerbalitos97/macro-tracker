@@ -9,7 +9,12 @@ export interface TdeeMap {
 }
 
 export type PeriodType = 'cut' | 'maintenance' | 'refill' | 'bulk'
-export type PeriodStatus = 'active' | 'achieved' | 'retired'
+/** `planned` is a period that exists but has not started. It governs nothing
+ *  until its own start date arrives, and then it governs without anyone
+ *  flipping a switch — see `getActivePeriod`. Without it a future phase could
+ *  only be stored as `active`, which would hand it today's budget the moment it
+ *  was saved, weeks early. */
+export type PeriodStatus = 'active' | 'planned' | 'achieved' | 'retired'
 
 /**
  * One tavoitejakso. Multiple periods chain end→end to form a step-shaped

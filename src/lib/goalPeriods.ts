@@ -28,8 +28,22 @@ export function getPeriods(settings: Settings): GoalPeriod[] {
   return [...list].sort((a, b) => a.startDate.localeCompare(b.startDate))
 }
 
+/** Is this period the one in force today?
+ *
+ *  `active` always is. `planned` is too, but only once its own start date has
+ *  arrived and while its end date has not passed — that is what lets a phase be
+ *  written weeks ahead and take over by itself on the right morning, with
+ *  nobody remembering to flip it. Before that day it is inert, which is the
+ *  whole point: a future phase stored as `active` would seize today's budget
+ *  the moment it was saved. */
+function isLive(p: GoalPeriod, today: string): boolean {
+  if (p.status === 'active') return true
+  return p.status === 'planned' && p.startDate <= today && today <= p.endDate
+}
+
 /** The period currently considered "active". Priority:
- *  1. status === 'active' (most recent if multiple)
+ *  1. live — status 'active', or 'planned' and today falls inside it
+ *     (most recent by start date if several)
  *  2. period whose [start,end] range contains today
  *  3. most recent ended period (so the analysis still has something to show)
  *  Returns null only when there are zero periods. */
@@ -37,7 +51,7 @@ export function getActivePeriod(settings: Settings, today: string): GoalPeriod |
   const periods = getPeriods(settings)
   if (periods.length === 0) return null
 
-  const actives = periods.filter((p) => p.status === 'active')
+  const actives = periods.filter((p) => isLive(p, today))
   if (actives.length > 0) {
     // newest active by startDate
     return actives.reduce((a, b) => (a.startDate >= b.startDate ? a : b))
