@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { ChevronLeft, Plus, Trash2, Check, Dumbbell, Timer, GripVertical } from 'lucide-react'
 import { Card, CARD_CLASSES, Button, DragItem, useDragReorder, moveById, moveByDelta } from '../ui'
 import type { WorkoutTemplate, TemplateExercise, TemplateKind, IntervalConfig } from '../../lib/workouts'
+import type { TrainingBlock } from '../../lib/blocks'
 import { GateEditor } from './GateEditor'
 import { uid, TEMPLATE_COLORS, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 
 interface Props {
   initial?: WorkoutTemplate
+  /** Blokit joihin pohjan voi sitoa. Tyhjä lista piilottaa valinnan kokonaan —
+   *  sidonta ilman blokkeja ei tarkoita mitään. */
+  blocks?: TrainingBlock[]
   onSave: (template: WorkoutTemplate) => void
   onCancel: () => void
 }
@@ -29,10 +33,11 @@ function toInt(v: string): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined
 }
 
-export function TemplateEditor({ initial, onSave, onCancel }: Props) {
+export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [kind, setKind] = useState<TemplateKind>(initial?.kind ?? 'strength')
   const [color, setColor] = useState<string>(initial?.color ?? DEFAULT_TEMPLATE_COLOR)
+  const [blockId, setBlockId] = useState<string | null>(initial?.blockId ?? null)
   const [exercises, setExercises] = useState<TemplateExercise[]>(
     initial?.exercises.length ? initial.exercises.map((e) => ({ ...e })) : [blankExercise(initial?.kind ?? 'strength')],
   )
@@ -98,6 +103,7 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
       name: name.trim(),
       kind,
       color,
+      blockId,
       exercises: cleaned,
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
@@ -148,6 +154,28 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
             </button>
           ))}
         </div>
+
+        {blocks.length > 0 && (
+          <>
+            <label className={`${label} mt-3`}>Käytössä blokissa</label>
+            <select
+              value={blockId ?? ''}
+              onChange={(e) => setBlockId(e.target.value === '' ? null : e.target.value)}
+              className="w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text [color-scheme:dark]"
+            >
+              <option value="">Aina käytössä</option>
+              {blocks.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} · {b.startDate.slice(8, 10)}.{b.startDate.slice(5, 7)}.
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] leading-relaxed text-fg-ghost">
+              Blokkiin sidottu pohja on näkyvissä ja muokattavissa heti, mutta tarjolla vasta kun
+              se blokki on menossa.
+            </p>
+          </>
+        )}
 
         <label className={`${label} mt-3`}>Väri</label>
         <div className="flex flex-wrap gap-2">

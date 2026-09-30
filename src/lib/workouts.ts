@@ -132,6 +132,15 @@ export interface WorkoutTemplate {
   /** This session carries the once-a-week progressive dose of whichever warm-up
    *  items are marked progressive. Everywhere else they stay light. */
   warmupProgressive?: boolean
+  /** The training block this template belongs to.
+   *
+   *  Absent or null is the ordinary case: the template is always available.
+   *  Set, and the template is only offered while that block is the one running
+   *  today — which is what lets a whole next-block programme be written weeks
+   *  ahead without appearing in the picker before its time. It stays visible
+   *  and editable in the template list the whole while, marked as upcoming; a
+   *  plan you cannot see is a plan you cannot correct. */
+  blockId?: string | null
   /** Retired templates keep their history but leave the pickers. Null or
    *  absent means active. */
   archivedAt?: string | null
@@ -307,6 +316,42 @@ export function setArchived(id: string, archived: boolean): WorkoutTemplate[] {
   return sortTemplates(next)
 }
 
+/** Is this template offered today?
+ *
+ *  An unbound template always is — that is every template that existed before
+ *  blocks could own one, so nothing changes for them. A bound one is offered
+ *  only while its own block is the one running, which is the whole mechanism:
+ *  the next block's programme can be written now and still stay out of today's
+ *  picker.
+ *
+ *  `currentBlockId` null means no block covers today. Bound templates are then
+ *  all out — a programme written for a block is not a programme for the gap
+ *  between blocks. */
+export function templateInPlay(t: WorkoutTemplate, currentBlockId: string | null): boolean {
+  if (t.archivedAt) return false
+  if (!t.blockId) return true
+  return t.blockId === currentBlockId
+}
+
+/** Live templates bound to some *other* block — written ahead, not yet in use.
+ *  Shown in the template list so they can be edited before their turn. */
+export function upcomingTemplates(
+  templates: WorkoutTemplate[],
+  currentBlockId: string | null,
+): WorkoutTemplate[] {
+  return templates.filter((t) => !t.archivedAt && t.blockId && t.blockId !== currentBlockId)
+}
+
+/** Templates that the arriving block replaces: live, offered today, and not
+ *  part of that block. These are what the app offers to archive when a block's
+ *  own programme takes over. */
+export function supersededByBlock(
+  templates: WorkoutTemplate[],
+  blockId: string,
+): WorkoutTemplate[] {
+  return templates.filter((t) => !t.archivedAt && t.blockId !== blockId && templateInPlay(t, blockId))
+}
+
 export function saveTemplate(t: WorkoutTemplate): WorkoutTemplate[] {
   const next = sortTemplates([...getTemplates().filter((x) => x.id !== t.id), t])
   write(K_TEMPLATES, next)
@@ -345,6 +390,7 @@ interface TemplateRow {
   note: string | null
   warmup_id: string | null
   warmup_progressive: boolean | null
+  block_id: string | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -360,6 +406,7 @@ const fromTemplateRow = (r: TemplateRow): WorkoutTemplate => ({
   note: r.note ?? undefined,
   warmupId: r.warmup_id ?? null,
   warmupProgressive: r.warmup_progressive === true,
+  blockId: r.block_id ?? null,
   archivedAt: r.archived_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -401,6 +448,7 @@ export function syncTemplateCloud(userId: string, t: WorkoutTemplate): void {
       note: t.note ?? null,
       warmup_id: t.warmupId ?? null,
       warmup_progressive: t.warmupProgressive === true,
+      block_id: t.blockId ?? null,
       archived_at: t.archivedAt ?? null,
       created_at: t.createdAt,
       updated_at: t.updatedAt,

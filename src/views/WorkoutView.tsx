@@ -22,12 +22,14 @@ import { computeLoggableBurn } from '../lib/energy'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getTemplates, archivedTemplates, setArchived, saveTemplate, deleteTemplate, reorderTemplates,
+  templateInPlay, upcomingTemplates, supersededByBlock,
   pullTemplates, syncTemplateCloud, deleteTemplateCloud,
   getWorkouts, saveWorkout, deleteWorkout,
   pullWorkouts, syncWorkoutCloud, deleteWorkoutCloud,
   getDrafts, saveDraft, clearDraft, newWorkout, lastEntryForExercise,
 } from '../lib/workouts'
 import { DEFAULT_TEMPLATE_COLOR } from '../lib/workouts'
+import { getPrefs, savePrefsLocal, syncPrefsCloud } from '../lib/uiPrefs'
 import type { Workout, WorkoutTemplate, TemplateKind } from '../lib/workouts'
 import {
   getBlocks, pullBlocks,
@@ -329,6 +331,36 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
   // ── Training blocks ──────────────────────────────────────────────
   const status = blockStatus(blocks, todayISO)
+  const currentBlockId = status.current?.id ?? null
+  const upcoming = upcomingTemplates(templates, currentBlockId)
+
+  // Kun blokin oma ohjelma astuu voimaan, edelliset pohjat jäävät roikkumaan
+  // valikkoon. Kysytään kerran per blokki eikä arkistoida itse: pohjien
+  // eläköittäminen on ohjelmapäätös, ja kalenterin vaihtuminen on huono syy
+  // tehdä se kenenkään puolesta.
+  const superseded = currentBlockId
+    ? supersededByBlock(templates, currentBlockId)
+    : []
+  const blockHasOwn = currentBlockId
+    ? templates.some((t) => !t.archivedAt && t.blockId === currentBlockId)
+    : false
+  const askArchive =
+    blockHasOwn && superseded.length > 0 && getPrefs().blockTemplateAck !== currentBlockId
+  const [archivePrompt, setArchivePrompt] = useState(true)
+
+  const answerArchive = (archive: boolean) => {
+    if (archive) {
+      let next = templates
+      for (const t of superseded) next = setArchived(t.id, true)
+      setTemplates(next)
+      if (user) {
+        for (const t of next) if (superseded.some((s) => s.id === t.id)) syncTemplateCloud(user.id, t)
+      }
+    }
+    const prefs = savePrefsLocal({ ...getPrefs(), blockTemplateAck: currentBlockId ?? undefined })
+    if (user) syncPrefsCloud(user.id, prefs)
+    setArchivePrompt(false)
+  }
 
   // Fire the once-a-day reminder on open and whenever the app returns to the
   // foreground. iOS can't schedule notifications for a closed web app, so this
@@ -452,6 +484,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
       <>
         <TemplateEditor
           initial={editing ?? undefined}
+          blocks={blocks}
           onSave={handleSaveTemplate}
           onCancel={() => { setEditing(null); setScreen('home') }}
         />
@@ -530,7 +563,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
             <div className={sectionLabel}>Aloita pohjasta</div>
             <div className="grid grid-cols-2 gap-3">
               {KINDS.map((k) => {
-                const count = templates.filter((t) => templateKind(t) === k.id && !t.archivedAt).length
+                const count = templates.filter(
+                  (t) => templateKind(t) === k.id && templateInPlay(t, currentBlockId),
+                ).length
                 return (
                   <button
                     key={k.id}
@@ -562,7 +597,8 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           </button>
 
           {KINDS.map((k) => {
-            const group = templates.filter((t) => templateKind(t) === k.id && !t.archivedAt)
+            const group = templates.filter((t) => templateKind(t) === k.id && templateInPlay(t, currentBlockId))
+            const tulossa = upcoming.filter((t) => templateKind(t) === k.id)
             return (
               <div key={k.id}>
                 <div className={sectionLabel}>{k.label}</div>
@@ -577,6 +613,38 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                     onDelete={handleDeleteTemplate}
                     onReorder={(ids) => handleReorderTemplates(k.id, ids)}
                   />
+                )}
+
+                {/* Seuraavan blokin ohjelma. Näkyvissä ja muokattavissa, muttei
+                    tarjolla — pohja jota ei näe on pohja jota ei ehdi korjata. */}
+                {tulossa.length > 0 && (
+                  <div className="mt-3">
+                    <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">
+                      Tulossa käyttöön
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {tulossa.map((t) => {
+                        const b = blocks.find((x) => x.id === t.blockId)
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => { setEditing(t); setScreen('editTemplate') }}
+                            className="relative flex min-h-[92px] flex-col justify-between overflow-hidden rounded-tile border border-dashed border-white/[0.16] bg-[rgba(9,11,20,0.35)] p-4 text-left"
+                          >
+                            <Layers size={16} className="text-fg-faint" />
+                            <div>
+                              <div className="line-clamp-2 font-display text-[13px] font-semibold leading-tight text-fg-dim">
+                                {t.name}
+                              </div>
+                              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">
+                                {b ? `${b.name} · ${fromISO(b.startDate).toLocaleDateString('fi-FI')}` : 'ei blokkia'}
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             )
@@ -927,9 +995,37 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
         )
       })()}
 
+      {askArchive && archivePrompt && status.current && (
+        <Sheet
+          open
+          onClose={() => setArchivePrompt(false)}
+          title={<><Layers size={14} /> Uusi blokki alkoi</>}
+        >
+          <p className="text-[13px] leading-relaxed text-fg-dim">
+            <strong className="text-text">{status.current.name}</strong> on alkanut ja sen omat pohjat
+            ovat nyt käytössä. Edelliset {superseded.length} pohjaa ovat yhä valikossa.
+          </p>
+          <div className="mt-2.5 flex flex-col gap-1">
+            {superseded.map((t) => (
+              <div key={t.id} className="truncate font-mono text-[11px] text-fg-faint">{t.name}</div>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button variant="primary" onClick={() => answerArchive(true)}>
+              <Archive size={15} /> Siirrä arkistoon
+            </Button>
+            <Button variant="secondary" onClick={() => answerArchive(false)}>Pidä käytössä</Button>
+          </div>
+          <p className="mt-2.5 text-[10px] leading-relaxed text-fg-ghost">
+            Arkistointi ei poista mitään: vanhat treenit osoittavat edelleen näihin pohjiin, ja ne
+            voi palauttaa arkistosta milloin tahansa. Kysytään kerran tätä blokkia kohden.
+          </p>
+        </Sheet>
+      )}
+
       {picking && (() => {
         const kind = KINDS.find((k) => k.id === picking)!
-        const group = templates.filter((t) => templateKind(t) === picking && !t.archivedAt)
+        const group = templates.filter((t) => templateKind(t) === picking && templateInPlay(t, currentBlockId))
         return (
           <Sheet
             open

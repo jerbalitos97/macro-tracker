@@ -115,7 +115,10 @@ const README: Record<string, string> = {
     'gate = off today). That is what makes variant-versus-result analysable after ' +
     'the fact.',
   workoutTemplates:
-    'Reusable session plans. archivedAt marks a retired template — retired, not ' +
+    'Reusable session plans. blockId binds a template to one training block: it '
+    + 'is offered only while that block is running, which is how a next-block '
+    + 'programme can exist weeks before it is used. Null means always available. '
+    + 'archivedAt marks a retired template — retired, not ' +
     'deleted, so old sessions still point at something. An exercise may carry env ' +
     '(what the room must provide, and the substitute when it does not) and gate ' +
     '(which body region sets its intensity, and the variant per state). A gate ' +

@@ -674,6 +674,9 @@ export function validateTemplate(t: unknown, knownWarmupIds: string[]): string[]
   if (t.color !== undefined && t.color !== null && !/^#[0-9a-fA-F]{6}$/.test(String(t.color))) {
     errs.push('color pitää olla #rrggbb')
   }
+  if (t.blockId !== undefined && t.blockId !== null && typeof t.blockId !== 'string') {
+    errs.push('blockId pitää olla blokin id tai null')
+  }
   if (t.warmupId !== undefined && t.warmupId !== null) {
     if (!knownWarmupIds.includes(String(t.warmupId))) {
       errs.push(`warmupId "${String(t.warmupId)}" ei vastaa mitään lämpöpakettia (tunnetut: ${knownWarmupIds.join(', ') || 'ei yhtään'})`)
@@ -871,6 +874,7 @@ interface TemplateRow {
   id: string; name: string; kind: string | null; color: string | null
   position: number | null; exercises: unknown[]; note: string | null
   warmup_id: string | null; warmup_progressive: boolean | null
+  block_id: string | null
   archived_at: string | null; created_at: string; updated_at: string
 }
 
@@ -884,6 +888,7 @@ const templateFromRow = (r: TemplateRow) => ({
   note: r.note ?? undefined,
   warmupId: r.warmup_id ?? null,
   warmupProgressive: r.warmup_progressive === true,
+  blockId: r.block_id ?? null,
   archivedAt: r.archived_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -900,6 +905,7 @@ const templateToRow = (t: Json) => ({
   note: (t.note as string) ?? null,
   warmup_id: (t.warmupId as string) ?? null,
   warmup_progressive: t.warmupProgressive === true,
+  block_id: (t.blockId as string) ?? null,
   archived_at: (t.archivedAt as string) ?? null,
   created_at: t.createdAt as string,
   updated_at: t.updatedAt as string,
@@ -960,7 +966,7 @@ async function listWorkoutTemplates(args: { includeArchived?: boolean }) {
     .sort((a, b) => ((a.position as number) ?? 99) - ((b.position as number) ?? 99))
     .map((t) => ({
       id: t.id, name: t.name, kind: t.kind, color: t.color, position: t.position,
-      warmupId: t.warmupId, warmupProgressive: t.warmupProgressive,
+      warmupId: t.warmupId, warmupProgressive: t.warmupProgressive, blockId: t.blockId,
       archived: Boolean(t.archivedAt), note: t.note,
       updatedAt: t.updatedAt,
       exercises: (t.exercises as Json[]).map((e) => ({
@@ -1104,6 +1110,7 @@ async function putWorkoutTemplate(args: { template?: Json; confirm?: string }) {
   const after: Json = {
     ...t,
     kind: (t.kind as string) ?? 'strength',
+    blockId: t.blockId ?? null,
     warmupId: t.warmupId ?? null,
     warmupProgressive: t.warmupProgressive === true,
     archivedAt: before ? (before.archivedAt ?? null) : null,

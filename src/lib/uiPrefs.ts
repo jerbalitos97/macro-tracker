@@ -14,6 +14,12 @@ export interface UiPrefs {
   /** Värähtääkö laite painalluksista. Oletus on päällä, ja poissaolo luetaan
    *  päälle — vanha tallennettu asetus ei siis hiljennä laitetta. */
   haptics?: boolean
+  /** Viimeisin treeniblokki jonka pohjien käyttöönotosta on jo kysytty.
+   *  Kysymys on kertaluontoinen: siihen vastataan kerran blokkia kohden, ja
+   *  vastaus — kumpi tahansa — lopettaa kysymisen. Ilman tätä sama kysymys
+   *  odottaisi joka avauksella, ja siinä vaiheessa siihen vastataan
+   *  katsomatta. */
+  blockTemplateAck?: string
 }
 
 /** Yksi paikka jossa oletus asuu, jotta "ei tallennettu" ja "päällä" eivät
