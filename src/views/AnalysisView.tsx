@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { ComputedResult, Settings, WeightEntry, Meal, TdeeEvalResult } from '../types'
+import type { ComputedResult, Settings, WeightEntry, Meal, TdeeEvalResult, DailyAdjustment } from '../types'
 import { toISO, formatDateShort } from '../lib/dates'
 import { computeWeightTrend, estimateTdeeAdjustment } from '../lib/weight'
 import { buildAnalysis } from '../lib/analysis'
@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { GoalChart } from '../components/GoalChart'
 import { DeficitChart } from '../components/DeficitChart'
 import { RolloutModal } from '../components/RolloutModal'
+import { MaintenanceGuardCard } from '../components/MaintenanceGuardCard'
 import { Card, Button } from '../components/ui'
 
 // The single analysis screen. "Trendit" and "Tavoite" were two tabs asking the
@@ -47,11 +48,17 @@ interface Props {
   settings: Settings
   weights: WeightEntry[]
   meals: Meal[]
+  adjustments: DailyAdjustment[]
+  setSettings: (s: Settings) => void
   /** Rolls a signed kcal total forward onto future days, tagged with its source. */
   onApplyRollout: (days: Array<{ date: string; kcal: number }>, sourceKey: string) => void
+  onDeleteAdjustment: (id: number) => void
 }
 
-export function AnalysisView({ computed, settings, weights, meals, onApplyRollout }: Props) {
+export function AnalysisView({
+  computed, settings, weights, meals, adjustments, setSettings,
+  onApplyRollout, onDeleteAdjustment,
+}: Props) {
   const { user } = useAuth()
   const todayISO = toISO(new Date())
   const [showRollout, setShowRollout] = useState(false)
@@ -97,7 +104,19 @@ export function AnalysisView({ computed, settings, weights, meals, onApplyRollou
         </p>
       </div>
 
-      <div className="mb-4">
+      {/* Ylläpidon vahti. Ylimpänä, koska se on ainoa kortti tällä ruudulla
+          joka pyytää päätöstä — loput raportoivat. */}
+      <MaintenanceGuardCard
+        settings={settings}
+        setSettings={setSettings}
+        weights={weights}
+        adjustments={adjustments}
+        todayISO={todayISO}
+        onApplyRollout={onApplyRollout}
+        onDeleteAdjustment={onDeleteAdjustment}
+      />
+
+      <div className="mb-4 mt-4">
         <div className="mb-1.5 flex justify-between text-[11px] text-fg-faint">
           <span>Päivä {goal.elapsedDays} / {goal.totalDays}</span>
           <span>{progressPct.toFixed(0)} %</span>

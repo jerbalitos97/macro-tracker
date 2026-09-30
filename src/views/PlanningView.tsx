@@ -20,6 +20,7 @@ import { toISO, formatDateShort, daysBetween, addDays, getWeekdayNum } from '../
 import { GoalPeriodModal } from '../components/GoalPeriodModal'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, Button } from '../components/ui'
+import { guardSettings } from '../lib/maintenanceGuard'
 
 // Training and nutrition are planned here, against each other.
 //
@@ -498,6 +499,10 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             />
           ))}
         </Card>
+
+        {/* Ylläpidon vahti. Parametrit täällä, arvio ja ehdotus Analyysissa —
+            täällä suunnitellaan, muualla raportoidaan. */}
+        <GuardCard settings={settings} setSettings={setSettings} />
 
         <Card variant="glass" className="mt-2.5">
           <div className={cardLabel}>Viikkorytmi</div>
@@ -984,5 +989,146 @@ function NowRow({
         {sub && <div className="truncate text-[10px] text-fg-faint">{sub}</div>}
       </div>
     </div>
+  )
+}
+
+/** Ylläpidon vahdin parametrit.
+ *
+ *  Jokainen luku on täällä eikä koodissa, koska jokainen niistä on arvaus
+ *  jonka oikea arvo selviää vasta käytössä: neljä punnitusta viikossa voi olla
+ *  liikaa vaadittu, kilo voi olla väärä raja, ja kahden viikon putki voi olla
+ *  liian hidas tai liian herkkä. Koodiin kovakoodattuna niitä ei säädettäisi
+ *  vaan siedettäisiin. */
+function GuardCard({ settings, setSettings }: { settings: Settings; setSettings: (s: Settings) => void }) {
+  const g = guardSettings(settings.maintenanceGuard)
+  const save = (patch: Partial<typeof g>) =>
+    setSettings({ ...settings, maintenanceGuard: { ...g, ...patch } })
+
+  const num = (
+    label: string,
+    value: number,
+    onChange: (n: number) => void,
+    step = '1',
+    hint?: string,
+  ) => (
+    <div className="mt-1.5 flex items-center justify-between gap-3">
+      <label className="min-w-0 flex-1">
+        <span className="block text-[12px] text-muted">{label}</span>
+        {hint && <span className="block text-[10px] leading-snug text-fg-ghost">{hint}</span>}
+      </label>
+      <input
+        type="number"
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={`${inputCls} w-[110px] text-center`}
+        style={{ marginTop: 0, marginBottom: 0 }}
+      />
+    </div>
+  )
+
+  return (
+    <Card variant="glass" className="mt-2.5">
+      <div className={`${cardLabel} flex items-center justify-between`}>
+        <span>Ylläpidon vahti</span>
+        <button
+          role="switch"
+          aria-checked={g.enabled}
+          onClick={() => save({ enabled: !g.enabled })}
+          className={`!min-h-0 rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${
+            g.enabled ? 'bg-accent/25 text-accent' : 'border border-white/10 text-fg-faint'
+          }`}
+        >
+          {g.enabled ? 'Päällä' : 'Pois'}
+        </button>
+      </div>
+      <p className="m-0 mb-2 text-[11px] leading-relaxed text-fg-faint">
+        Vertaa viikkokeskiarvoa ankkuriin ja ehdottaa vajetta, jos paino on rajan yli kaksi
+        kelvollista viikkoa peräkkäin. Ehdottaa aina, ei koskaan sovella itse.
+      </p>
+
+      {g.enabled && (
+        <>
+          <div className="mt-1.5 flex items-center justify-between gap-3">
+            <label className="min-w-0 flex-1">
+              <span className="block text-[12px] text-muted">Ankkuriviikko alkaa</span>
+              <span className="block text-[10px] leading-snug text-fg-ghost">
+                ensimmäinen täysi maanantai–sunnuntai cutin jälkeen
+              </span>
+            </label>
+            <input
+              type="date"
+              value={g.anchorWeekStart}
+              onChange={(e) => save({ anchorWeekStart: e.target.value })}
+              className={`${inputCls} w-[150px]`}
+              style={{ marginTop: 0, marginBottom: 0 }}
+            />
+          </div>
+
+          <div className="mt-1.5 flex items-center justify-between gap-3">
+            <label className="min-w-0 flex-1">
+              <span className="block text-[12px] text-muted">Ankkuri (kg)</span>
+              <span className="block text-[10px] leading-snug text-fg-ghost">
+                tyhjä = laske ankkuriviikon keskiarvosta
+              </span>
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={g.anchorKg ?? ''}
+              placeholder="auto"
+              onChange={(e) => save({ anchorKg: e.target.value === '' ? null : Number(e.target.value) })}
+              className={`${inputCls} w-[110px] text-center`}
+              style={{ marginTop: 0, marginBottom: 0 }}
+            />
+          </div>
+
+          {num('Punnituksia / viikko', g.minWeighInsPerWeek, (n) => save({ minWeighInsPerWeek: n }), '1',
+            'alle tämän viikko ei laukaise eikä nollaa putkea')}
+          {num('Raja ankkurin yli (kg)', g.triggerThresholdKg, (n) => save({ triggerThresholdKg: n }), '0.1')}
+          {num('Viikkoa peräkkäin', g.triggerConsecutiveWeeks, (n) => save({ triggerConsecutiveWeeks: n }), '1')}
+          {num('Ehdotettava vaje (kcal/vrk)', g.suggestKcalPerDay, (n) => save({ suggestKcalPerDay: n }), '25')}
+          {num('Rasvaosuus paluussa', g.fatFraction, (n) => save({ fatFraction: n }), '0.05',
+            '1,0 antaa pisimmän arvion — liian lyhyt lupaus on pahempi')}
+          {num('Paluun toleranssi (kg)', g.exitToleranceKg, (n) => save({ exitToleranceKg: n }), '0.1')}
+
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <span className="text-[12px] text-muted">Vajepäivät</span>
+            <div className="flex gap-1">
+              {([1, 2, 3, 4, 5, 6, 0] as number[]).map((d) => {
+                const on = g.suggestDays.includes(d)
+                return (
+                  <button
+                    key={d}
+                    onClick={() => save({
+                      suggestDays: on ? g.suggestDays.filter((x) => x !== d) : [...g.suggestDays, d].sort(),
+                    })}
+                    aria-pressed={on}
+                    className={`flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-lg font-mono text-[10px] uppercase ${
+                      on ? 'bg-accent/25 text-accent' : 'border border-white/10 text-fg-faint'
+                    }`}
+                  >
+                    {DOW_NAMES[d].slice(0, 2)}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {(g.log?.length ?? 0) > 0 && (
+            <div className="mt-3 border-t border-white/[0.06] pt-2.5">
+              <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-fg-dim">
+                Tapahtumat
+              </div>
+              {(g.log ?? []).slice(0, 5).map((e) => (
+                <div key={e.at} className="mt-1 text-[10px] leading-snug text-fg-faint">
+                  <span className="text-fg-ghost">{e.at.slice(0, 10)}</span> · {e.note}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </Card>
   )
 }

@@ -77,6 +77,10 @@ export interface Settings {
    * 'cut' period from the legacy fields — old data keeps working untouched.
    */
   goalPeriods?: GoalPeriod[]
+  /** Ylläpidon vahdin parametrit ja tapahtumaloki. Puuttuessaan
+   *  `GUARD_DEFAULTS` — ks. `src/lib/maintenanceGuard.ts`. Asetuksissa eikä
+   *  omassa taulussaan, jotta ne synkkaavat ja päätyvät vientiin valmiiksi. */
+  maintenanceGuard?: import('../lib/maintenanceGuard').GuardSettings
 }
 
 export interface SpecialEvent {

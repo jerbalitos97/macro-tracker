@@ -764,9 +764,15 @@ export default function App() {
           <AnalysisView
             computed={computed}
             settings={settings}
+            setSettings={setSettings}
             weights={weights}
             meals={meals}
+            adjustments={adjustments}
             onApplyRollout={applyRollout}
+            onDeleteAdjustment={(id) => {
+              setAdjustments((prev) => prev.filter((a) => a.id !== id))
+              if (user) syncDeleteAdjustment(user.id, id)
+            }}
           />
         </m.div>
       )}

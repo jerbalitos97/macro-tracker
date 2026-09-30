@@ -102,7 +102,15 @@ const README: Record<string, string> = {
     'tdee is kcal by day type; weeklyPattern maps weekday (0=Sunday) to day type. ' +
     'heightCm/birthYear/sex feed the workout burn estimate. The top-level ' +
     'startDate/endDate/startWeight/targetWeight are the legacy goal fields, ' +
-    'superseded by goalPeriods when those exist.',
+    'superseded by goalPeriods when those exist. maintenanceGuard is the ' +
+    'post-cut watchdog: anchorWeekStart/anchorKg fix the reference weight, ' +
+    'minWeighInsPerWeek decides which weeks count as evidence (a thinner week ' +
+    'neither triggers nor resets the streak), triggerThresholdKg and ' +
+    'triggerConsecutiveWeeks set when it speaks up, suggestKcalPerDay/' +
+    'suggestDays/fatFraction shape the suggestion it makes, exitToleranceKg ' +
+    'when the deficit can go, and log records every trigger, accept, dismiss ' +
+    'and exit with its numbers. It only ever suggests — any deficit in the ' +
+    'adjustments was accepted by hand.',
   workouts:
     'Completed sessions: exercises, sets, reps, weights, timestamps. warmupDone is ' +
     'the per-session tick that a warm-up happened. locationId says where, and ' +
