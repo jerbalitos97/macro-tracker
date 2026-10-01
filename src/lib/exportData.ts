@@ -53,8 +53,9 @@ import { listMobilityLogs } from './mobility'
 import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO } from './dates'
+import { supabase } from './supabase'
 
-const SCHEMA_VERSION = 7
+const SCHEMA_VERSION = 8
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -185,6 +186,13 @@ const README: Record<string, string> = {
     'task_days, a task is a single dated row that is ticked once and can be ' +
     'moved to another day. done/doneAt say whether and when it was ticked. ' +
     'null means the fetch failed or there is no signed-in user — not "none".',
+  planChanges:
+    'Changes made to the plan through the MCP, newest first: when, which tool, ' +
+    'which row. The before/after snapshots stay in the database (mcp_writes) ' +
+    'and are not exported — they would dwarf everything else — but undoing one ' +
+    'is still possible there. The plan_backups table is likewise deliberately ' +
+    'left out: it is a full copy of this same data, so exporting it would ' +
+    'double the file for nothing.',
   mobilityLogs:
     'LiikkuvuusPuu entries (cloud-stored): one row per mobility session, each ' +
     'flagged upperBody and/or lowerBody. This is a motivation visualisation — ' +
@@ -229,6 +237,7 @@ export interface ExportBundle {
   wealth: { assets: unknown[]; values: unknown[]; settings: unknown } | null
   tasks: unknown[] | null
   mobilityLogs: unknown[] | null
+  planChanges: unknown[] | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
   trainingLocations: unknown[]
@@ -351,8 +360,9 @@ async function fetchCloud(userId: string | undefined): Promise<{
   wealth: ExportBundle['wealth']
   tasks: ExportBundle['tasks']
   mobilityLogs: ExportBundle['mobilityLogs']
+  planChanges: ExportBundle['planChanges']
 }> {
-  const [habits, wealth, tasks, mobilityLogs] = await Promise.all([
+  const [habits, wealth, tasks, mobilityLogs, planChanges] = await Promise.all([
     (async () => {
       if (!userId) return null
       try {
@@ -390,8 +400,25 @@ async function fetchCloud(userId: string | undefined): Promise<{
         return null
       }
     })(),
+    (async () => {
+      // MCP:n kautta tehdyt ohjelmamuutokset. Mukana koska ne selittävät miksi
+      // pohja tai jakso näyttää siltä kuin näyttää — ilman niitä muutos olisi
+      // vientitiedostossa vain lopputuloksena ilman syytä.
+      if (!supabase || !userId) return null
+      try {
+        const { data } = await supabase
+          .from('mcp_writes')
+          .select('id, at, tool, target_table, target_id, undone_at')
+          .eq('user_id', userId)
+          .order('at', { ascending: false })
+          .limit(200)
+        return data ?? null
+      } catch {
+        return null
+      }
+    })(),
   ])
-  return { habits, wealth, tasks, mobilityLogs }
+  return { habits, wealth, tasks, mobilityLogs, planChanges }
 }
 
 export async function buildExport(userId?: string): Promise<ExportBundle | null> {
@@ -407,7 +434,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     data.adjustments ?? [],
   )
   const trend = computeWeightTrend(data.weights ?? [])
-  const { habits, wealth, tasks, mobilityLogs } = await fetchCloud(userId)
+  const { habits, wealth, tasks, mobilityLogs, planChanges } = await fetchCloud(userId)
 
   return {
     _readme: README,
@@ -432,6 +459,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     wealth,
     tasks,
     mobilityLogs,
+    planChanges,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
     trainingLocations: getLocations(),

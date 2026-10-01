@@ -342,14 +342,28 @@ export function upcomingTemplates(
   return templates.filter((t) => !t.archivedAt && t.blockId && t.blockId !== currentBlockId)
 }
 
-/** Templates that the arriving block replaces: live, offered today, and not
- *  part of that block. These are what the app offers to archive when a block's
- *  own programme takes over. */
+/** Templates that the arriving block replaces: live, offered today, not part of
+ *  that block — and of a kind the block actually brings its own version of.
+ *
+ *  The kind filter is the whole point. A strength block's programme replaces
+ *  strength sessions; it says nothing about the mobility routines, which run on
+ *  their own rhythm and would otherwise be swept into the archive by a question
+ *  that looked like it was only about the session plan. */
 export function supersededByBlock(
   templates: WorkoutTemplate[],
   blockId: string,
 ): WorkoutTemplate[] {
-  return templates.filter((t) => !t.archivedAt && t.blockId !== blockId && templateInPlay(t, blockId))
+  const kindOf = (t: WorkoutTemplate) => (t.kind === 'mobility' ? 'mobility' : 'strength')
+  const arriving = new Set(
+    templates.filter((t) => !t.archivedAt && t.blockId === blockId).map(kindOf),
+  )
+  return templates.filter(
+    (t) =>
+      !t.archivedAt &&
+      t.blockId !== blockId &&
+      templateInPlay(t, blockId) &&
+      arriving.has(kindOf(t)),
+  )
 }
 
 export function saveTemplate(t: WorkoutTemplate): WorkoutTemplate[] {

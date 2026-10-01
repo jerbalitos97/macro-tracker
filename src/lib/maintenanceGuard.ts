@@ -63,9 +63,17 @@ export interface GuardLogEntry {
   avgKg: number
 }
 
+// Oletuksena pois päältä ja ilman ankkuriviikkoa.
+//
+// Ei siksi että vahti olisi epäilyttävä vaan siksi että ankkuriviikko on
+// henkilökohtainen päivämäärä: se on ensimmäinen täysi viikko *sinun* cuttisi
+// jälkeen. Koodiin kirjoitettuna se olisi yhden käyttäjän kalenteri jaetussa
+// sovelluksessa, ja muille se näkyisi vahtina joka odottaa jotain mitä ei
+// koskaan tapahdu. Tyhjä ankkuri pitää kortin pois näkyvistä kunnes joku
+// asettaa sen Suunnittelussa.
 export const GUARD_DEFAULTS: GuardSettings = {
-  enabled: true,
-  anchorWeekStart: '2026-11-09',
+  enabled: false,
+  anchorWeekStart: '',
   anchorKg: null,
   minWeighInsPerWeek: 4,
   triggerThresholdKg: 1.0,
@@ -169,6 +177,9 @@ export function evaluateGuard(
     suggestion: null, reason: 'Vahti ei ole käytössä.',
   }
   if (!s.enabled) return empty
+  if (!s.anchorWeekStart) {
+    return { ...empty, state: 'before-anchor', reason: 'Ankkuriviikkoa ei ole asetettu.' }
+  }
 
   const anchorStart = mondayOf(s.anchorWeekStart)
   if (today < addDays(anchorStart, 6)) {

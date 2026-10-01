@@ -54,7 +54,10 @@ export function MaintenanceGuardCard({
   const [kcal, setKcal] = useState(g.suggestKcalPerDay)
   const [days, setDays] = useState<number[]>(g.suggestDays)
 
-  if (verdict.state === 'off') return null
+  // Asettamaton vahti ei ole tilanne josta raportoida. Kortti ilmestyy vasta
+  // kun ankkuriviikko on annettu — muuten jokainen käyttäjä näkisi kortin joka
+  // kertoo odottavansa jotain mitä hän ei ole pyytänyt.
+  if (verdict.state === 'off' || !g.anchorWeekStart) return null
 
   const logAnd = (kind: 'trigger' | 'accept' | 'dismiss' | 'exit', note: string, patch: Partial<typeof g> = {}) => {
     const next = appendLog({ ...g, ...patch }, {
