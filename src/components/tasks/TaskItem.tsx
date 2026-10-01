@@ -6,12 +6,26 @@ import { celebrate } from '../../lib/flash'
 
 interface Props {
   task: Task
+  /** Aiemmalta päivältä siirtynyt tehtävä: päivä jolle se oli tarkoitettu.
+   *  Näkyvissä jotta rästin ikä on luettavissa ilman kuukausinäkymää. */
+  carriedFrom?: string
   onToggle: (id: string, done: boolean) => Promise<void> | void
   onReschedule: (id: string, dateISO: string) => Promise<void> | void
   onDelete: (id: string) => Promise<void> | void
 }
 
-export function TaskItem({ task, onToggle, onReschedule, onDelete }: Props) {
+/** "eiliseltä" tai "3 päivää sitten" — ikä sanoina, koska pelkkä päivämäärä
+ *  vaatii laskemista ja tämä lista on tehty luettavaksi vilkaisulla. */
+function carriedLabel(fromISO_: string): string {
+  const d = new Date(fromISO_ + 'T12:00:00')
+  const now = new Date()
+  const days = Math.round((new Date(now.toISOString().slice(0, 10) + 'T12:00:00').getTime() - d.getTime()) / 86400000)
+  if (days <= 1) return 'eiliseltä'
+  if (days < 7) return `${days} päivää sitten`
+  return d.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' }) + ' alkaen'
+}
+
+export function TaskItem({ task, carriedFrom, onToggle, onReschedule, onDelete }: Props) {
   const [busy, setBusy] = useState(false)
   const [rescheduling, setRescheduling] = useState(false)
   const [newDate, setNewDate] = useState(task.scheduledDate)
@@ -54,12 +68,19 @@ export function TaskItem({ task, onToggle, onReschedule, onDelete }: Props) {
         >
           {task.done ? <Check size={15} strokeWidth={2.5} className="check-pop" /> : <Check size={15} strokeWidth={2.5} />}
         </button>
-        <span
-          className={`min-w-0 flex-1 break-words text-[15px] leading-snug ${
-            task.done ? 'text-fg-ghost line-through' : 'text-text'
-          }`}
-        >
-          {task.title}
+        <span className="min-w-0 flex-1">
+          <span
+            className={`block break-words text-[15px] leading-snug ${
+              task.done ? 'text-fg-ghost line-through' : 'text-text'
+            }`}
+          >
+            {task.title}
+          </span>
+          {carriedFrom && !task.done && (
+            <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.08em] text-fg-ghost">
+              {carriedLabel(carriedFrom)}
+            </span>
+          )}
         </span>
       </div>
 

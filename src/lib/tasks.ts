@@ -53,6 +53,33 @@ export async function listTasksForDate(userId: string, dateISO: string): Promise
   return (data ?? []).map((r) => fromRow(r as TaskRow))
 }
 
+/** Tämän päivän tehtävät ja kaikki aiemmat jotka ovat yhä tekemättä.
+ *
+ *  Tekemätön tehtävä ei katoa päivän vaihtuessa. Se on koko listan tarkoitus:
+ *  rivi on olemassa siksi että se pitää tehdä, eikä siksi että se osui tietylle
+ *  päivälle. Aiemmin lista haki tasan yhden päivän rivit, joten eilen tekemättä
+ *  jäänyt oli yhä tallessa kannassa mutta poissa siitä näkymästä jota katsotaan
+ *  — ja käytännössä siis unohtunut.
+ *
+ *  Päivämäärää EI siirretä. Tehtävä näkyy tänään mutta muistaa milloin se oli
+ *  tarkoitus tehdä, jolloin kuukausinäkymä pysyy totuudenmukaisena ja rästin
+ *  ikä on luettavissa. Siirto on erikseen oma toimintonsa, jos sitä haluaa. */
+export async function listOpenThrough(userId: string, dateISO: string): Promise<Task[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(COLS)
+    .eq('user_id', userId)
+    .lte('scheduled_date', dateISO)
+    // Tältä päivältä kaikki, aiemmilta vain tekemättömät: eilen tehty kuuluu
+    // eiliseen eikä kuormita tämän päivän listaa.
+    .or(`scheduled_date.eq.${dateISO},done.eq.false`)
+    .order('scheduled_date', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((r) => fromRow(r as TaskRow))
+}
+
 export async function listTasksInRange(
   userId: string,
   fromISO: string,

@@ -3,7 +3,7 @@ import { AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { toISO, fromISO } from '../lib/dates'
 import {
-  createTask, deleteTask, listTasksForDate, listTasksInRange,
+  createTask, deleteTask, listOpenThrough, listTasksInRange,
   rescheduleTask, setTaskDone, type Task,
 } from '../lib/tasks'
 import { EncouragingHeader } from '../components/tasks/EncouragingHeader'
@@ -89,7 +89,7 @@ export function TasksView() {
     }
     let alive = true
     setLoadError(null)
-    listTasksForDate(user.id, today)
+    listOpenThrough(user.id, today)
       .then((t) => {
         dayCache.set(cacheKey, t)
         if (alive) setTasks(t)
@@ -100,11 +100,17 @@ export function TasksView() {
   }, [user, today, cacheKey, tick])
 
   const actions = useTaskActions(user?.id, reload)
-  const done = tasks.filter((t) => t.done).length
+  // Rästit ovat aiemmille päiville ajoitettuja tekemättömiä. Ne näkyvät omana
+  // ryhmänään päivämäärineen eivätkä sekoitu tämän päivän listaan: "mitä tänään
+  // on tarkoitus tehdä" ja "mikä jäi" ovat eri kysymys, ja yhteen listaan
+  // sulautettuna vanhin rivi hautautuisi kaikkein varmimmin.
+  const overdue = tasks.filter((t) => !t.done && t.scheduledDate < today)
+  const todays = tasks.filter((t) => t.scheduledDate === today)
+  const done = todays.filter((t) => t.done).length
 
   return (
     <div className={SHELL}>
-      <EncouragingHeader done={done} total={tasks.length} />
+      <EncouragingHeader done={done} total={todays.length} />
 
       {(actions.error || loadError) && <Notice>{actions.error ?? loadError}</Notice>}
 
@@ -117,17 +123,48 @@ export function TasksView() {
           Ei tehtäviä tälle päivälle.
         </p>
       ) : (
-        <ul className="list-stagger flex flex-col gap-2">
-          {tasks.map((t) => (
-            <TaskItem
-              key={t.id}
-              task={t}
-              onToggle={actions.toggle}
-              onReschedule={actions.reschedule}
-              onDelete={actions.remove}
-            />
-          ))}
-        </ul>
+        <>
+          {overdue.length > 0 && (
+            <div>
+              <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
+                Aiemmilta päiviltä ({overdue.length})
+              </div>
+              <ul className="flex flex-col gap-2">
+                {overdue.map((t) => (
+                  <TaskItem
+                    key={t.id}
+                    task={t}
+                    carriedFrom={t.scheduledDate}
+                    onToggle={actions.toggle}
+                    onReschedule={actions.reschedule}
+                    onDelete={actions.remove}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {todays.length > 0 && (
+            <div>
+              {overdue.length > 0 && (
+                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
+                  Tänään ({todays.length})
+                </div>
+              )}
+              <ul className="list-stagger flex flex-col gap-2">
+                {todays.map((t) => (
+                  <TaskItem
+                    key={t.id}
+                    task={t}
+                    onToggle={actions.toggle}
+                    onReschedule={actions.reschedule}
+                    onDelete={actions.remove}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
