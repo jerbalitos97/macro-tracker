@@ -632,6 +632,94 @@ export function lastEntryForExercise(name: string, excludeWorkoutId?: string): L
   return null
 }
 
+/** Yksi tunnettu liike, sellaisena kuin sen voi poimia listalta. */
+export interface CatalogueEntry {
+  name: string
+  /** Viimeisimmän session päivä jossa liike esiintyy. Puuttuu kun liike on
+   *  vasta pohjassa eikä sitä ole vielä tehty kertaakaan. */
+  lastUsed?: string
+  /** Vähintään yksi pohja nimeää tämän liikkeen. */
+  inTemplate?: boolean
+}
+
+/** Kaikki liikkeet jotka sovellus tuntee, viimeksi tehdyt ensin.
+ *
+ *  Luettelo JOHDETAAN siitä mitä kannassa jo on: pohjien liikkeistä (myös
+ *  portti- ja ympäristövarianteista) ja kirjatuista treeneistä. Erillistä
+ *  liikekirjastoa ei ole tarkoituksella — se olisi toinen totuus, joka
+ *  eroaisi siitä mitä ohjelmissa ja historiassa oikeasti lukee heti kun
+ *  liikkeen nimeää uusiksi yhdessä paikassa. Johdettuna luettelo ei voi olla
+ *  eri mieltä lähteidensä kanssa.
+ *
+ *  Vapaasti kirjoitettu uusi liike päätyy siis luetteloon itsestään sillä
+ *  hetkellä kun treeni tallennetaan — kirjaus on se mikä tekee siitä tunnetun.
+ *  Keskeneräisiä luonnoksia ei lueta mukaan: poistettu luonnos jättäisi
+ *  jälkeensä nimen jota ei koskaan tehty. */
+export function exerciseCatalogue(): CatalogueEntry[] {
+  const byKey = new Map<string, CatalogueEntry>()
+
+  const add = (raw: string | undefined, patch: Partial<CatalogueEntry>) => {
+    const name = (raw ?? '').trim()
+    if (!name) return
+    const key = name.toLowerCase()
+    const prev = byKey.get(key)
+    if (!prev) {
+      byKey.set(key, { name, ...patch })
+      return
+    }
+    if (patch.lastUsed && (!prev.lastUsed || patch.lastUsed > prev.lastUsed)) {
+      prev.lastUsed = patch.lastUsed
+      // Kirjoitusasu uusimmasta esiintymästä: nimi on viimeksi tarkoitettu
+      // juuri noin, ja kaksi asua samasta liikkeestä on jo yhdistetty tässä.
+      prev.name = name
+    }
+    if (patch.inTemplate) prev.inTemplate = true
+  }
+
+  // Varianttipuu on matala mutta rekursiivinen (fallbackilla voi olla oma
+  // env). Syvyysraja on vain varmistus kehää vastaan — data on käsin
+  // kirjoitettua, eikä kehä ole koskaan tarkoitettu.
+  const fromPrescription = (p: Prescription | null | undefined, depth = 0) => {
+    if (!p || depth > 4) return
+    add(p.name, { inTemplate: true })
+    fromPrescription(p.env?.fallback, depth + 1)
+    if (p.envOptions) {
+      for (const o of p.envOptions.options) fromPrescription(o, depth + 1)
+      fromPrescription(p.envOptions.fallback, depth + 1)
+    }
+  }
+
+  for (const t of getTemplates()) {
+    for (const e of t.exercises) {
+      add(e.name, { inTemplate: true })
+      fromPrescription(e.env?.fallback)
+      if (e.envOptions) {
+        for (const o of e.envOptions.options) fromPrescription(o)
+        fromPrescription(e.envOptions.fallback)
+      }
+      if (e.gate) {
+        for (const v of Object.values(e.gate.variants)) fromPrescription(v)
+      }
+    }
+  }
+
+  for (const w of getWorkouts()) {
+    for (const e of w.exercises) {
+      add(e.name, { lastUsed: w.date })
+      // Portti tai ympäristö on voinut vaihtaa nimen; pohjan oma nimi on silti
+      // se jonka käyttäjä tunnistaa, joten se kelpaa luetteloon sekin.
+      add(e.resolution?.baseName, { lastUsed: w.date })
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => {
+    if (a.lastUsed && b.lastUsed) return b.lastUsed.localeCompare(a.lastUsed) || a.name.localeCompare(b.name, 'fi')
+    if (a.lastUsed) return -1
+    if (b.lastUsed) return 1
+    return a.name.localeCompare(b.name, 'fi')
+  })
+}
+
 // ── Builders ───────────────────────────────────────────────────────────────────
 /** Build a blank set seeded from a template exercise's defaults. */
 function seedSet(te?: TemplateExercise): SetEntry {

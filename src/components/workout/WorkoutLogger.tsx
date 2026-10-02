@@ -9,7 +9,7 @@ import { WarmupPackageSheet } from './WarmupPackageSheet'
 import { warmupById, resolveWarmup } from '../../lib/warmups'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import type { Workout, LoggedExercise, IntervalConfig, WorkoutTemplate, TemplateExercise } from '../../lib/workouts'
-import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
+import { uid, lastEntryForExercise, exerciseDone, copySetsForNewSession, exerciseCatalogue, DEFAULT_TEMPLATE_COLOR } from '../../lib/workouts'
 import type { GateState } from '../../lib/gates'
 import { celebrate } from '../../lib/flash'
 
@@ -25,6 +25,12 @@ interface Props {
    *  warm-up rather than at the door. */
   onSwapVariant?: (exerciseId: string, state: GateState) => void
   onExit: () => void               // leave but keep the draft
+}
+
+/** "12.9." ISO-päivästä. Vuosi jätetään pois: rivi kertoo milloin liike on
+ *  viimeksi tehty, ja se on hyödyllinen vain suhteessa tähän päivään. */
+function dayMonth(iso: string): string {
+  return `${Number(iso.slice(8, 10))}.${Number(iso.slice(5, 7))}.`
 }
 
 function blockSummary(ex: LoggedExercise): string {
@@ -169,8 +175,8 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
     updateExercise({ ...ex, sets: ex.sets.map((s) => ({ ...s, done: next })) })
   }
 
-  const addExercise = () => {
-    const name = newName.trim()
+  const addExercise = (raw: string) => {
+    const name = raw.trim()
     if (!name) return
     const last = lastEntryForExercise(name, workout.id)
     const sets = last && last.sets.length > 0 ? copySetsForNewSession(last.sets) : [{}]
@@ -179,6 +185,33 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
     setNewName('')
     setAdding(false)
     setOpenId(ex.id)
+  }
+
+  // Luettelo luetaan vasta kun lisäysluukku avataan: se käy läpi koko historian
+  // ja kaikki pohjat, eikä sitä tarvita ennen kuin jotain ollaan lisäämässä.
+  const catalogue = useMemo(() => (adding ? exerciseCatalogue() : []), [adding])
+  const query = newName.trim().toLowerCase()
+  const matches = useMemo(
+    () => (query ? catalogue.filter((c) => c.name.toLowerCase().includes(query)) : catalogue).slice(0, 60),
+    [catalogue, query],
+  )
+  // Uusi nimi tarjotaan vasta kun se ei ole jo luettelossa sellaisenaan.
+  // Osittainen osuma ei riitä: "dippi" on eri liike kuin "dipit".
+  const canCreate = query.length > 0 && !catalogue.some((c) => c.name.toLowerCase() === query)
+  const inWorkout = useMemo(
+    () => new Set(workout.exercises.map((e) => e.name.trim().toLowerCase())),
+    [workout.exercises],
+  )
+
+  /** Enter lisää vain kun kirjoitettu teksti on yksiselitteinen: tasan sama
+   *  nimi kuin luettelossa, tai nimi jota luettelo ei tunne lainkaan. Kesken
+   *  kirjoitettu haku ("kuula") ei ole kummankaan, ja Enter siinä kohtaa
+   *  tekisi liikkeen nimeltä "kuula". Silloin ei tapahdu mitään, ja valinta
+   *  tehdään listalta. */
+  const submit = () => {
+    const exact = catalogue.find((c) => c.name.toLowerCase() === query)
+    if (exact) return addExercise(exact.name)
+    if (canCreate && matches.length === 0) addExercise(newName)
   }
 
   /** Find the template slot a logged exercise came from. slotId is the reliable
@@ -295,7 +328,7 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
         {/* Add exercise block */}
         <m.button
           layout
-          onClick={() => setAdding(true)}
+          onClick={() => { setNewName(''); setAdding(true) }}
           className="active:scale-[0.97] flex min-h-[104px] min-w-0 flex-col items-center justify-center gap-2 rounded-tile border border-dashed border-white/[0.16] bg-transparent p-4 text-fg-muted transition-transform duration-150"
         >
           <Plus size={22} />
@@ -363,22 +396,75 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
         />
       ))}
 
-      {/* Add-exercise name entry */}
+      {/* Liikkeen lisäys: sama kenttä hakee tunnetuista ja kirjoittaa uuden.
+          Kaksi erillistä tilaa ("valitse" / "kirjoita uusi") tarkoittaisi että
+          oikea valitaan ennen kuin tietää kumpaa tarvitsee — ja juuri sitä ei
+          kesken treenin tiedä. Kirjoitetaan, ja lista kertoo onko liike jo
+          olemassa. Luettelo on johdettu pohjista ja historiasta, joten uusi
+          liike liittyy siihen itsestään kun treeni tallennetaan. */}
       {adding && (
-        <Sheet open onClose={() => setAdding(false)} title="Lisää liike">
+        <Sheet open onClose={() => { setAdding(false); setNewName('') }} title="Lisää liike">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addExercise()}
-            placeholder="Liikkeen nimi"
+            onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+            placeholder="Hae tai kirjoita uusi"
             autoFocus
             className="mb-3 w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text"
           />
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setAdding(false)}>Peru</Button>
-            <Button variant="primary" onClick={addExercise} disabled={!newName.trim()}>
-              <Plus size={16} /> Lisää
-            </Button>
+
+          <div className="max-h-[46vh] overflow-y-auto overscroll-contain">
+            {matches.map((c) => {
+              const already = inWorkout.has(c.name.toLowerCase())
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => addExercise(c.name)}
+                  className="flex w-full items-center gap-2.5 rounded-row px-3.5 py-2.5 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] text-text">{c.name}</span>
+                    <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                      {c.lastUsed ? `viimeksi ${dayMonth(c.lastUsed)}` : c.inTemplate ? 'pohjissa' : 'ei vielä tehty'}
+                      {already && ' · jo listalla'}
+                    </span>
+                  </span>
+                  <Plus size={15} className="flex-shrink-0 text-fg-faint" />
+                </button>
+              )
+            })}
+
+            {/* Uuden luonti on listan alla eikä päällä. Haku on kesken joka
+                painalluksen ajan, ja "kuula" osuu kahvakuulaheilautukseen
+                vaikka se ei ole liikkeen nimi — ylimmäisenä se rivi tulisi
+                osuttua ohimennen, ja treeniin jäisi "kuula". Alimmaisena se on
+                yhtä saatavilla mutta vaatii että sinne asti mennään. */}
+            {canCreate && (
+              <button
+                onClick={() => addExercise(newName)}
+                className={`flex w-full items-center gap-2.5 rounded-row border border-dashed border-accent/40 bg-accent/[0.07] px-3.5 py-3 text-left ${
+                  matches.length > 0 ? 'mt-2' : ''
+                }`}
+              >
+                <Plus size={16} className="flex-shrink-0 text-accent" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-semibold text-text">{newName.trim()}</span>
+                  <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-accent">
+                    Uusi liike
+                  </span>
+                </span>
+              </button>
+            )}
+
+            {matches.length === 0 && !canCreate && (
+              <p className="m-0 px-1 py-6 text-center text-[12px] text-fg-faint">
+                Ei vielä yhtään liikettä. Kirjoita nimi niin se syntyy tähän.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <Button variant="ghost" onClick={() => { setAdding(false); setNewName('') }}>Peru</Button>
           </div>
         </Sheet>
       )}
