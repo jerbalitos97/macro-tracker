@@ -78,6 +78,35 @@ function setsFrom(p: Prescription): SetEntry[] {
   return Array.from({ length: n }, () => ({ ...base }))
 }
 
+/** Sarjojen MÄÄRÄ suunnitelmasta, sarjojen LUVUT viime kerrasta.
+ *
+ *  Aiemmin koko viime kerran sarjataulukko kopioitiin sellaisenaan, jolloin
+ *  mukana siirtyi myös sen PITUUS. Siitä seurasi hiljainen alamäki: kiireessä
+ *  tai väsyneenä pois jätetty sarja oli seuraavalla kerralla jo ohjelma, ja
+ *  sitä seuraavalla lähtötaso. Weighted pull-ups valui näin 4 → 3 → 2 viidessä
+ *  viikossa, Bulgarian split squat kolmesta yhteen, vaikka pohjassa luki koko
+ *  ajan neljä ja kolme. Mikään ruudulla ei kertonut että ohjelmaa oltiin
+ *  laskemassa, koska sitä ei päätetty missään.
+ *
+ *  Sarjamäärä on suunnitelma, painot ja toistot ovat havainto. Vain
+ *  jälkimmäinen peritään. Ohjelmaa lasketaan pohjaa muokkaamalla — siellä
+ *  päätös on näkyvä ja pysyvä, ja siellä sen kuuluu olla. */
+function prefill(p: Prescription, last: SetEntry[] | null): SetEntry[] {
+  const planned = setsFrom(p)
+  if (!last || last.length === 0) return planned
+  const carried = copySetsForNewSession(last)
+  return planned.map((seed, i) => {
+    // Suunnitelmaa lyhyempi historia ei jätä loppuja tyhjiksi: viimeksi tehdyn
+    // sarjan luvut ovat paras arvaus myös niille sarjoille jotka jäivät väliin.
+    const from = carried[i] ?? carried[carried.length - 1]
+    const out: SetEntry = { ...seed }
+    if (from.reps != null) out.reps = from.reps
+    if (from.weight != null) out.weight = from.weight
+    if (from.duration != null) out.duration = from.duration
+    return out
+  })
+}
+
 /** A template exercise's own defaults expressed as a prescription, so the
  *  ungated path and the gated path build sets the same way. */
 function baseOf(te: TemplateExercise): Prescription {
@@ -285,8 +314,8 @@ function toLogged(
   // brought its `done: true` along, so every exercise in a repeated template
   // opened already crossed off — the log then claimed work that had not
   // happened yet, and un-ticking it was the first thing every session needed.
-  const last = planChanged ? null : lastSetsFor?.(p.name)
-  const sets = last && last.length > 0 ? copySetsForNewSession(last) : setsFrom(p)
+  // Sarjojen määrä tulee silti aina suunnitelmasta, ks. prefill().
+  const sets = prefill(p, planChanged ? null : lastSetsFor?.(p.name) ?? null)
   return {
     id: uid(),
     name: p.name,

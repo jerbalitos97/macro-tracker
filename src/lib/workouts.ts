@@ -746,11 +746,21 @@ export function newWorkout(todayISO: string, template?: WorkoutTemplate): Workou
         interval: { ...te.interval },
       }
     }
+    // Sama sääntö kuin sessionResolve.prefill(): määrä pohjasta, luvut viime
+    // kerrasta. Koko taulukon kopiointi siirsi myös sen pituuden, jolloin
+    // kerran pois jätetty sarja jäi pois pysyvästi — ohjelma laski itse
+    // itseään. Kaksi eri tulkintaa tästä olisi pahempi kuin yksi väärä.
     const last = lastEntryForExercise(te.name)
-    const sets =
-      last && last.sets.length > 0
-        ? copySetsForNewSession(last.sets)
-        : Array.from({ length: Math.max(1, te.defaultSets) }, () => seedSet(te))
+    const carried = last && last.sets.length > 0 ? copySetsForNewSession(last.sets) : null
+    const sets = Array.from({ length: Math.max(1, te.defaultSets) }, (_, i) => {
+      const s = seedSet(te)
+      if (!carried) return s
+      const from = carried[i] ?? carried[carried.length - 1]
+      if (from.reps != null) s.reps = from.reps
+      if (from.weight != null) s.weight = from.weight
+      if (from.duration != null) s.duration = from.duration
+      return s
+    })
     return { id: uid(), name: te.name, sets }
   })
   return {
