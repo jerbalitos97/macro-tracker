@@ -30,6 +30,9 @@ interface Props {
   earliestStart: string
   /** Never place an adjustment past this (the goal period's end). */
   lastDate: string
+  /** Jaksolla on viikonloppuylläpito: säätö osuu vain arkipäiviin, ja
+   *  päivälukemat tarkoittavat arkipäiviä. */
+  skipWeekends?: boolean
   onApply: (days: Array<{ date: string; kcal: number }>) => void
   onClose: () => void
 }
@@ -41,6 +44,7 @@ export function RolloutModal({
   suggestedDays,
   earliestStart,
   lastDate,
+  skipWeekends = false,
   onApply,
   onClose,
 }: Props) {
@@ -57,8 +61,8 @@ export function RolloutModal({
   const plan = useMemo(() => {
     const amount = Math.round(totalKcal * share)
     const days = Math.max(1, Math.round(suggestedDays * spread))
-    return planRollout(amount, days, start, lastDate)
-  }, [totalKcal, share, suggestedDays, spread, start, lastDate])
+    return planRollout(amount, days, start, lastDate, skipWeekends)
+  }, [totalKcal, share, suggestedDays, spread, start, lastDate, skipWeekends])
 
   const applied = plan.reduce((s, d) => s + d.kcal, 0)
   const perDay = plan.length > 0 ? Math.round(applied / plan.length) : 0
@@ -86,6 +90,11 @@ export function RolloutModal({
       {start === earliestStart && (
         <p className="-mt-1 mb-3 text-[10px] leading-tight text-fg-ghost">
           Tänään on jo osittain syöty — säätö osuu loppupäivään.
+        </p>
+      )}
+      {skipWeekends && (
+        <p className="-mt-1 mb-3 text-[10px] leading-tight text-fg-ghost">
+          Jaksolla on viikonloppuylläpito, joten säätö osuu vain arkipäiviin.
         </p>
       )}
 
@@ -138,7 +147,7 @@ export function RolloutModal({
             </span>
           </div>
           <div className="mt-1 flex items-baseline justify-between text-[11px] text-fg-faint">
-            <span>{plan.length} päivää</span>
+            <span>{plan.length} {skipWeekends ? 'arkipäivää' : 'päivää'}</span>
             <span>
               {formatDateShort(plan[0].date)} – {formatDateShort(plan[plan.length - 1].date)}
             </span>
@@ -153,8 +162,9 @@ export function RolloutModal({
           </div>
           {truncated && (
             <div className="mt-1.5 text-[11px] text-danger">
-              Jakso päättyy {formatDateShort(lastDate)} ennen kuin {wantedDays} päivää täyttyy —
-              säätö mahtuu {plan.length} päivälle.
+              Jakso päättyy {formatDateShort(lastDate)} ennen kuin {wantedDays}{' '}
+              {skipWeekends ? 'arkipäivää' : 'päivää'} täyttyy — säätö mahtuu {plan.length}{' '}
+              {skipWeekends ? 'arkipäivälle' : 'päivälle'}.
             </div>
           )}
         </div>

@@ -37,3 +37,14 @@ export const formatDayOfWeek = (iso: string): string => {
 
 // 0 = su, 1 = ma, …, 6 = la
 export const getWeekdayNum = (iso: string): number => fromISO(iso).getDay()
+
+/** Lauantai ja sunnuntai, getWeekdayNum-numeroina.
+ *
+ *  Yksi määritelmä, koska kaksi paikkaa päättää sen perusteella mihin vaje
+ *  osuu: `compute.ts` jakaessaan jakson vajetta päiville ja `compensation.ts`
+ *  jalkauttaessaan tasoitusta. Jos ne olisivat eri mieltä siitä mikä on
+ *  viikonloppu, tasoitus kirjoittaisi vajetta päiville jotka budjetti on
+ *  nimenomaan jättänyt ylläpidolle — eikä kumpikaan näyttäisi rikki. */
+export const WEEKEND_DOWS = [0, 6]
+
+export const isWeekend = (iso: string): boolean => WEEKEND_DOWS.includes(getWeekdayNum(iso))

@@ -21,6 +21,8 @@ import type { ComputedResult, Settings, WeightTrend } from '../types'
 import { getActiveGoal, getActivePeriod } from './goalPeriods'
 import type { ActiveGoal } from './goalPeriods'
 import { interpretTrend } from './trendStatus'
+import { addDays } from './dates'
+import { eligibleDayCount } from './compensation'
 
 // Position: kg above (+) or below (−) the linear target line today.
 const POS_OK = 0.3
@@ -42,9 +44,22 @@ export type Tone = 'ok' | 'info' | 'warn' | 'danger'
 
 export interface Recovery {
   kind: 'tighten' | 'loosen'
+  /** Mistä ero on luettu.
+   *
+   *  'weight' = trendipaino on tavoitelinjan yläpuolella. 'kcal' = kirjattu
+   *  vaje on jäljessä siitä mitä suunnitelma pyysi. Paino voittaa kun molemmat
+   *  puhuvat, koska paino on lopputulos ja kirjatut kalorit arvio syötteestä:
+   *  punnitus voi olla kiusallinen mutta se ei ole arvattu, kun taas annoskoko
+   *  on. Käytännössä juuri tämä pari eri mieltä on tavallisin tilanne —
+   *  kaloritase näyttää menevän putkeen mutta paino ei liiku — ja silloin
+   *  kaloreita uskomalla ei tehdä mitään. */
+  source: 'weight' | 'kcal'
   /** kcal/day on top of (or off) the plan. */
   extraPerDay: number
   daysNeeded: number
+  /** Tasoitus osuu vain arkipäiviin, koska jaksolla on viikonloppuylläpito.
+   *  `daysNeeded` on silloin arkipäivien määrä, ei kalenteripäivien. */
+  weekdaysOnly: boolean
   /** What this plan actually rolls out: extraPerDay × daysNeeded. Equal to
    *  gapKcal when the gap is reachable, and less when it is not — the card
    *  and the rollout must promise the same number. */
@@ -151,6 +166,9 @@ function buildHeadline(
   targetWeekly: number,
   requiredDailyDeficit: number,
   hasWeightData: boolean,
+  hasRecovery: boolean,
+  /** Arkipäivän oma tarve, kun viikonloput ovat ylläpidolla. Null muuten. */
+  requiredWeekdayDeficit: number | null,
 ): Headline {
   if (!hasWeightData || weeklyChange === null) {
     return {
@@ -178,7 +196,18 @@ function buildHeadline(
         ? `Vauhti ${rate(weeklyChange)} on tavoitteen ${rate(targetWeekly)} toleranssissa.`
         : `Vauhti ${rate(weeklyChange)} on hitaampi kuin tavoite ${rate(targetWeekly)}.`
 
-  const needed = `Loppuajan tarve ${Math.round(requiredDailyDeficit)} kcal/pv.`
+  // Viikonloppuylläpidolla keskiarvo kaikille päiville on luku jota yksikään
+  // päivä ei koskaan pyydä: viikonloput on jätetty vajeettomiksi, joten koko
+  // loppuajan tarve kannetaan arkipäivillä. Pelkkä keskiarvo olisi
+  // kohtuullisen kuuloinen numero joka aliarvioi sen mitä maanantailta
+  // oikeasti pyydetään, joten arkipäivän oma luku sanotaan ääneen.
+  const needed = requiredWeekdayDeficit !== null
+    ? `Loppuajan tarve ${Math.round(requiredWeekdayDeficit)} kcal arkipäivää kohden, viikonloput ylläpidolla.`
+    : `Loppuajan tarve ${Math.round(requiredDailyDeficit)} kcal/pv.`
+  // "Alta" lupaa kortin. Ilman tätä otsikko kehotti jalkauttamaan tasoituksen
+  // silloinkin kun tasoitusta ei ollut tarjolla, ja sen alta ei löytynyt
+  // mitään — kehotus johonkin mitä ei ole on pahempi kuin kehotuksen puute.
+  const rollout = hasRecovery ? 'Jalkauta tasoitus alta. ' : ''
   const rateOk = rateSt === 'ahead' || rateSt === 'on-track'
   const posOk = pos === 'ahead' || pos === 'on-track'
 
@@ -210,13 +239,13 @@ function buildHeadline(
     return wrap(
       'info',
       'Jäljessä, mutta kurot kiinni',
-      `Nykyinen vauhti riittää tavoitetahtiin, mutta ei kuro syntynyttä eroa umpeen. Jalkauta tasoitus alta. ${needed}`,
+      `Nykyinen vauhti riittää tavoitetahtiin, mutta ei kuro syntynyttä eroa umpeen. ${rollout}${needed}`,
     )
   }
   return wrap(
     pos === 'behind' ? 'danger' : 'warn',
     pos === 'behind' ? 'Selkeästi jäljessä' : 'Jäljessä ja vauhti liian hidas',
-    `Sekä sijainti että vauhti vievät väärään suuntaan. Jalkauta tasoitus alta. ${needed}`,
+    `Sekä sijainti että vauhti vievät väärään suuntaan. ${rollout}${needed}`,
   )
 }
 
@@ -279,10 +308,41 @@ export function buildAnalysis({ settings, computed, trend, today }: Inputs): Ana
   const remainingTotal = computed.totalDeficitTarget - actualCum
 
   const deficitStanding = deficitStandingFor(gapPerDay)
+  const posSt = positionStanding(positionGapKg)
+  const rateSt = rateStandingFor(rateGap, targetWeeklyChange)
 
   // ── recovery plan ──
+  //
+  // Kaksi lukua voi kertoa erosta, ja ne ovat usein eri mieltä. Paino luetaan
+  // ensin: se on lopputulos, kun taas kirjattu vaje on arvio syötteestä.
+  // Aiemmin tasoitusta tarjottiin vain kalorieron perusteella, joten juuri se
+  // tilanne jossa kaloritase näyttää putkeen menevältä mutta paino on linjan
+  // yläpuolella — tämän työkalun tavallisin tilanne — jäi ilman mitään mitä
+  // tehdä. Otsikko jopa kehotti jalkauttamaan tasoituksen "alta", eikä siellä
+  // ollut mitään.
   let recovery: Recovery | null = null
-  if (hasDeficitData && deficitStanding !== 'on-track' && daysLeft > 0) {
+  const posBehind = posSt === 'slightly-behind' || posSt === 'behind'
+  const weekdaysOnly = goal.weekendMaintenance
+  // Tasoitus jaetaan huomisesta jakson loppuun: "loput blokista" on se mihin
+  // ero on kurottava, eikä mikään lyhyempi ikkuna ole sen oikeampi.
+  const rolloutFrom = addDays(today, 1)
+  const eligibleLeft = eligibleDayCount(rolloutFrom, goal.endDate, weekdaysOnly)
+
+  if (hasWeightData && posBehind && eligibleLeft > 0) {
+    const magnitude = Math.round(positionGapKg * 7700)
+    const ideal = magnitude / eligibleLeft
+    const capped = Math.min(RECOVERY_MAX_EXTRA, Math.max(25, Math.round(ideal)))
+    recovery = {
+      kind: 'tighten',
+      source: 'weight',
+      extraPerDay: capped,
+      daysNeeded: eligibleLeft,
+      weekdaysOnly,
+      totalKcal: capped * eligibleLeft,
+      gapKcal: magnitude,
+      achievable: ideal <= RECOVERY_MAX_EXTRA,
+    }
+  } else if (hasDeficitData && deficitStanding !== 'on-track' && daysLeft > 0) {
     const magnitude = Math.abs(gapKcal)
     const ideal = magnitude / RECOVERY_TARGET_DAYS
     let extraPerDay = Math.min(
@@ -290,24 +350,26 @@ export function buildAnalysis({ settings, computed, trend, today }: Inputs): Ana
       Math.max(50, Math.ceil(ideal / RECOVERY_STEP) * RECOVERY_STEP),
     )
     let daysNeeded = Math.max(1, Math.ceil(magnitude / extraPerDay))
-    const achievable = daysNeeded <= daysLeft
+    // Viikonloppuylläpidolla käytettävissä on vain arkipäiviä: säätö
+    // viikonlopulle purkaisi juuri sen päätöksen jonka jakso on tehnyt.
+    const roomLeft = weekdaysOnly ? eligibleLeft : daysLeft
+    const achievable = daysNeeded <= roomLeft
     if (!achievable && deficitStanding !== 'ahead') {
       extraPerDay = RECOVERY_MAX_EXTRA
-      daysNeeded = daysLeft
+      daysNeeded = roomLeft
     }
-    const cappedDays = Math.min(daysNeeded, daysLeft)
+    const cappedDays = Math.max(1, Math.min(daysNeeded, roomLeft))
     recovery = {
       kind: deficitStanding === 'ahead' ? 'loosen' : 'tighten',
+      source: 'kcal',
       extraPerDay,
       daysNeeded: cappedDays,
+      weekdaysOnly,
       totalKcal: extraPerDay * cappedDays,
       gapKcal: Math.round(magnitude),
       achievable,
     }
   }
-
-  const posSt = positionStanding(positionGapKg)
-  const rateSt = rateStandingFor(rateGap, targetWeeklyChange)
 
   return {
     goal,
@@ -346,6 +408,11 @@ export function buildAnalysis({ settings, computed, trend, today }: Inputs): Ana
       targetWeeklyChange,
       requiredDailyDeficit,
       hasWeightData,
+      hasRecovery: recovery !== null,
+      requiredWeekdayDeficit:
+        weekdaysOnly && eligibleLeft > 0 && daysLeft > 0
+          ? (requiredDailyDeficit * daysLeft) / eligibleLeft
+          : null,
     }),
   }
 }
@@ -371,6 +438,8 @@ function headlineFor(i: {
   targetWeeklyChange: number
   requiredDailyDeficit: number
   hasWeightData: boolean
+  hasRecovery: boolean
+  requiredWeekdayDeficit: number | null
 }): Headline {
   if (i.goal.type === 'cut' || i.goal.type === 'bulk') {
     return buildHeadline(
@@ -381,6 +450,8 @@ function headlineFor(i: {
       i.targetWeeklyChange,
       i.requiredDailyDeficit,
       i.hasWeightData,
+      i.hasRecovery,
+      i.requiredWeekdayDeficit,
     )
   }
 

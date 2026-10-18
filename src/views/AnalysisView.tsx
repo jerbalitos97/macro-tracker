@@ -160,6 +160,54 @@ export function AnalysisView({
         )}
       </div>
 
+      {/* Tasoitus heti tuomion alle, koska tuomio sanoo "alta".
+          Kortti oli aiemmin kumulatiivisen vajeen osiossa painokäyrän
+          takana, eli kehotuksen ja napin välissä oli puolen ruudun verran
+          vieritystä — ja kun ero on luettu painosta, se ei edes kuulu
+          kaloriosioon. Kortti oli myös `hasDeficitData`-ehdon sisällä, joten
+          ilman kirjattuja aterioita sitä ei ollut lainkaan vaikka paino olisi
+          ollut reilusti linjan yläpuolella. */}
+      {a.recovery && (
+        <Card
+          variant="glass"
+          className={`mt-2.5 ${a.recovery.achievable ? '' : 'border-danger/25'}`}
+        >
+          <div className={cardLabel}>Suositus tasoitukseen</div>
+          <p className="m-0 mb-1.5 text-[11px] leading-normal text-fg-faint">
+            {a.recovery.source === 'weight'
+              ? `Luettu painosta: trendi on ${Math.abs(a.positionGapKg).toFixed(1)} kg tavoitelinjan yläpuolella.`
+              : 'Luettu kirjatuista kaloreista.'}
+          </p>
+          <p className="m-0 text-[13px] leading-relaxed text-text">
+            {a.recovery.kind === 'tighten' ? 'Tiukenna' : 'Löysää'}{' '}
+            <strong className="text-accent">{a.recovery.extraPerDay} kcal/pv</strong>{' '}
+            {a.recovery.weekdaysOnly ? 'jokaiselta jäljellä olevalta' : 'seuraavat'}{' '}
+            <strong className="text-accent">
+              {a.recovery.daysNeeded} {a.recovery.weekdaysOnly ? 'arkipäivältä' : 'päivää'}
+            </strong>,
+            {a.recovery.achievable
+              ? ` niin ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal:n ero on umpeen kurottu.`
+              : ` mikä kattaa ${Math.abs(a.recovery.totalKcal).toLocaleString('fi-FI')} kcal koko ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal:n erosta.`}
+          </p>
+          {!a.recovery.achievable && (
+            <p className="m-0 mt-1.5 text-[12px] leading-normal text-danger">
+              Ero on niin suuri, ettei se kurou umpeen edes {a.recovery.extraPerDay} kcal/pv koko
+              jäljellä olevalla ajalla. Harkitse jakson pidentämistä tai tavoitepainon tarkistusta.
+            </p>
+          )}
+          <Button
+            variant="primary"
+            className="mt-3 w-full"
+            onClick={() => setShowRollout(true)}
+          >
+            Jalkauta suositus
+          </Button>
+          <p className="m-0 mt-1.5 text-center text-[10px] text-fg-ghost">
+            voit säätää osuutta ja jakson pituutta ennen tallennusta
+          </p>
+        </Card>
+      )}
+
       {activeBlock && (
         <BlockFitCard
           block={activeBlock}
@@ -280,38 +328,6 @@ export function AnalysisView({
             />
           </div>
 
-          {a.recovery && (
-            <Card
-              variant="glass"
-              className={`mt-2.5 ${a.recovery.achievable ? '' : 'border-danger/25'}`}
-            >
-              <div className={cardLabel}>Suositus tasoitukseen</div>
-              <p className="m-0 text-[13px] leading-relaxed text-text">
-                {a.recovery.kind === 'tighten' ? 'Tiukenna' : 'Löysää'}{' '}
-                <strong className="text-accent">{a.recovery.extraPerDay} kcal/pv</strong>{' '}
-                seuraavat <strong className="text-accent">{a.recovery.daysNeeded} päivää</strong>,
-                {a.recovery.achievable
-                  ? ` niin ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal:n ero on umpeen kurottu.`
-                  : ` mikä kattaa ${Math.abs(a.recovery.totalKcal).toLocaleString('fi-FI')} kcal koko ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal:n erosta.`}
-              </p>
-              {!a.recovery.achievable && (
-                <p className="m-0 mt-1.5 text-[12px] leading-normal text-danger">
-                  Ero on niin suuri, ettei se kurou umpeen edes {a.recovery.extraPerDay} kcal/pv koko
-                  jäljellä olevalla ajalla. Harkitse jakson pidentämistä tai tavoitepainon tarkistusta.
-                </p>
-              )}
-              <Button
-                variant="primary"
-                className="mt-3 w-full"
-                onClick={() => setShowRollout(true)}
-              >
-                Jalkauta suositus
-              </Button>
-              <p className="m-0 mt-1.5 text-center text-[10px] text-fg-ghost">
-                voit säätää osuutta ja jakson pituutta ennen tallennusta
-              </p>
-            </Card>
-          )}
         </>
       ) : (
         <Card variant="glass" className="mt-2.5 px-4 py-5 text-center">
@@ -354,13 +370,16 @@ export function AnalysisView({
           title="Jalkauta tasoitus"
           description={
             a.recovery.kind === 'tighten'
-              ? `Kumulatiivinen vaje on ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal jäljessä suunnitelmasta. Tämä jakaa suositellun ${Math.abs(a.recovery.totalKcal).toLocaleString('fi-FI')} kcal:n tasoituksen tuleville päiville päivittäisinä säätöinä.`
+              ? a.recovery.source === 'weight'
+                ? `Trendipaino on ${Math.abs(a.positionGapKg).toFixed(1)} kg tavoitelinjan yläpuolella, mikä vastaa ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal. Tämä jakaa sen jakson loppuun päivittäisinä säätöinä${a.recovery.weekdaysOnly ? ' — vain arkipäiville, koska viikonloput ovat ylläpidolla' : ''}.`
+                : `Kumulatiivinen vaje on ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal jäljessä suunnitelmasta. Tämä jakaa suositellun ${Math.abs(a.recovery.totalKcal).toLocaleString('fi-FI')} kcal:n tasoituksen tuleville päiville päivittäisinä säätöinä${a.recovery.weekdaysOnly ? ' — vain arkipäiville, koska viikonloput ovat ylläpidolla' : ''}.`
               : `Olet ${Math.abs(a.recovery.gapKcal).toLocaleString('fi-FI')} kcal edellä suunnitelmaa. Tämä jakaa suositellun ${Math.abs(a.recovery.totalKcal).toLocaleString('fi-FI')} kcal:n löysäyksen tuleville päiville.`
           }
           totalKcal={a.recovery.kind === 'tighten' ? -Math.abs(a.recovery.totalKcal) : Math.abs(a.recovery.totalKcal)}
           suggestedDays={a.recovery.daysNeeded}
           earliestStart={todayISO}
           lastDate={goal.endDate}
+          skipWeekends={a.recovery.weekdaysOnly}
           onApply={(days) => {
             onApplyRollout(days, `tasoitus-${todayISO}`)
             setShowRollout(false)

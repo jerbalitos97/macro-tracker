@@ -9,7 +9,7 @@ import type {
   ComputedResult,
   GoalPeriod,
 } from '../types'
-import { addDays, daysBetween, getWeekdayNum, toISO } from './dates'
+import { addDays, daysBetween, getWeekdayNum, toISO, WEEKEND_DOWS } from './dates'
 import { getActivePeriod } from './goalPeriods'
 
 /** kcal/day deficit baseline implied by a single period's start→target over
@@ -26,9 +26,6 @@ function periodDailyDeficit(p: GoalPeriod): number {
   const kg = p.startWeight - p.targetWeight // positive for cut, negative for bulk
   return (kg * 7700) / dur
 }
-
-/** Saturday and Sunday, in getWeekdayNum terms (0 = Sunday). */
-const WEEKEND_DOWS = [0, 6]
 
 /** The planned deficit for each day of the period.
  *

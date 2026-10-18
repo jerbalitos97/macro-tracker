@@ -13,7 +13,7 @@
 // deleting them un-marks the day, which is what a user deleting them means.
 
 import type { DailyAdjustment } from '../types'
-import { addDays } from './dates'
+import { addDays, isWeekend } from './dates'
 
 const TAG_PREFIX = 'komp:'
 
@@ -53,9 +53,28 @@ export interface RolloutDay {
   kcal: number
 }
 
+/** Montako arkipäivää välille mahtuu — montako päivää tasoitus siis oikeasti
+ *  saa käyttöönsä kun viikonloput on jätetty ylläpidolle. */
+export function eligibleDayCount(startDate: string, lastDate: string, skipWeekends: boolean): number {
+  let n = 0
+  for (let i = 0; ; i++) {
+    const date = addDays(startDate, i)
+    if (date > lastDate) break
+    if (skipWeekends && isWeekend(date)) continue
+    n++
+  }
+  return n
+}
+
 /** Spread `totalKcal` across `days` days beginning on `startDate` (inclusive)
  *  and stopping at `lastDate`. The sign of totalKcal carries through: negative
  *  tightens the budget (more deficit), positive loosens it.
+ *
+ *  `skipWeekends` ohittaa lauantait ja sunnuntait kokonaan, ja `days` tarkoittaa
+ *  silloin arkipäiviä. Sitä tarvitaan kun jaksolla on viikonloppuylläpito
+ *  päällä: budjetti on tarkoituksella jättänyt viikonloput vajeettomiksi, ja
+ *  tasoitus joka kirjoittaisi niille säädön purkaisi juuri sen päätöksen —
+ *  hiljaa, koska kalenterissa se näyttäisi vain pienemmältä luvulta.
  *
  *  The rounding puts the remainder on the first day rather than letting it
  *  vanish — spreading 250 over 3 days has to still add up to 250. */
@@ -64,11 +83,13 @@ export function planRollout(
   days: number,
   startDate: string,
   lastDate: string,
+  skipWeekends = false,
 ): RolloutDay[] {
   const out: RolloutDay[] = []
-  for (let i = 0; i < days; i++) {
+  for (let i = 0; out.length < days; i++) {
     const date = addDays(startDate, i)
     if (date > lastDate) break
+    if (skipWeekends && isWeekend(date)) continue
     out.push({ date, kcal: 0 })
   }
   if (out.length === 0) return out
