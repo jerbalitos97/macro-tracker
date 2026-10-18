@@ -8,7 +8,7 @@ import {
 } from '../lib/blocks'
 import { computeWeightTrend } from '../lib/weight'
 import {
-  getPeriods, addPeriod, updatePeriod, removePeriod, endActivePeriod, getActiveGoal,
+  getPeriods, addPeriod, updatePeriod, removePeriod, endActivePeriod, getActiveGoal, isPeriodLive,
 } from '../lib/goalPeriods'
 import { BlockEditorSheet } from '../components/workout/BlockEditorSheet'
 import {
@@ -363,7 +363,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </div>
           <div className="mt-2 flex flex-col gap-1.5">
             {periods.map((p) => {
-              const isActive = p.status === 'active'
+              // Voimassa, ei pelkkä 'active': etukäteen kirjattu jakso ohjaa
+              // budjettia omana päivänään ilman tilan kääntämistä, ja silloin
+              // sen kuuluu näyttää siltä. Merkintä on myös se joka piilottaa
+              // roskakorin — menossa olevaa jaksoa ei poisteta vahingossa.
+              const isActive = isPeriodLive(p, todayISO)
               const color = PERIOD_COLOR[p.type] ?? '#22d3ee'
               return (
                 <div
@@ -398,8 +402,8 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                     className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-faint"
                     style={{ color: isActive ? color : undefined }}
                   >
-                    {p.status === 'active'
-                      ? 'Aktiivinen'
+                    {isActive
+                      ? 'Voimassa'
                       : p.status === 'planned'
                         ? 'Suunniteltu'
                         : p.status === 'achieved'

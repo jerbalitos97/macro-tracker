@@ -36,7 +36,7 @@ export function getPeriods(settings: Settings): GoalPeriod[] {
  *  nobody remembering to flip it. Before that day it is inert, which is the
  *  whole point: a future phase stored as `active` would seize today's budget
  *  the moment it was saved. */
-function isLive(p: GoalPeriod, today: string): boolean {
+export function isPeriodLive(p: GoalPeriod, today: string): boolean {
   if (p.status === 'active') return true
   return p.status === 'planned' && p.startDate <= today && today <= p.endDate
 }
@@ -51,7 +51,7 @@ export function getActivePeriod(settings: Settings, today: string): GoalPeriod |
   const periods = getPeriods(settings)
   if (periods.length === 0) return null
 
-  const actives = periods.filter((p) => isLive(p, today))
+  const actives = periods.filter((p) => isPeriodLive(p, today))
   if (actives.length > 0) {
     // newest active by startDate
     return actives.reduce((a, b) => (a.startDate >= b.startDate ? a : b))
@@ -78,18 +78,28 @@ export function materializeLegacyIfNeeded(settings: Settings): Settings {
   }
 }
 
-/** Mark the active period as ended on `endDate` with the given status. */
+/** Päättää sen jakson joka on VOIMASSA annettuna päivänä.
+ *
+ *  Voimassa ei tarkoita samaa kuin `status === 'active'`: etukäteen kirjattu
+ *  jakso on tilassa `planned` ja ottaa budjetin haltuunsa omana päivänään
+ *  ilman että tilaa käännetään. Aiemmin tämä etsi tasan `active`-rivin, joten
+ *  juuri silloin kun jakso oli kirjattu etukäteen — eli aina kun vaiheet on
+ *  suunniteltu niin kuin ne on tarkoitettu — "Päätä nykyinen" palautti
+ *  asetukset muuttumattomina. Nappi joka ei tee mitään on pahempi kuin
+ *  puuttuva nappi, koska se näyttää tehneen jotain. */
 export function endActivePeriod(
   settings: Settings,
   endDate: string,
   status: 'achieved' | 'retired',
 ): Settings {
   const next = materializeLegacyIfNeeded(settings)
-  const today = endDate
-  const idx = (next.goalPeriods ?? []).findIndex((p) => p.status === 'active')
-  if (idx === -1) return next
   const periods = [...(next.goalPeriods ?? [])]
-  periods[idx] = { ...periods[idx], status, endDate: today }
+  const live = periods.filter((p) => isPeriodLive(p, endDate))
+  if (live.length === 0) return next
+  // Sama valinta kuin getActivePeriod tekee: uusin alkupäivä voittaa.
+  const target = live.reduce((a, b) => (a.startDate >= b.startDate ? a : b))
+  const idx = periods.findIndex((p) => p.id === target.id)
+  periods[idx] = { ...periods[idx], status, endDate }
   return { ...next, goalPeriods: periods }
 }
 
@@ -103,8 +113,13 @@ export function addPeriod(
   // end date moves only when the new period starts *before* it would have
   // finished — otherwise planning a future period would silently stretch the
   // outgoing one to meet it.
+  //
+  // Väistyvä jakso haetaan voimassaolon eikä tilan perusteella: etukäteen
+  // kirjattu `planned`-jakso on yhtä lailla se joka on menossa, ja pelkkä
+  // `active`-haku jätti sen voimaan uuden rinnalle. Myöhemmät suunnitellut
+  // vaiheet eivät ole voimassa uuden alkupäivänä, joten ketju säilyy.
   let periods = (next.goalPeriods ?? []).map((p) =>
-    p.status === 'active'
+    isPeriodLive(p, period.startDate)
       ? {
           ...p,
           status: 'retired' as const,
