@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Play, Check, Trash2, X, ArrowUp, ArrowDown, Pause, Info, Plus } from 'lucide-react'
 import { Sheet, Button } from '../ui'
 import type { LoggedExercise, IntervalConfig } from '../../lib/workouts'
-import { beep, primeAudio } from '../../lib/audio'
+import { beep, primeAudio, speak, stopSpeech } from '../../lib/audio'
+import { haptic } from '../../lib/haptics'
 import {
   runFor, startRun, pauseRun, resumeRun, clearRun, stateOf, contractionSeconds,
 } from '../../lib/intervalClock'
@@ -43,16 +44,6 @@ function notifyDone(title: string): void {
   }
 }
 
-function speak(text: string): void {
-  try {
-    speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    u.lang = 'fi-FI'
-    u.rate = 1.1
-    speechSynthesis.speak(u)
-  } catch { /* no speech available */ }
-}
-
 export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMoveUp, onMoveDown, onShowInfo, workoutId, onClose }: Props) {
   const iv = exercise.interval
   // The run lives in localStorage and is derived from the wall clock, so the
@@ -65,7 +56,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
   const setRun = (r: IntervalRun | null) => {
     if (r) saveAndSet(r)
-    else { clearRun(); setRunState(null) }
+    else { stopSpeech(); clearRun(); setRunState(null) }
   }
   const saveAndSet = (r: IntervalRun) => setRunState(r)
 
@@ -114,6 +105,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
       sets: exercise.sets.map((s, i) =>
         (i === setIndex ? { ...s, duration: contractionSeconds(iv), done: true } : s)),
     })
+    haptic('success')
     beep(1320); setTimeout(() => beep(1320), 200); setTimeout(() => beep(1760), 400)
     speak('Sarja valmis')
     notifyDone(`${exercise.name}: sarja valmis`)
@@ -160,8 +152,8 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     const first = spoken.current === null
     spoken.current = key
     if (first) return // opening onto a run in progress should not re-announce it
-    if (state.phase === 'work') { beep(1320); speak('Contraction') }
-    else if (state.phase === 'rest') { beep(660); speak('Lepo') }
+    if (state.phase === 'work') { haptic('warning'); beep(1320); speak('Contraction') }
+    else if (state.phase === 'rest') { haptic('select'); beep(660); speak('Lepo') }
   }, [run, state?.phase, state?.round, paused])
 
   // Completion is also derived: when the clock says this side is done, either
@@ -170,6 +162,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     if (!run || !state || paused || state.phase !== 'done') return
     if (iv.perSide && run.side === 1) {
       if (!switching) {
+        haptic('warning')
         beep(660); setTimeout(() => beep(660), 200)
         speak('Vaihda jalka')
         notifyDone(`${exercise.name}: vaihda jalka`)
@@ -255,7 +248,10 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
           <div className="mt-4 flex items-center gap-2">
             {shown !== 'switch' && (
               <button
-                onClick={() => setRunState(paused ? resumeRun(run) : pauseRun(run))}
+                onClick={() => {
+                  if (!paused) stopSpeech()
+                  setRunState(paused ? resumeRun(run) : pauseRun(run))
+                }}
                 className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
               >
                 {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}

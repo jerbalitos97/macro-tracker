@@ -20,12 +20,29 @@ export interface UiPrefs {
    *  odottaisi joka avauksella, ja siinä vaiheessa siihen vastataan
    *  katsomatta. */
   blockTemplateAck?: string
+  /** Puhuuko sovellus treenin aikana ("Contraction", "Lepo", "Sarja valmis").
+   *  Oletus on päällä, ja poissaolo luetaan päälle. */
+  voiceCues?: boolean
+  /** Soivatko merkkiäänet — intervallin vaihdot ja lepohälytys. Erillään
+   *  puheesta tarkoituksella: puhe on se joka iOS:llä ottaa äänilaitteen
+   *  haltuun, joten moni haluaa vaimentaa sen mutta pitää piippaukset. */
+  cueTones?: boolean
 }
 
 /** Yksi paikka jossa oletus asuu, jotta "ei tallennettu" ja "päällä" eivät
  *  pääse eroamaan toisistaan kutsupaikkojen välillä. */
 export function hapticsOn(p: UiPrefs = getPrefs()): boolean {
   return p.haptics !== false
+}
+
+/** Sama kuvio kuin haptiikalla: tallentamaton tarkoittaa päällä, jottei vanha
+ *  asetusrivi vaienna sovellusta jonka ääniä ei ole koskaan säädetty. */
+export function voiceCuesOn(p: UiPrefs = getPrefs()): boolean {
+  return p.voiceCues !== false
+}
+
+export function cueTonesOn(p: UiPrefs = getPrefs()): boolean {
+  return p.cueTones !== false
 }
 
 export function getPrefs(): UiPrefs {

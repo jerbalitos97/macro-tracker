@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Timer, X, Check, SlidersHorizontal, Infinity as InfinityIcon } from 'lucide-react'
+import {
+  Plus, Timer, X, Check, SlidersHorizontal, Infinity as InfinityIcon,
+  Volume2, VolumeX, MessageSquare, MessageSquareOff,
+} from 'lucide-react'
 import { Sheet, Button, Chip } from '../ui'
 import {
   REST_TARGETS, getActiveRest, startRest, startHold, endRest, clearActiveRest,
   elapsedSec, formatRest, isHold, inAlarmWindow, holdStep, HOLD_STEP_SEC, ALARM_SEC,
 } from '../../lib/restTimer'
-import { beep, primeAudio } from '../../lib/audio'
+import { beep, primeAudio, speak, stopSpeech } from '../../lib/audio'
+import {
+  getPrefs, savePrefsLocal, syncPrefsCloud, voiceCuesOn, cueTonesOn,
+} from '../../lib/uiPrefs'
+import { useAuth } from '../../contexts/AuthContext'
 import type { ActiveRest, RestEntry } from '../../lib/restTimer'
 
 // The floating button used to open the warm-up directly. It is now a "+" that
@@ -21,7 +28,10 @@ interface Props {
 }
 
 export function WorkoutTools({ workoutId, onEditCheck }: Props) {
+  const { user } = useAuth()
   const [menu, setMenu] = useState(false)
+  const [voice, setVoice] = useState(() => voiceCuesOn())
+  const [tones, setTones] = useState(() => cueTonesOn())
   const [rest, setRest] = useState(false)
   const [active, setActive] = useState<ActiveRest | null>(() => getActiveRest())
   const [, tick] = useState(0)
@@ -71,6 +81,32 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
   const HOLD_COLORS = ['#22d3ee', '#a78bfa', '#facc15', '#4ade80']
   const holdColor = HOLD_COLORS[holdStep(seconds) % HOLD_COLORS.length]
   const alarming = active ? inAlarmWindow(active, seconds) : false
+
+  /** Kirjoittaa asetuksen paikallisesti heti ja pilveen perässä — sama kuvio
+   *  kuin muillakin käyttöliittymäasetuksilla, jotta katkaisin toimii myös
+   *  ilman verkkoa eikä treeni odota tallennusta. */
+  const writeAudioPref = (patch: { voiceCues?: boolean; cueTones?: boolean }) => {
+    const next = savePrefsLocal({ ...getPrefs(), ...patch })
+    if (user) void syncPrefsCloud(user.id, next)
+  }
+
+  const toggleVoice = () => {
+    const on = !voice
+    setVoice(on)
+    writeAudioPref({ voiceCues: on })
+    // Vaimennus vaikuttaa heti: kesken oleva lause katkaistaan sen sijaan että
+    // se puhuttaisiin loppuun juuri kun käyttäjä pyysi hiljaisuutta.
+    if (!on) stopSpeech()
+    else speak('Puhe päällä')
+  }
+
+  const toggleTones = () => {
+    const on = !tones
+    setTones(on)
+    writeAudioPref({ cueTones: on })
+    // Näyte vasta kirjoituksen jälkeen, muuten beep lukee vanhaa asetusta.
+    if (on) { primeAudio(); beep(1320, 120) }
+  }
 
   const begin = (targetSec: number) => {
     primeAudio() // this tap is the gesture that lets the alarm be heard later
@@ -130,6 +166,54 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
         {/* The warm-up used to live here as a second, separately-edited routine.
             It is now the package the template names, shown at the top of the
             logger with the day's gates applied — one warm-up, not two. */}
+        {/* Äänet. Kaksi katkaisinta eikä yhtä, koska ne ovat eri ongelma:
+            puhe on se joka iOS:llä ottaa äänilaitteen haltuun, kun taas lyhyt
+            merkkiääni sekoittuu musiikkiin ongelmitta. Moni haluaa vaimentaa
+            liikkuvuustreenin laskennan mutta pitää lepohälytyksen. */}
+        <div className="mb-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5">
+          <div className="flex items-center gap-3">
+            <Volume2 size={18} className="flex-shrink-0 text-accent" />
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-text">Äänet</div>
+              <div className="text-[11px] text-fg-faint">
+                Taustamusiikki vaimenee merkin ajaksi eikä pysähdy
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            <button
+              onClick={toggleVoice}
+              aria-pressed={voice}
+              className={`flex items-center justify-center gap-1.5 rounded-input border px-3 py-2.5 text-[12px] transition-colors ${
+                voice
+                  ? 'border-border-hi bg-accent/[0.10] text-text'
+                  : 'border-white/[0.08] bg-black/25 text-fg-muted'
+              }`}
+            >
+              {voice ? <MessageSquare size={14} /> : <MessageSquareOff size={14} />}
+              Puhe
+            </button>
+            <button
+              onClick={toggleTones}
+              aria-pressed={tones}
+              className={`flex items-center justify-center gap-1.5 rounded-input border px-3 py-2.5 text-[12px] transition-colors ${
+                tones
+                  ? 'border-border-hi bg-accent/[0.10] text-text'
+                  : 'border-white/[0.08] bg-black/25 text-fg-muted'
+              }`}
+            >
+              {tones ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              Merkkiäänet
+            </button>
+          </div>
+          {!voice && !tones && (
+            <p className="m-0 mt-2 text-[10px] leading-snug text-fg-ghost">
+              Kello käy äänettä — vaiheenvaihto tuntuu värinänä, jos se on päällä.
+            </p>
+          )}
+        </div>
+
         {onEditCheck && (
           <button
             onClick={() => { setMenu(false); onEditCheck() }}
