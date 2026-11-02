@@ -20,7 +20,7 @@
 //     a named section below lands in `raw.unmapped` verbatim. A store added
 //     later and never registered here still ships — worse-labelled than it
 //     could be, but present.
-//   · Cloud-only collections (habits, wealth, tasks, mobility logs) cannot be
+//   · Cloud-only collections (habits, wealth, tasks, mobility logs, grocery) cannot be
 //     swept that way, so they are fetched explicitly. When a new cloud table
 //     appears, add it to `fetchCloud` — and note that the sweep will not cover
 //     it for you.
@@ -37,11 +37,14 @@
 import type { AppData, ComputedDay } from '../types'
 import { loadData } from './storage'
 import { computeDays } from './compute'
-import { getPeriods, getActiveGoal } from './goalPeriods'
+import { getPeriods, getActiveGoal, getPeriodForDate } from './goalPeriods'
 import { recommendProtein, intentOf } from './planning'
 import { computeWeightTrend } from './weight'
-import { getTemplates, getWorkouts, getDrafts } from './workouts'
-import { getBlocks, blockForDate } from './blocks'
+import { getTemplates, getWorkouts, getDrafts, templateInPlay, upcomingTemplates } from './workouts'
+import type { Workout } from './workouts'
+import { getBlocks, blockForDate, blockStatus } from './blocks'
+import { buildAnalysis } from './analysis'
+import { evaluateGuard, isGuardAdjustment } from './maintenanceGuard'
 import { getWarmups } from './warmups'
 import { getRestLog } from './restTimer'
 import { getLocations } from './locations'
@@ -52,10 +55,10 @@ import { listAllTasks } from './tasks'
 import { listMobilityLogs } from './mobility'
 import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
-import { toISO } from './dates'
+import { toISO, fromISO, addDays } from './dates'
 import { supabase } from './supabase'
 
-const SCHEMA_VERSION = 8
+const SCHEMA_VERSION = 9
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -80,6 +83,27 @@ const MAPPED_KEYS = [
 ]
 
 const README: Record<string, string> = {
+  now:
+    'What the app itself concludes on the export date, so a conversation starts ' +
+    'from the same verdict the user sees instead of re-deriving it. goal is the ' +
+    'goal in force (getActiveGoal), analysis the single progress verdict the ' +
+    'Analysis view renders (headline, position, rate, recovery), block the ' +
+    'training block running today and the next one, templatesInPlay the session ' +
+    'plans the picker offers today and upcomingTemplates those written for a ' +
+    'later block, and maintenanceGuard the post-cut watchdog verdict. Derived, ' +
+    'not stored: recomputed from the sections below at export time.',
+  timeline:
+    'One row per calendar day from the first thing ever logged to the export ' +
+    'date, across every goal period — `days` covers only the active period and ' +
+    'carries the plan arithmetic, this covers all history without it. goal and ' +
+    'block are what was in force that date. eaten/protein/burned are null on ' +
+    'days with nothing logged (gaps, not zeros). weightKg is the raw reading, ' +
+    'trendKg the 7-day average. sessions are the workouts logged that date. ' +
+    'No tdee or budget here: the weekly pattern behind them has changed over ' +
+    'time and only its current value is stored, so a past budget would be a guess.',
+  grocery:
+    'Shopping lists the user owns and their items (cloud-stored). done marks ' +
+    'an item already picked up. null means the fetch failed, not "none".',
   days:
     'One row per day of the active goal period. dayType/tdee come from the weekly ' +
     'pattern; plannedDeficit is what the plan asked of that day (0 on weekends when ' +
@@ -228,6 +252,8 @@ export interface ExportBundle {
   schemaVersion: number
   exportedAt: string
   app: string
+  now: Record<string, unknown>
+  timeline: Array<Record<string, unknown>>
   days: Array<Record<string, unknown>>
   weightTrend: Array<{ date: string; kg: number; trend: number }>
   goalPeriods: unknown[]
@@ -243,6 +269,7 @@ export interface ExportBundle {
   tasks: unknown[] | null
   mobilityLogs: unknown[] | null
   planChanges: unknown[] | null
+  grocery: { lists: unknown[]; items: unknown[] } | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
   trainingLocations: unknown[]
@@ -332,6 +359,98 @@ function proteinSummary(
   }
 }
 
+/** All history, one row per date. `days` stops at the active period's start,
+ *  so every earlier cut and refill was only reachable as raw logs — fine for a
+ *  script, useless for a conversation that wants to compare periods. */
+function timelineRows(
+  data: AppData,
+  trend: ReturnType<typeof computeWeightTrend>,
+  workouts: Workout[],
+  today: string,
+): Array<Record<string, unknown>> {
+  const sum = (m: Map<string, number>, date: string, n: number) => m.set(date, (m.get(date) ?? 0) + n)
+  const eaten = new Map<string, number>()
+  const protein = new Map<string, number>()
+  const meals = new Map<string, number>()
+  for (const m of data.meals ?? []) {
+    sum(eaten, m.date, m.kcal)
+    sum(protein, m.date, m.protein)
+    sum(meals, m.date, 1)
+  }
+  const burned = new Map<string, number>()
+  for (const b of data.burns ?? []) sum(burned, b.date, b.kcal)
+  for (const x of data.extras ?? []) sum(burned, x.date, x.kcal)
+  const adjustment = new Map((data.adjustments ?? []).map((a) => [a.date, a] as const))
+  const weight = new Map((data.weights ?? []).map((w) => [w.date, w.kg] as const))
+  const trendKg = new Map(trend.trendData.map((t) => [t.date, t.trend] as const))
+
+  const dates = [
+    ...(data.meals ?? []), ...(data.weights ?? []), ...(data.burns ?? []),
+    ...(data.adjustments ?? []), ...(data.events ?? []), ...workouts,
+  ].map((r) => r.date).filter((d) => d <= today)
+  if (dates.length === 0) return []
+  const first = dates.reduce((a, b) => (a < b ? a : b))
+
+  const blocks = getBlocks()
+  const rows: Array<Record<string, unknown>> = []
+  for (let date = first; date <= today; date = addDays(date, 1)) {
+    const period = getPeriodForDate(data.settings, date)
+    const block = blockForDate(blocks, date)
+    const adj = adjustment.get(date)
+    const tk = trendKg.get(date)
+    rows.push({
+      date,
+      weekday: ['su', 'ma', 'ti', 'ke', 'to', 'pe', 'la'][fromISO(date).getDay()],
+      goal: period ? { id: period.id, type: period.type, status: period.status } : null,
+      block: block ? { id: block.id, name: block.name } : null,
+      eaten: eaten.has(date) ? Math.round(eaten.get(date)!) : null,
+      protein: protein.has(date) ? Math.round(protein.get(date)!) : null,
+      meals: meals.get(date) ?? 0,
+      burned: burned.has(date) ? Math.round(burned.get(date)!) : null,
+      weightKg: weight.get(date) ?? null,
+      trendKg: tk == null ? null : Math.round(tk * 100) / 100,
+      adjustmentKcal: adj?.kcal ?? 0,
+      adjustmentNote: adj?.note || null,
+      events: (data.events ?? []).filter((e) => e.date === date).map((e) => e.name),
+      sessions: workouts
+        .filter((w) => w.date === date)
+        .map((w) => ({ id: w.id, name: w.name, templateId: w.templateId ?? null })),
+    })
+  }
+  return rows
+}
+
+/** The verdicts the app shows today, computed by the same functions the views
+ *  use — so the file and the screen cannot disagree. */
+function nowSnapshot(
+  data: AppData,
+  computed: ReturnType<typeof computeDays>,
+  trend: ReturnType<typeof computeWeightTrend>,
+  today: string,
+): Record<string, unknown> {
+  const blocks = getBlocks()
+  const status = blockStatus(blocks, today)
+  const currentBlockId = status.current?.id ?? null
+  const templates = getTemplates()
+  const brief = (t: { id: string; name: string; kind?: string; blockId?: string | null }) => ({
+    id: t.id, name: t.name, kind: t.kind ?? 'strength', blockId: t.blockId ?? null,
+  })
+  const activeGuardAdjustments = (data.adjustments ?? []).some(
+    (a) => a.date >= today && isGuardAdjustment(a.note),
+  )
+  return {
+    today,
+    goal: getActiveGoal(data.settings, today),
+    analysis: buildAnalysis({ settings: data.settings, computed, trend, today }),
+    block: status,
+    templatesInPlay: templates.filter((t) => templateInPlay(t, currentBlockId)).map(brief),
+    upcomingTemplates: upcomingTemplates(templates, currentBlockId).map(brief),
+    maintenanceGuard: evaluateGuard(
+      data.settings.maintenanceGuard, data.weights ?? [], today, activeGuardAdjustments,
+    ),
+  }
+}
+
 /** Every localStorage key that no named section claims. This is the safety
  *  net: a store added later and never registered still reaches the file. */
 function sweepUnmapped(): Record<string, unknown> {
@@ -366,8 +485,9 @@ async function fetchCloud(userId: string | undefined): Promise<{
   tasks: ExportBundle['tasks']
   mobilityLogs: ExportBundle['mobilityLogs']
   planChanges: ExportBundle['planChanges']
+  grocery: ExportBundle['grocery']
 }> {
-  const [habits, wealth, tasks, mobilityLogs, planChanges] = await Promise.all([
+  const [habits, wealth, tasks, mobilityLogs, planChanges, grocery] = await Promise.all([
     (async () => {
       if (!userId) return null
       try {
@@ -422,8 +542,30 @@ async function fetchCloud(userId: string | undefined): Promise<{
         return null
       }
     })(),
+    (async () => {
+      // Read directly rather than through getOrCreateList, which would create
+      // a list as a side effect of exporting.
+      if (!supabase || !userId) return null
+      try {
+        const { data: lists, error } = await supabase
+          .from('grocery_lists')
+          .select('*')
+          .eq('owner_id', userId)
+        if (error) return null
+        const ids = (lists ?? []).map((l) => l.id)
+        if (ids.length === 0) return { lists: [], items: [] }
+        const { data: items, error: itemsError } = await supabase
+          .from('grocery_items')
+          .select('*')
+          .in('list_id', ids)
+        if (itemsError) return null
+        return { lists: lists ?? [], items: items ?? [] }
+      } catch {
+        return null
+      }
+    })(),
   ])
-  return { habits, wealth, tasks, mobilityLogs, planChanges }
+  return { habits, wealth, tasks, mobilityLogs, planChanges, grocery }
 }
 
 export async function buildExport(userId?: string): Promise<ExportBundle | null> {
@@ -439,13 +581,17 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     data.adjustments ?? [],
   )
   const trend = computeWeightTrend(data.weights ?? [])
-  const { habits, wealth, tasks, mobilityLogs, planChanges } = await fetchCloud(userId)
+  const { habits, wealth, tasks, mobilityLogs, planChanges, grocery } = await fetchCloud(userId)
+  const today = toISO(new Date())
+  const workouts = getWorkouts()
 
   return {
     _readme: README,
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     app: 'Friday',
+    now: nowSnapshot(data, computed, trend, today),
+    timeline: timelineRows(data, trend, workouts, today),
     days: computed.days.map((d) => dayRow(d, data.settings.proteinTarget)),
     weightTrend: trend.trendData.map((t) => ({
       date: t.date,
@@ -454,7 +600,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     })),
     goalPeriods: getPeriods(data.settings),
     settings: data.settings,
-    workouts: getWorkouts(),
+    workouts,
     workoutTemplates: getTemplates(),
     workoutDrafts: getDrafts(),
     trainingBlocks: getBlocks(),
@@ -465,13 +611,14 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     tasks,
     mobilityLogs,
     planChanges,
+    grocery,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
     trainingLocations: getLocations(),
     // Flattened out of the sessions as their own series, because that is how
     // the gates read them: baseline, trend and 24h response are properties of
     // the region over time, not of any one workout.
-    assessments: getWorkouts().flatMap((w) => w.assessments ?? []),
+    assessments: workouts.flatMap((w) => w.assessments ?? []),
     protein: proteinSummary(data, computed.days, trend.currentTrend),
     raw: {
       meals: data.meals ?? [],

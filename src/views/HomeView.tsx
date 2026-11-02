@@ -171,7 +171,7 @@ function ExportButton({ userId }: { userId?: string }) {
         className="flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-3.5 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-dim [backdrop-filter:blur(14px)] disabled:opacity-60"
       >
         <Download size={15} />
-        {busy ? 'Kootaan…' : 'Vie tavoite- ja tulosdata'}
+        {busy ? 'Kootaan…' : 'Vie kaikki tiedot (JSON)'}
       </button>
       {outcome && (
         <p
