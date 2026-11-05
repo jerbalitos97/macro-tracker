@@ -15,6 +15,7 @@ const TOOLS: { card: string; tabs: string[] }[] = [
   { card: 'Suunnittelu',      tabs: ['Suunnittelu', 'Asetukset'] },
   { card: 'Tehtävät',         tabs: ['Tehtävät', 'Kalenteri'] },
   { card: 'LiikkuvuusPuu',    tabs: ['Liikkuvuus'] },
+  { card: 'Testi',            tabs: ['Testi'] },
 ]
 
 // Testi ei saa riippua verkosta eikä koskea mihinkään ulkoiseen. Google Fonts

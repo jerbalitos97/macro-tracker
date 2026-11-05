@@ -30,6 +30,7 @@ const TOOL_COLOR: Record<Tool, string> = {
   friday:   '#a78bfa',
   tasks:    '#e8b85a',
   mobility: '#7ba88a',
+  testi:    '#f0abfc',
   admin:    '#9ea2b0',
 }
 

@@ -43,6 +43,7 @@ import { HabitsView } from './views/HabitsView'
 import { SettingsView } from './views/SettingsView'
 import { TasksView, TasksCalendarView } from './views/TasksView'
 import { MobilityView } from './views/MobilityView'
+import { TestiView } from './views/TestiView'
 import { AdminView } from './views/AdminView'
 import { useTools } from './contexts/ToolsContext'
 import { isViewAllowed } from './lib/viewAccess'
@@ -810,6 +811,12 @@ export default function App() {
       {view === 'mobility' && (
         <m.div key={view} {...viewMotion}>
           <MobilityView />
+        </m.div>
+      )}
+
+      {view === 'testi' && (
+        <m.div key={view} {...viewMotion}>
+          <TestiView />
         </m.div>
       )}
 

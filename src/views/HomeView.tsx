@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange, CheckSquare, Sprout, ShieldCheck } from 'lucide-react'
+import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange, CheckSquare, Sprout, ShieldCheck, FlaskConical } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
@@ -33,6 +33,7 @@ const TOOLS: ToolDef[] = [
   { id: 'plan',     label: 'Suunnittelu',      Icon: CalendarRange,  color: '#e8b85a', target: 'planning' },
   { id: 'tasks',    label: 'Tehtävät',         Icon: CheckSquare,    color: '#e8b85a', target: 'tasks' },
   { id: 'mobility', label: 'LiikkuvuusPuu',    Icon: Sprout,         color: '#7ba88a', target: 'mobility', short: 'Liikkuvuus' },
+  { id: 'testi',    label: 'Testi',            Icon: FlaskConical,   color: '#f0abfc', target: 'testi' },
   { id: 'friday',   label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
   { id: 'admin',    label: 'Käyttäjät',        Icon: ShieldCheck,    color: '#9ea2b0', target: 'admin' },
 ]

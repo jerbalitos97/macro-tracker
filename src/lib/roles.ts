@@ -26,6 +26,8 @@ export type Tool =
   // Kodista tuodut
   | 'tasks'
   | 'mobility'
+  // Palautteesta #1: silmukan toimivuuden osoitus
+  | 'testi'
   // Hallinta
   | 'admin'
 
@@ -43,6 +45,7 @@ export const ALL_TOOLS: Tool[] = [
   'friday',
   'tasks',
   'mobility',
+  'testi',
   'admin',
 ]
 
@@ -59,6 +62,7 @@ export const TOOL_NAMES: Record<Tool, string> = {
   friday:   'Talk to Friday',
   tasks:    'Tehtävät',
   mobility: 'LiikkuvuusPuu',
+  testi:    'Testi',
   admin:    'Käyttäjäoikeudet',
 }
 

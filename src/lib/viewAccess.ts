@@ -33,6 +33,7 @@ export const VIEW_TOOL: Record<View, Tool | null> = {
   tasks:            'tasks',
   'tasks-calendar': 'tasks',
   mobility:         'mobility',
+  testi:            'testi',
   admin:            'admin',
 }
 
