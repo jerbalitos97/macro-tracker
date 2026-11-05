@@ -20,7 +20,7 @@
 //     a named section below lands in `raw.unmapped` verbatim. A store added
 //     later and never registered here still ships — worse-labelled than it
 //     could be, but present.
-//   · Cloud-only collections (habits, wealth, tasks, mobility logs, grocery) cannot be
+//   · Cloud-only collections (habits, wealth, tasks, mobility logs, grocery, feedback) cannot be
 //     swept that way, so they are fetched explicitly. When a new cloud table
 //     appears, add it to `fetchCloud` — and note that the sweep will not cover
 //     it for you.
@@ -53,12 +53,13 @@ import { getAcknowledgedSurpluses } from './surplusAck'
 import { listHabits, listEntries } from './habits'
 import { listAllTasks } from './tasks'
 import { listMobilityLogs } from './mobility'
+import { listMyFeedback } from './feedback'
 import { listAssets, listAllValues } from './wealth/assets'
 import { getSettings as getWealthSettings } from './wealth/settings'
 import { toISO, fromISO, addDays } from './dates'
 import { supabase } from './supabase'
 
-const SCHEMA_VERSION = 9
+const SCHEMA_VERSION = 10
 
 /** Never exported. The auth session carries a bearer token. */
 const SENSITIVE_KEYS = ['makrot:session']
@@ -210,6 +211,14 @@ const README: Record<string, string> = {
     'task_days, a task is a single dated row that is ticked once and can be ' +
     'moved to another day. done/doneAt say whether and when it was ticked. ' +
     'null means the fetch failed or there is no signed-in user — not "none".',
+  feedback:
+    'What the user asked to have changed in the app, newest first, and what ' +
+    'happened to it. status: new → triaged → in_progress → shipped, or ' +
+    'needs_review (a PR waits for a human), rejected, duplicate. priority 1 is ' +
+    'most urgent; risk low = the nightly automation may ship it after the smoke ' +
+    'tests pass, high = always left as a PR. plan is the intended fix, ' +
+    'resolution what was done or why not. context.view is the screen the user ' +
+    'came from. null means the fetch failed or no signed-in user.',
   planChanges:
     'Changes made to the plan through the MCP, newest first: when, which tool, ' +
     'which row. The before/after snapshots stay in the database (mcp_writes) ' +
@@ -270,6 +279,7 @@ export interface ExportBundle {
   mobilityLogs: unknown[] | null
   planChanges: unknown[] | null
   grocery: { lists: unknown[]; items: unknown[] } | null
+  feedback: unknown[] | null
   uiPrefs: unknown
   surplusAcknowledged: string[]
   trainingLocations: unknown[]
@@ -486,8 +496,9 @@ async function fetchCloud(userId: string | undefined): Promise<{
   mobilityLogs: ExportBundle['mobilityLogs']
   planChanges: ExportBundle['planChanges']
   grocery: ExportBundle['grocery']
+  feedback: ExportBundle['feedback']
 }> {
-  const [habits, wealth, tasks, mobilityLogs, planChanges, grocery] = await Promise.all([
+  const [habits, wealth, tasks, mobilityLogs, planChanges, grocery, feedback] = await Promise.all([
     (async () => {
       if (!userId) return null
       try {
@@ -564,8 +575,16 @@ async function fetchCloud(userId: string | undefined): Promise<{
         return null
       }
     })(),
+    (async () => {
+      if (!userId) return null
+      try {
+        return await listMyFeedback(userId)
+      } catch {
+        return null
+      }
+    })(),
   ])
-  return { habits, wealth, tasks, mobilityLogs, planChanges, grocery }
+  return { habits, wealth, tasks, mobilityLogs, planChanges, grocery, feedback }
 }
 
 export async function buildExport(userId?: string): Promise<ExportBundle | null> {
@@ -581,7 +600,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     data.adjustments ?? [],
   )
   const trend = computeWeightTrend(data.weights ?? [])
-  const { habits, wealth, tasks, mobilityLogs, planChanges, grocery } = await fetchCloud(userId)
+  const { habits, wealth, tasks, mobilityLogs, planChanges, grocery, feedback } = await fetchCloud(userId)
   const today = toISO(new Date())
   const workouts = getWorkouts()
 
@@ -612,6 +631,7 @@ export async function buildExport(userId?: string): Promise<ExportBundle | null>
     mobilityLogs,
     planChanges,
     grocery,
+    feedback,
     uiPrefs: getPrefs(),
     surplusAcknowledged: [...getAcknowledgedSurpluses()],
     trainingLocations: getLocations(),

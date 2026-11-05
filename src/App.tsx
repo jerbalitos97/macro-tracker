@@ -98,6 +98,12 @@ export default function App() {
 
   // A ?g=<listId> share link deep-links straight into the Grocery tool.
   const [view, setView] = useState<View>(() => (sharedListIdFromUrl() ? 'grocery' : 'home'))
+  // Palaute kirjoitetaan launcherissa, mutta se koskee yleensä näkymää josta
+  // sinne juuri palattiin. Talteen automaatiolle vihjeeksi.
+  const [lastToolView, setLastToolView] = useState<View | undefined>(undefined)
+  useEffect(() => {
+    if (view !== 'home') setLastToolView(view)
+  }, [view])
 
   // Portti. Kortin piilottaminen ruudukosta ei riitä: `view` säilyy komponentin
   // tilassa, ja jakolinkki (?g=…) osoittaa suoraan yhteen työkaluun. Ilman tätä
@@ -497,7 +503,7 @@ export default function App() {
 
       {view === 'home' && (
         <m.div key={view} {...viewMotion}>
-          <HomeView setView={setView} />
+          <HomeView setView={setView} lastView={lastToolView} />
         </m.div>
       )}
 

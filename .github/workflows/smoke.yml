@@ -1,0 +1,53 @@
+name: Smoke
+
+# Portti jonka läpi palauteautomaation muutokset kulkevat ennen tuotantoa.
+#
+# Ajetaan jokaiselle PR:lle ja jokaiselle pushille mainiin. Automaatio avaa
+# muutoksensa PR:nä ja mergeää vain kun tämä on vihreä; branch protection
+# mainissa ("Require status checks: smoke") tekee siitä pakollisen myös silloin
+# kun deploy kulkee Vercelin oman Git-integraation kautta, jota tämä workflow
+# ei voi itse pysäyttää.
+#
+# Typecheck ajetaan erikseen, koska savutestien build ohittaa tsc:n.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke tests
+        run: npm run test:smoke
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: node_modules/.playwright-results
+          retention-days: 7

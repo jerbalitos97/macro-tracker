@@ -3,6 +3,7 @@ import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Downl
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
 import { AppMark } from '../components/AppMark'
+import { FeedbackButton } from '../components/FeedbackSheet'
 import { DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
@@ -38,9 +39,11 @@ const TOOLS: ToolDef[] = [
 
 interface Props {
   setView: (v: View) => void
+  /** Viimeisin työkalunäkymä — palautteen kontekstiksi. */
+  lastView?: View
 }
 
-export function HomeView({ setView }: Props) {
+export function HomeView({ setView, lastView }: Props) {
   const { user } = useAuth()
   const { tools: granted, loading: toolsLoading, can } = useTools()
   const [order, setOrder] = useState<string[] | undefined>(() => getPrefs().homeToolOrder)
@@ -131,6 +134,8 @@ export function HomeView({ setView }: Props) {
           katoaa myös view-as-tilassa — muuten linssi näyttäisi jotain mitä
           se käyttäjä ei oikeasti näe. */}
       {can('admin') && <ExportButton userId={user?.id} />}
+
+      <FeedbackButton lastView={lastView} />
 
       {/* Footer */}
       <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
