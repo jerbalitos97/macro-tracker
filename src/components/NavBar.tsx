@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange, CheckSquare, Sprout, ShieldCheck } from 'lucide-react'
+import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange, CheckSquare, Sprout, ShieldCheck, FlaskConical } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTools } from '../contexts/ToolsContext'
 import { VIEW_TOOL } from '../lib/viewAccess'
@@ -19,6 +19,7 @@ type View =
   | 'tasks'
   | 'tasks-calendar'
   | 'mobility'
+  | 'testi'
   | 'admin'
 
 interface Tab {
@@ -84,6 +85,11 @@ const MOBILITY_TABS: Tab[] = [
   { id: 'mobility', label: 'Liikkuvuus', Icon: Sprout },
 ]
 
+const TESTI_TABS: Tab[] = [
+  { id: 'home',  label: 'Koti',  Icon: LayoutGrid },
+  { id: 'testi', label: 'Testi', Icon: FlaskConical },
+]
+
 const ADMIN_TABS: Tab[] = [
   { id: 'home',  label: 'Koti',       Icon: LayoutGrid },
   { id: 'admin', label: 'Käyttäjät',  Icon: ShieldCheck },
@@ -97,6 +103,7 @@ function tabsForView(v: View): Tab[] {
   if (v === 'planning' || v === 'settings') return PLANNING_TABS
   if (v === 'tasks' || v === 'tasks-calendar') return TASKS_TABS
   if (v === 'mobility') return MOBILITY_TABS
+  if (v === 'testi') return TESTI_TABS
   if (v === 'admin') return ADMIN_TABS
   return FITNESS_TABS
 }
