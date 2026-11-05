@@ -2,7 +2,9 @@ import { useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Settings } from '../types'
 import { useAuth } from '../contexts/AuthContext'
-import { Card, Button } from '../components/ui'
+import { Card, Button, Sheet } from '../components/ui'
+import { LockSetup } from '../components/AppLock'
+import { clearLock, getLock } from '../lib/appLock'
 import { getPrefs, savePrefsLocal, syncPrefsCloud, hapticsOn } from '../lib/uiPrefs'
 import { setHapticsEnabled, haptic } from '../lib/haptics'
 
@@ -103,6 +105,7 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
               <div className="mb-3 text-[12px] text-muted">
                 Kirjautunut: <span className="text-accent">{user.email}</span>
               </div>
+              <LockSettings userId={user.id} label={user.email ?? 'Friday'} />
               <Button variant="ghost" className="w-full text-danger" onClick={() => signOut()}>
                 Kirjaudu ulos
               </Button>
@@ -174,5 +177,40 @@ function HapticsCard({ userId }: { userId?: string }) {
         </span>
       </button>
     </Card>
+  )
+}
+
+// Sovelluslukko: laitekohtainen, ks. lib/appLock.ts.
+function LockSettings({ userId, label }: { userId: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  const [config, setConfig] = useState(() => getLock(userId))
+  const close = () => {
+    setOpen(false)
+    setConfig(getLock(userId))
+  }
+  const status = !config
+    ? 'Ei käytössä'
+    : [config.credentialId && 'tunnistus', config.pin && 'PIN'].filter(Boolean).join(' + ')
+
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2 rounded-input border border-white/[0.08] bg-black/25 px-3 py-2.5">
+      <span className="min-w-0">
+        <span className="block text-[13px] text-text">Sovelluslukko</span>
+        <span className="block font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost">{status}</span>
+      </span>
+      <span className="flex shrink-0 gap-1.5">
+        {config && (
+          <Button variant="ghost" className="px-3 py-2 text-[11px]" onClick={() => { clearLock(); setConfig(null) }}>
+            Poista
+          </Button>
+        )}
+        <Button variant="ghost" className="px-3 py-2 text-[11px]" onClick={() => setOpen(true)}>
+          {config ? 'Muuta' : 'Ota käyttöön'}
+        </Button>
+      </span>
+      <Sheet open={open} onClose={close} title="Sovelluslukko">
+        <LockSetup userId={userId} label={label} onDone={close} />
+      </Sheet>
+    </div>
   )
 }

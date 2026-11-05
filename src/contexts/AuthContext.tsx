@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { clearLock, markLockOffer } from '../lib/appLock'
 
 interface AuthState {
   user: User | null
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return null
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    // Salasanakirjautumisen jälkeen tarjotaan sovelluslukkoa (ks. lib/appLock.ts).
+    if (!error) markLockOffer()
     return error?.message ?? null
   }
 
@@ -60,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    // Lukko kuuluu tälle kirjautumiselle; seuraava kirjautuja asettaa omansa.
+    clearLock()
     await supabase?.auth.signOut()
   }
 

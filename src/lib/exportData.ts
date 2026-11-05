@@ -62,7 +62,12 @@ import { supabase } from './supabase'
 const SCHEMA_VERSION = 10
 
 /** Never exported. The auth session carries a bearer token. */
-const SENSITIVE_KEYS = ['makrot:session']
+const SENSITIVE_KEYS = [
+  'makrot:session',
+  // Sovelluslukon PIN-tiiviste ja laitteen tunniste. Tiiviste on suolattu, mutta
+  // neljä numeroa murtuu silti — jaettavaan tiedostoon sitä ei laiteta.
+  'friday.lock:v1',
+]
 
 /** localStorage keys already represented by a named section. Anything else is
  *  swept into raw.unmapped rather than dropped. */

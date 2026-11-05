@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, Copy, Eye, Link2, ShieldCheck, Trash2 } from 'lucide-react'
+import { AlertCircle, Check, Copy, Eye, KeyRound, Link2, Share2, ShieldCheck, Trash2 } from 'lucide-react'
+import { createRecoveryLink } from '../lib/passwordReset'
 import { useAuth } from '../contexts/AuthContext'
 import { useTools } from '../contexts/ToolsContext'
 import {
@@ -324,6 +325,8 @@ export function AdminView() {
                   </p>
                 )}
 
+                {!isMe && <RecoveryLink userId={u.userId} name={u.displayName || 'käyttäjä'} />}
+
                 {!isMe && (
                   <button
                     type="button"
@@ -383,6 +386,83 @@ export function AdminView() {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// Salasanan palautuslinkki, jonka admin lähettää itse (WhatsApp tms.).
+// Linkki luodaan vasta napista eikä tallennu mihinkään: se on kirjautumis-
+// oikeus siihen tiliin, kunnes se käytetään tai vanhenee (ks. api/salasana.ts).
+function RecoveryLink({ userId, name }: { userId: string; name: string }) {
+  const [link, setLink] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const create = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      setLink((await createRecoveryLink(userId)).link)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Linkin luonti ei onnistunut')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const text = (l: string) => `Tällä linkillä pääset asettamaan uuden salasanan Fridayhin: ${l}`
+
+  const share = async (l: string) => {
+    try {
+      await navigator.share({ text: text(l) })
+    } catch {
+      /* peruttu */
+    }
+  }
+
+  const copy = async (l: string) => {
+    try {
+      await navigator.clipboard.writeText(l)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      window.prompt('Kopioi palautuslinkki:', l)
+    }
+  }
+
+  const btn =
+    'flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-input border border-white/10 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted disabled:opacity-50'
+
+  if (!link) {
+    return (
+      <div className="mt-3">
+        <button type="button" disabled={busy} onClick={() => void create()} className={`w-full ${btn}`}>
+          <KeyRound size={13} />
+          {busy ? 'Luodaan…' : 'Salasanan palautuslinkki'}
+        </button>
+        {error && <p role="alert" className="mt-1.5 text-[12px] text-danger">{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3 rounded-input border border-white/[0.08] bg-black/25 p-3">
+      <p className="text-[12px] leading-snug text-fg-muted">
+        Lähetä tämä vain käyttäjälle {name}. Linkki toimii kerran ja vanhenee noin tunnissa.
+      </p>
+      <div className="mt-2 flex gap-2">
+        {typeof navigator.share === 'function' && (
+          <button type="button" onClick={() => void share(link)} className={btn}>
+            <Share2 size={13} />
+            Jaa
+          </button>
+        )}
+        <button type="button" onClick={() => void copy(link)} className={btn}>
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? 'Kopioitu' : 'Kopioi'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -28,6 +28,10 @@ import { MigrationPrompt } from './components/MigrationPrompt'
 import { SurplusPrompt } from './components/SurplusPrompt'
 import { getAcknowledgedSurpluses, acknowledgeSurplus } from './lib/surplusAck'
 import { LoginView } from './views/LoginView'
+import { ResetPasswordView } from './views/ResetPasswordView'
+import { recoveryTokenFromUrl } from './lib/passwordReset'
+import { LockScreen, LockOfferSheet, useAppLock } from './components/AppLock'
+import { getLock, takeLockOffer } from './lib/appLock'
 import { HomeView } from './views/HomeView'
 import { WealthView } from './views/WealthView'
 import { WealthSettingsView } from './views/WealthSettingsView'
@@ -92,7 +96,7 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 export default function App() {
-  const { user, loading: authLoading, enabled: authEnabled } = useAuth()
+  const { user, loading: authLoading, enabled: authEnabled, signOut } = useAuth()
   const { tools: grantedTools, loading: toolsLoading, viewAs, stopViewAs } = useTools()
   const reduceMotion = useReducedMotion()
   const viewMotion = reduceMotion ? VIEW_MOTION_REDUCED : VIEW_MOTION
@@ -102,6 +106,13 @@ export default function App() {
   // Palaute kirjoitetaan launcherissa, mutta se koskee yleensä näkymää josta
   // sinne juuri palattiin. Talteen automaatiolle vihjeeksi.
   const [lastToolView, setLastToolView] = useState<View | undefined>(undefined)
+  const [recoveryToken, setRecoveryToken] = useState<string | null>(() => recoveryTokenFromUrl())
+  const appLock = useAppLock(user?.id)
+  // Salasanalla kirjautumisen jälkeen tarjotaan lukkoa, jos sitä ei vielä ole.
+  const [lockOffer, setLockOffer] = useState(false)
+  useEffect(() => {
+    if (user && takeLockOffer() && !getLock(user.id)) setLockOffer(true)
+  }, [user])
   useEffect(() => {
     if (view !== 'home') setLastToolView(view)
   }, [view])
@@ -418,15 +429,42 @@ export default function App() {
     )
   }
 
+  // ── Password recovery link from an admin (?palauta=…) ─────────
+  // Before the login gate: the link is how someone who can't log in gets back
+  // in, and before the main UI so a signed-in admin testing the link sees it.
+  if (recoveryToken) {
+    return <ResetPasswordView token={recoveryToken} onDone={() => setRecoveryToken(null)} />
+  }
+
   // ── Login screen (only when Supabase is configured and user is not signed in) ─
   if (authEnabled && !user) {
     return <LoginView />
+  }
+
+  // ── App lock (Face ID / fingerprint / PIN), device-local ─────
+  if (user && appLock.locked && appLock.config) {
+    return (
+      <LockScreen
+        config={appLock.config}
+        onUnlocked={appLock.unlock}
+        // Liian monta väärää PIN:iä: lukko on jo nollattu, ulos ja salasanalla sisään.
+        onLockedOut={() => void signOut()}
+      />
+    )
   }
 
   // ── Main app ──────────────────────────────────────────────────
   return (
     <LazyMotion features={domMax}>
     <div className="mx-auto min-h-dvh w-full max-w-[480px] overflow-x-clip text-text pb-[calc(96px+env(safe-area-inset-bottom))]">
+      {user && (
+        <LockOfferSheet
+          open={lockOffer}
+          userId={user.id}
+          label={user.email ?? 'Friday'}
+          onClose={() => { setLockOffer(false); appLock.refresh() }}
+        />
+      )}
       {/* Storage error banner */}
       {saveError && (
         <div role="alert" className="banner-enter flex items-center justify-between gap-3 border-b border-danger/25 bg-danger/10 px-4 py-2.5 text-xs text-danger">
