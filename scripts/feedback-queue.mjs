@@ -8,7 +8,8 @@
 //
 // Ympäristö:
 //   SUPABASE_URL                 https://<ref>.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY    service role -avain
+//   SUPABASE_SERVICE_ROLE_KEY    secret-avain (sb_secret_…, Settings › API Keys ›
+//                                Secret keys) tai vanha service_role-JWT
 //   FEEDBACK_OWNER_ID            sovelluksen omistajan auth.users.id. Vain hänen
 //                                palautteensa saa julkaista automaattisesti;
 //                                muiden palaute menee aina ihmiselle.
@@ -38,7 +39,10 @@ async function rest(path, init = {}) {
     ...init,
     headers: {
       apikey: KEY,
-      Authorization: `Bearer ${KEY}`,
+      // Uudet secret-avaimet (sb_secret_…) eivät ole JWT:itä, eikä niitä
+      // laiteta Authorization-otsakkeeseen — gateway tunnistaa ne apikey-
+      // otsakkeesta. Vanha service_role-avain on JWT ja tarvitsee molemmat.
+      ...(KEY.startsWith('eyJ') ? { Authorization: `Bearer ${KEY}` } : {}),
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
       ...init.headers,
