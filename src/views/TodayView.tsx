@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Plus, Flame, X } from 'lucide-react'
+import { Flame, X } from 'lucide-react'
 import type { ComputedDay, ComputedResult, Meal, TrainingBurn } from '../types'
-import { formatDayOfWeek } from '../lib/dates'
-import { parsePositiveInt, parsePositiveDecimal, isValidDecimalInput } from '../lib/format'
+import { formatDayOfWeek, toISO } from '../lib/dates'
+import { parsePositiveInt } from '../lib/format'
+import { AddMealForm } from '../components/AddMealForm'
 import { MealRow } from '../components/MealRow'
 import { MealCapture } from '../components/ruoka/MealCapture'
 import { useTools } from '../contexts/ToolsContext'
@@ -47,22 +48,16 @@ export function TodayView({
   onSetAdjustment,
 }: Props) {
   const { can } = useTools()
-  const [showMealForm, setShowMealForm] = useState(false)
+  const [mealFormKey, setMealFormKey] = useState(0)
   const [showBurnForm, setShowBurnForm] = useState(false)
-  const [mealForm, setMealForm] = useState({ kcal: '', protein: '' })
   const [burnForm, setBurnForm] = useState({ kcal: '', note: '' })
   const [savedFlash, setSavedFlash] = useState(false)
 
+  // Ei tavoitejaksoa tälle päivälle → pelkkä kirjaus ilman budjettia ja vajetta.
+  // Käyttäjä joka vain seuraa syömistään (eikä laihduta jaksoon) ei saa jäädä
+  // ruutuun jossa mitään ei voi tehdä.
   if (!day) {
-    return (
-      <div className="mt-10 p-8 text-center text-muted">
-        <div className="mb-3 text-[32px]">📅</div>
-        <div className="text-[13px] leading-relaxed">
-          Tämä päivä ei ole cut-ajanjakson sisällä.
-          <br />Tarkista asetukset.
-        </div>
-      </div>
-    )
+    return <LogOnlyToday meals={meals} onAddMeal={onAddMeal} onDeleteMeal={onDeleteMeal} />
   }
 
   const totalBurnKcal = burns.reduce((s, b) => s + b.kcal, 0)
@@ -80,20 +75,6 @@ export function TodayView({
     // kuitataan myös sormille eikä vain silmille.
     haptic('success')
     setTimeout(() => setSavedFlash(false), 1000)
-  }
-
-  const handleAddMeal = (keepOpen: boolean) => {
-    const kcal = parsePositiveInt(mealForm.kcal)
-    const protein = parsePositiveDecimal(mealForm.protein)
-    if (!kcal || kcal <= 0) return
-    onAddMeal({ kcal, protein })
-    flashSaved()
-    if (keepOpen) {
-      setMealForm({ kcal: '', protein: '' })
-    } else {
-      setMealForm({ kcal: '', protein: '' })
-      setShowMealForm(false)
-    }
   }
 
   const handleAddBurn = () => {
@@ -344,47 +325,12 @@ export function TodayView({
       )}
 
       {/* ── Add meal form ────────────────────────────────────────────── */}
-      {showMealForm ? (
-        <Card className="card-enter mt-3 border-accent/15">
-          <div className="grid grid-cols-2 gap-2.5">
-            <Field
-              label="kcal"
-              type="text"
-              inputMode="numeric"
-              value={mealForm.kcal}
-              onChange={(e) => {
-                const v = e.target.value
-                if (/^\d*$/.test(v)) setMealForm({ ...mealForm, kcal: v })
-              }}
-              autoFocus
-              placeholder="500"
-            />
-            <Field
-              label="proteiini (g)"
-              type="text"
-              inputMode="decimal"
-              value={mealForm.protein}
-              onChange={(e) => {
-                const v = e.target.value
-                if (isValidDecimalInput(v) || v === '') setMealForm({ ...mealForm, protein: v })
-              }}
-              placeholder="30"
-            />
-          </div>
-          <div className="mt-2 flex gap-2">
-            <Button variant="primary" onClick={() => handleAddMeal(false)}>Lisää</Button>
-            <Button variant="secondary" onClick={() => handleAddMeal(true)}>+ Uusi</Button>
-            <Button variant="ghost" onClick={() => setShowMealForm(false)}>Peru</Button>
-          </div>
-        </Card>
-      ) : (
-        <button
-          onClick={() => { setShowMealForm(true); setShowBurnForm(false) }}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-fg-faint"
-        >
-          <Plus size={14} />Lisää ateria
-        </button>
-      )}
+      {/* Avain vaihtuu kun kulutuslomake avataan, mikä sulkee tämän. */}
+      <AddMealForm
+        key={mealFormKey}
+        onAdd={(m) => { onAddMeal(m); flashSaved() }}
+        onOpen={() => setShowBurnForm(false)}
+      />
 
       {/* ── Add training burn form ───────────────────────────────────── */}
       {showBurnForm ? (
@@ -422,7 +368,7 @@ export function TodayView({
         </Card>
       ) : (
         <button
-          onClick={() => { setShowBurnForm(true); setShowMealForm(false) }}
+          onClick={() => { setShowBurnForm(true); setMealFormKey((k) => k + 1) }}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-protein/20 bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#5a8ac4]"
         >
           <Flame size={13} />Lisää treenikulutus
@@ -474,6 +420,68 @@ export function TodayView({
           </div>
         )}
       </Card>
+    </div>
+  )
+}
+
+// Kirjaustila: päivä ilman tavoitejaksoa. Kuva tai käsin, päivän summa ja
+// ateriat — ei budjettia, vajetta eikä tahtia, koska niitä ei ole olemassa.
+function LogOnlyToday({
+  meals, onAddMeal, onDeleteMeal,
+}: Pick<Props, 'meals' | 'onAddMeal' | 'onDeleteMeal'>) {
+  const { can } = useTools()
+  const [savedFlash, setSavedFlash] = useState(false)
+  const kcal = meals.reduce((s, m) => s + Number(m.kcal), 0)
+  const protein = meals.reduce((s, m) => s + Number(m.protein), 0)
+  const dayName = formatDayOfWeek(toISO(new Date()))
+
+  const add: Props['onAddMeal'] = (m) => {
+    onAddMeal(m)
+    setSavedFlash(true)
+    haptic('success')
+    setTimeout(() => setSavedFlash(false), 1000)
+  }
+
+  return (
+    <div className="px-4 pb-2 pt-4">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">
+          {dayName.charAt(0).toUpperCase() + dayName.slice(1)}
+        </div>
+        {savedFlash && <div className="save-flash mt-0.5 text-[20px] leading-none text-accent">✓</div>}
+      </div>
+
+      <Card variant="glass">
+        <div className={cardLabel}>Syöty tänään</div>
+        <div className="flex items-baseline gap-4">
+          <div className="font-display text-[34px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
+            {Math.round(kcal).toLocaleString('fi-FI')}
+            <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
+          </div>
+          <div className="text-[13px] tabular-nums text-muted">
+            {Math.round(protein)} g proteiinia
+          </div>
+        </div>
+      </Card>
+
+      {can('fitness:photo') && (
+        <MealCapture
+          onAccept={(m) => add({ kcal: m.kcal, protein: m.protein, description: m.description, items: m.items })}
+        />
+      )}
+
+      <div className="mt-[18px]">
+        <div className={sectionLabel}>Ateriat ({meals.length})</div>
+        {meals.length === 0 ? (
+          <div className="py-2.5 text-xs text-fg-ghost">Ei vielä aterioita.</div>
+        ) : (
+          <div className="list-stagger">
+            {meals.map((m) => <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />)}
+          </div>
+        )}
+      </div>
+
+      <AddMealForm onAdd={(m) => add(m)} />
     </div>
   )
 }

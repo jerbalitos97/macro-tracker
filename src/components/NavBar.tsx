@@ -113,14 +113,18 @@ export type { View }
 interface Props {
   view: View
   setView: (v: View) => void
+  /** Välilehdet jotka eivät tässä tilassa tarkoita mitään (esim. Analyysi
+   *  kirjaustilassa ilman tavoitejaksoa). Ei oikeusraja — se on VIEW_TOOL. */
+  hidden?: View[]
 }
 
-export function NavBar({ view, setView }: Props) {
+export function NavBar({ view, setView, hidden }: Props) {
   const { tools } = useTools()
   // Sama suodatus kuin ruudukossa. PLANNING_TABS niputtaa Suunnittelun ja
   // Asetukset, joten pelkkä "tämän työkalun tabit" ei riitä — jokainen tab
   // tarkistetaan erikseen.
   const tabs = tabsForView(view).filter((t) => {
+    if (hidden?.includes(t.id)) return false
     const needed = VIEW_TOOL[t.id]
     return needed === null || tools.includes(needed)
   })

@@ -29,6 +29,7 @@ import { SurplusPrompt } from './components/SurplusPrompt'
 import { getAcknowledgedSurpluses, acknowledgeSurplus } from './lib/surplusAck'
 import { LoginView } from './views/LoginView'
 import { ResetPasswordView } from './views/ResetPasswordView'
+import { LogCalendarView } from './views/LogCalendarView'
 import { recoveryTokenFromUrl } from './lib/passwordReset'
 import { LockScreen, LockOfferSheet, useAppLock } from './components/AppLock'
 import { getLock, takeLockOffer } from './lib/appLock'
@@ -309,6 +310,10 @@ export default function App() {
   }
 
   const todayISO = toISO(new Date())
+  // Kirjaustila: tälle päivälle ei ole tavoitejaksoa. Silloin Tänään ja
+  // Kalenteri näyttävät pelkät kirjaukset, ja Analyysi piilotetaan — sillä ei
+  // ole mitään mitä verrata.
+  const logOnly = !computed.days.some((d) => d.date === todayISO)
   // The surplus can only be spread inside the goal that is actually running.
   const goalEndDate = getActiveGoal(settings, todayISO).endDate
 
@@ -530,7 +535,7 @@ export default function App() {
             exit={{ height: 0, opacity: 0 }}
             transition={reduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
-            <NavBar view={view} setView={setView} />
+            <NavBar view={view} setView={setView} hidden={logOnly ? ['analysis'] : undefined} />
             {user && syncStatus !== 'idle' && (
               <div className="absolute right-2.5 top-[calc(env(safe-area-inset-top)+6px)] z-20">
                 <SyncBadge status={syncStatus} />
@@ -698,7 +703,19 @@ export default function App() {
         </m.div>
       )}
 
-      {view === 'calendar' && (
+      {view === 'calendar' && logOnly && (
+        <m.div key={view} {...viewMotion}>
+          <LogCalendarView
+            meals={meals}
+            onDeleteMeal={(id) => {
+              setMeals((prev) => prev.filter((m) => m.id !== id))
+              if (user) syncDeleteMeal(user.id, id)
+            }}
+          />
+        </m.div>
+      )}
+
+      {view === 'calendar' && !logOnly && (
         <m.div key={view} {...viewMotion}>
           <CalendarView
             computed={computed}

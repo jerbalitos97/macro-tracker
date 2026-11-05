@@ -124,3 +124,29 @@ test('paikallinen data säilyy uudelleenlatauksen yli', async ({ page }) => {
   expect(stored?.settings?.tdee).toEqual(data.settings.tdee)
   await expectAlive(page, 'reload', errors)
 })
+
+test('kirjaustila ilman tavoitejaksoa: ateria kirjautuu ja näkyy kalenterissa', async ({ page }) => {
+  // Käyttäjä jonka jakso on päättynyt tai jota ei ole koskaan ollut (esim.
+  // pelkkä kalorien kirjaaja). Ennen tätä Tänään näytti vain "ei cut-jakson
+  // sisällä" eikä mitään voinut kirjata.
+  const data = { ...fixture(), meals: [], weights: [] }
+  data.settings = { ...data.settings, startDate: daysAgo(90), endDate: daysAgo(60) }
+  await page.addInitScript((d) => {
+    if (!localStorage.getItem('cutdata:v1')) localStorage.setItem('cutdata:v1', JSON.stringify(d))
+  }, data)
+  const errors = watchCrashes(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fitness Tracking', exact: true }).click()
+
+  await expect(page.getByText('Syöty tänään')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Analyysi', exact: true })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Lisää ateria' }).click()
+  await page.getByLabel('kcal').fill('640')
+  await page.getByRole('button', { name: 'Lisää', exact: true }).click()
+  await expect(page.getByText('Ateriat (1)')).toBeVisible()
+
+  await page.getByRole('tab', { name: 'Kalenteri', exact: true }).click()
+  await expect(page.getByText('640 kcal')).toBeVisible()
+  await expectAlive(page, 'kirjaustila', errors)
+})
