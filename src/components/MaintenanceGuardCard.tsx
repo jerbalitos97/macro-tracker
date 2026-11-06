@@ -43,9 +43,14 @@ export function MaintenanceGuardCard({
     () => adjustments.filter((a) => a.date >= todayISO && isGuardAdjustment(a.note)),
     [adjustments, todayISO],
   )
+  // Suunta luetaan säätöjen etumerkistä: negatiivinen = vaje, positiivinen = lisä.
+  const activeDirection = activeGuardAdjustments.length === 0
+    ? false
+    : activeGuardAdjustments[0].kcal > 0 ? 'up' as const : 'down' as const
+  const activeNoun = activeDirection === 'up' ? 'Lisä' : 'Vaje'
   const verdict = useMemo(
-    () => evaluateGuard(settings.maintenanceGuard, weights, todayISO, activeGuardAdjustments.length > 0),
-    [settings.maintenanceGuard, weights, todayISO, activeGuardAdjustments.length],
+    () => evaluateGuard(settings.maintenanceGuard, weights, todayISO, activeDirection),
+    [settings.maintenanceGuard, weights, todayISO, activeDirection],
   )
 
   const latestWeek = verdict.weeks.filter((w) => w.valid).slice(-1)[0]?.start ?? null
@@ -76,10 +81,11 @@ export function MaintenanceGuardCard({
     const perWeek = kcal * Math.max(1, days.length)
     const weeks = Math.max(1, Math.ceil((s.excessKg * 7700 * g.fatFraction) / perWeek))
     const dates = guardAdjustmentDates(addDays(todayISO, 1), days, weeks)
-    onApplyRollout(dates.map((d) => ({ date: d, kcal: -kcal })), `vahti-${todayISO}`)
+    const up = s.direction === 'up'
+    onApplyRollout(dates.map((d) => ({ date: d, kcal: up ? kcal : -kcal })), `vahti-${todayISO}`)
     logAnd(
       'accept',
-      `Hyväksytty −${kcal} kcal/vrk päiville ${days.map((d) => DAY_LABEL[d]).join(', ')}, ${weeks} vk (${dates.length} päivää). Ylitys ${s.excessKg.toFixed(1)} kg.`,
+      `Hyväksytty ${up ? '+' : '−'}${kcal} kcal/vrk päiville ${days.map((d) => DAY_LABEL[d]).join(', ')}, ${weeks} vk (${dates.length} päivää). ${up ? 'Alitus' : 'Ylitys'} ${s.excessKg.toFixed(1)} kg.`,
     )
   }
 
@@ -93,7 +99,7 @@ export function MaintenanceGuardCard({
 
   const removeDeficit = () => {
     for (const a of activeGuardAdjustments) onDeleteAdjustment(a.id)
-    logAnd('exit', `Vaje poistettu ${activeGuardAdjustments.length} päivältä. Keskiarvo takaisin ankkurissa.`)
+    logAnd('exit', `${activeNoun} poistettu ${activeGuardAdjustments.length} päivältä. Keskiarvo takaisin ankkurissa.`)
   }
 
   // ── Vaje jo voimassa ────────────────────────────────────────────
@@ -108,10 +114,10 @@ export function MaintenanceGuardCard({
           <ShieldCheck size={13} /> Ylläpidon vahti
         </div>
         <p className="m-0 text-[12px] leading-relaxed text-fg-dim">
-          Vaje on voimassa {activeGuardAdjustments.length} tulevalle päivälle. {verdict.reason}
+          {activeNoun} on voimassa {activeGuardAdjustments.length} tulevalle päivälle. {verdict.reason}
         </p>
         <div className="mt-3">
-          <Button variant="secondary" onClick={removeDeficit}>Poista vaje</Button>
+          <Button variant="secondary" onClick={removeDeficit}>Poista {activeNoun.toLowerCase()}</Button>
         </div>
       </Card>
     )
@@ -131,7 +137,7 @@ export function MaintenanceGuardCard({
 
         <div className="mt-3 rounded-row border border-white/[0.08] bg-black/20 p-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[12px] text-fg-muted">Vaje / vrk</span>
+            <span className="text-[12px] text-fg-muted">{s.direction === 'up' ? 'Lisä' : 'Vaje'} / vrk</span>
             <input
               inputMode="numeric"
               value={kcal}
@@ -161,7 +167,7 @@ export function MaintenanceGuardCard({
           </div>
           <p className="mt-2.5 text-[11px] leading-relaxed text-fg-faint">
             Paluu kestää noin <strong className="text-text">{weeks.toFixed(1)} viikkoa</strong> tällä
-            vajeella ({s.excessKg.toFixed(1)} kg × 7700 × {g.fatFraction}). Viikonloput pysyvät
+            {s.direction === 'up' ? ' lisällä' : ' vajeella'} ({s.excessKg.toFixed(1)} kg × 7700 × {g.fatFraction}). Viikonloput pysyvät
             koskemattomina ellet lisää niitä itse.
           </p>
         </div>
@@ -186,7 +192,7 @@ export function MaintenanceGuardCard({
         <p className="m-0 text-[13px] leading-relaxed text-fg-dim">{verdict.reason}</p>
         <div className="mt-3">
           <Button variant="primary" onClick={removeDeficit}>
-            Poista vaje ({activeGuardAdjustments.length} pv)
+            Poista {activeNoun.toLowerCase()} ({activeGuardAdjustments.length} pv)
           </Button>
         </div>
       </Card>

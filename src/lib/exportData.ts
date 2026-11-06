@@ -128,7 +128,9 @@ const README: Record<string, string> = {
     'ahead, governs nothing until its own start date)/active/achieved/' +
     'ended. weekendMaintenance means the period pushed its whole deficit onto ' +
     'weekdays and ate at maintenance on Sat/Sun. blockId links a period to the ' +
-    'training block it was planned against.',
+    'training block it was planned against. tdeeByDow, when present, is the TDEE ' +
+    'assumed on each weekday (0=Sunday) inside that period, overriding settings.tdee; ' +
+    'for maintenance it is effectively the daily budget.',
   settings:
     'tdee is kcal by day type; weeklyPattern maps weekday (0=Sunday) to day type. ' +
     'heightCm/birthYear/sex feed the workout burn estimate. The top-level ' +
@@ -136,7 +138,7 @@ const README: Record<string, string> = {
     'superseded by goalPeriods when those exist. maintenanceGuard is the ' +
     'post-cut watchdog: anchorWeekStart/anchorKg fix the reference weight, ' +
     'minWeighInsPerWeek decides which weeks count as evidence (a thinner week ' +
-    'neither triggers nor resets the streak), triggerThresholdKg and ' +
+    'neither triggers nor resets the streak), triggerThresholdKg (above anchor) / lowerThresholdKg (below anchor, suggests eating more) and ' +
     'triggerConsecutiveWeeks set when it speaks up, suggestKcalPerDay/' +
     'suggestDays/fatFraction shape the suggestion it makes, exitToleranceKg ' +
     'when the deficit can go, and log records every trigger, accept, dismiss ' +

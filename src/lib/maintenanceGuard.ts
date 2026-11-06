@@ -35,6 +35,11 @@ export interface GuardSettings {
   anchorKg: number | null
   minWeighInsPerWeek: number
   triggerThresholdKg: number
+  /** Alaraja: näin paljon ankkurin alle, yhtä monta kelvollista viikkoa
+   *  peräkkäin kuin ylärajalla, ja vahti ehdottaa syömään enemmän. Ylläpidossa
+   *  liukuminen alas on yhtä lailla poikkeama kuin nousu — se vain tuntuu
+   *  onnistumiselta, ja siksi sitä ei muuten huomata. Puuttuessaan oletus. */
+  lowerThresholdKg?: number
   triggerConsecutiveWeeks: number
   suggestKcalPerDay: number
   /** Viikonpäivät joille vaje ehdotetaan. 0 = sunnuntai. */
@@ -77,6 +82,7 @@ export const GUARD_DEFAULTS: GuardSettings = {
   anchorKg: null,
   minWeighInsPerWeek: 4,
   triggerThresholdKg: 1.0,
+  lowerThresholdKg: 0.5,
   triggerConsecutiveWeeks: 2,
   suggestKcalPerDay: 250,
   suggestDays: [1, 2, 3, 4, 5],
@@ -113,12 +119,18 @@ export type GuardState =
   | 'exit'           // palattu ankkuriin, vaje voi poistua
 
 export interface Suggestion {
+  /** 'down' = vaje (paino ankkurin yli), 'up' = lisä (paino ankkurin alla). */
+  direction: GuardDirection
+  /** Aina positiivinen. Etumerkki tulee suunnasta. */
   kcalPerDay: number
   days: number[]
   /** Montako viikkoa paluu kestää tällä vajeella. */
   weeksToReturn: number
+  /** Etäisyys ankkurista, aina positiivinen. */
   excessKg: number
 }
+
+export type GuardDirection = 'down' | 'up'
 
 export interface GuardVerdict {
   state: GuardState
@@ -127,8 +139,10 @@ export interface GuardVerdict {
   latestAvgKg: number | null
   /** Kokonaiset viikot ankkuriviikon jälkeen, vanhin ensin. */
   weeks: WeekRow[]
-  /** Monta kelvollista viikkoa putkeen rajan yli juuri nyt. */
+  /** Monta kelvollista viikkoa putkeen rajan yli (tai alarajan alle) juuri nyt. */
   streak: number
+  /** Kumman rajan puolella putki on. Null kun putkea ei ole. */
+  direction: GuardDirection | null
   suggestion: Suggestion | null
   /** Yhden lauseen selitys, sellaisena kuin se käyttöliittymässä luetaan. */
   reason: string
@@ -161,19 +175,22 @@ function weekRow(
 }
 
 /**
- * @param deficitActive onko vahdin ehdottama vaje parhaillaan käytössä. Vain
- *        silloin paluu on uutinen: ilman voimassa olevaa vajetta "olet
- *        ankkurissa" on normaalitila eikä toimenpide.
+ * @param deficitActive onko vahdin ehdottama säätö parhaillaan käytössä, ja
+ *        mihin suuntaan. `true` tarkoittaa vajetta ('down'), kuten ennen
+ *        alarajaa. Vain silloin paluu on uutinen: ilman voimassa olevaa säätöä
+ *        "olet ankkurissa" on normaalitila eikä toimenpide.
  */
 export function evaluateGuard(
   raw: Partial<GuardSettings> | undefined,
   weights: WeightEntry[],
   today: string = toISO(new Date()),
-  deficitActive = false,
+  deficitActive: boolean | GuardDirection = false,
 ): GuardVerdict {
   const s = guardSettings(raw)
+  const active: GuardDirection | null =
+    deficitActive === true ? 'down' : deficitActive === false ? null : deficitActive
   const empty: GuardVerdict = {
-    state: 'off', anchorKg: null, latestAvgKg: null, weeks: [], streak: 0,
+    state: 'off', anchorKg: null, latestAvgKg: null, weeks: [], streak: 0, direction: null,
     suggestion: null, reason: 'Vahti ei ole käytössä.',
   }
   if (!s.enabled) return empty
@@ -209,13 +226,24 @@ export function evaluateGuard(
 
   // Putki lasketaan lopusta taaksepäin. Kelvoton viikko ohitetaan kokonaan:
   // se ei katkaise putkea eikä kasvata sitä.
-  let streak = 0
-  for (let i = valids.length - 1; i >= 0; i--) {
-    if ((valids[i].overAnchorKg ?? 0) > s.triggerThresholdKg) streak++
-    else break
+  // Ylä- ja alaputki lasketaan erikseen; viimeisin kelvollinen viikko voi
+  // olla vain toisella puolella, joten korkeintaan toinen on nollaa suurempi.
+  const lower = s.lowerThresholdKg ?? GUARD_DEFAULTS.lowerThresholdKg ?? 0.5
+  const run = (hit: (over: number) => boolean) => {
+    let n = 0
+    for (let i = valids.length - 1; i >= 0; i--) {
+      if (hit(valids[i].overAnchorKg ?? 0)) n++
+      else break
+    }
+    return n
   }
+  const upStreak = run((o) => o > s.triggerThresholdKg)
+  const downStreak = run((o) => o < -lower)
+  const streak = Math.max(upStreak, downStreak)
+  // 'down' = paino ylhäällä → ehdotetaan vajetta alas; 'up' päinvastoin.
+  const direction: GuardDirection | null = upStreak > 0 ? 'down' : downStreak > 0 ? 'up' : null
 
-  const base = { anchorKg, latestAvgKg, weeks, streak }
+  const base = { anchorKg, latestAvgKg, weeks, streak, direction }
 
   if (valids.length === 0) {
     return {
@@ -224,33 +252,41 @@ export function evaluateGuard(
     }
   }
 
-  if (deficitActive && latestAvgKg !== null && latestAvgKg <= anchorKg + s.exitToleranceKg) {
+  const backAtAnchor = latestAvgKg !== null && (
+    active === 'down' ? latestAvgKg <= anchorKg + s.exitToleranceKg
+    : active === 'up' ? latestAvgKg >= anchorKg - s.exitToleranceKg
+    : false
+  )
+  if (active && backAtAnchor && latestAvgKg !== null) {
     return {
       ...base, state: 'exit', suggestion: null,
-      reason: `Viikkokeskiarvo ${latestAvgKg.toFixed(1)} kg on takaisin ankkurissa (${anchorKg.toFixed(1)} kg). Vaje voi poistua.`,
+      reason: `Viikkokeskiarvo ${latestAvgKg.toFixed(1)} kg on takaisin ankkurissa (${anchorKg.toFixed(1)} kg). ${active === 'down' ? 'Vaje' : 'Lisä'} voi poistua.`,
     }
   }
 
-  if (streak >= s.triggerConsecutiveWeeks && latestAvgKg !== null) {
-    const excessKg = latestAvgKg - anchorKg
+  if (streak >= s.triggerConsecutiveWeeks && latestAvgKg !== null && direction) {
+    const excessKg = Math.abs(latestAvgKg - anchorKg)
     const perWeek = s.suggestKcalPerDay * Math.max(1, s.suggestDays.length)
     const weeksToReturn = (excessKg * 7700 * s.fatFraction) / perWeek
+    const side = direction === 'down' ? 'yli rajan' : 'alle alarajan'
+    const sign = direction === 'down' ? '+' : '−'
     return {
       ...base, state: 'trigger',
       suggestion: {
+        direction,
         kcalPerDay: s.suggestKcalPerDay,
         days: s.suggestDays,
         weeksToReturn,
         excessKg,
       },
-      reason: `${streak} kelvollista viikkoa peräkkäin yli rajan: ${latestAvgKg.toFixed(1)} kg vs ankkuri ${anchorKg.toFixed(1)} kg (+${excessKg.toFixed(1)}).`,
+      reason: `${streak} kelvollista viikkoa peräkkäin ${side}: ${latestAvgKg.toFixed(1)} kg vs ankkuri ${anchorKg.toFixed(1)} kg (${sign}${excessKg.toFixed(1)}).`,
     }
   }
 
   if (streak > 0) {
     return {
       ...base, state: 'watching', suggestion: null,
-      reason: `${streak}/${s.triggerConsecutiveWeeks} viikkoa rajan yli. Yksi viikko ei vielä ratkaise.`,
+      reason: `${streak}/${s.triggerConsecutiveWeeks} viikkoa ${direction === 'up' ? 'alarajan alla' : 'rajan yli'}. Yksi viikko ei vielä ratkaise.`,
     }
   }
 

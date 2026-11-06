@@ -10,7 +10,7 @@ import type {
   GoalPeriod,
 } from '../types'
 import { addDays, daysBetween, getWeekdayNum, toISO, WEEKEND_DOWS } from './dates'
-import { getActivePeriod } from './goalPeriods'
+import { getActivePeriod, tdeeForDate } from './goalPeriods'
 
 /** kcal/day deficit baseline implied by a single period's start→target over
  *  its duration. Non-cut periods convert sensibly:
@@ -127,7 +127,7 @@ export function computeDays(
     const adjKcal = adjustmentOnDay ? Number(adjustmentOnDay.kcal) : 0
 
     const dayType = settings.weeklyPattern[dow] ?? 'rest'
-    const baseTdee = settings.tdee[dayType] ?? settings.tdee.rest
+    const baseTdee = tdeeForDate(settings, date, dayType)
 
     let budget: number
     let note = ''

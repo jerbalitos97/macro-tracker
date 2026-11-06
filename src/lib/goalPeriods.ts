@@ -2,8 +2,8 @@
 // compat shim. Always read goals via these helpers — never poke
 // settings.targetWeight / settings.startDate / settings.endDate directly.
 
-import type { GoalPeriod, PeriodType, Settings } from '../types'
-import { daysBetween } from './dates'
+import type { DayType, GoalPeriod, PeriodType, Settings } from '../types'
+import { daysBetween, getWeekdayNum } from './dates'
 
 /** Synthesise a single 'cut' period from the legacy single-target settings
  *  fields. Used as a fallback when settings.goalPeriods is absent/empty. */
@@ -65,6 +65,16 @@ export function getActivePeriod(settings: Settings, today: string): GoalPeriod |
 /** Which period (if any) covers the given date — used for chart segments. */
 export function getPeriodForDate(settings: Settings, date: string): GoalPeriod | null {
   return getPeriods(settings).find((p) => p.startDate <= date && date <= p.endDate) ?? null
+}
+
+/** The TDEE assumed for one date. The period covering that date wins when it
+ *  carries a `tdeeByDow` entry for the weekday; otherwise the global table by
+ *  day type. Date-scoped on purpose: changing the global table would silently
+ *  rewrite every past day's budget and actual deficit. */
+export function tdeeForDate(settings: Settings, date: string, dayType: DayType): number {
+  const override = getPeriodForDate(settings, date)?.tdeeByDow?.[getWeekdayNum(date)]
+  if (typeof override === 'number' && Number.isFinite(override)) return override
+  return settings.tdee[dayType] ?? settings.tdee.rest
 }
 
 /** Ensure settings.goalPeriods exists. If not, materialise the legacy

@@ -1048,7 +1048,7 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
       </div>
       <p className="m-0 mb-2 text-[11px] leading-relaxed text-fg-faint">
         Vertaa viikkokeskiarvoa ankkuriin ja ehdottaa vajetta, jos paino on rajan yli kaksi
-        kelvollista viikkoa peräkkäin. Ehdottaa aina, ei koskaan sovella itse.
+        kelvollista viikkoa peräkkäin, tai lisää jos se on alarajan alla. Ehdottaa aina, ei koskaan sovella itse.
       </p>
 
       {g.enabled && (
@@ -1090,6 +1090,8 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
           {num('Punnituksia / viikko', g.minWeighInsPerWeek, (n) => save({ minWeighInsPerWeek: n }), '1',
             'alle tämän viikko ei laukaise eikä nollaa putkea')}
           {num('Raja ankkurin yli (kg)', g.triggerThresholdKg, (n) => save({ triggerThresholdKg: n }), '0.1')}
+          {num('Raja ankkurin alle (kg)', g.lowerThresholdKg ?? 0.5, (n) => save({ lowerThresholdKg: n }), '0.1',
+            'alle tämän yhtä monta viikkoa → ehdottaa syömään enemmän')}
           {num('Viikkoa peräkkäin', g.triggerConsecutiveWeeks, (n) => save({ triggerConsecutiveWeeks: n }), '1')}
           {num('Ehdotettava vaje (kcal/vrk)', g.suggestKcalPerDay, (n) => save({ suggestKcalPerDay: n }), '25')}
           {num('Rasvaosuus paluussa', g.fatFraction, (n) => save({ fatFraction: n }), '0.05',

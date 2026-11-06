@@ -50,6 +50,12 @@ export interface GoalPeriod {
    *  carried by the weekdays instead. Cut/bulk only — maintenance and refill
    *  plan no deficit to redistribute. */
   weekendMaintenance?: boolean
+  /** TDEE by weekday (0 = Sunday) for the days this period covers, overriding
+   *  `settings.tdee[dayType]`. Scoped by the period's own dates so a new
+   *  phase's energy assumption never rewrites the budgets and deficits of the
+   *  periods before it. A weekday missing from the map falls back to the global
+   *  table. See `tdeeForDate` in `src/lib/goalPeriods.ts`. */
+  tdeeByDow?: Partial<Record<number, number>>
   createdAt: string
 }
 

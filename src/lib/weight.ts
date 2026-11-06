@@ -1,5 +1,6 @@
 import type { WeightEntry, Meal, Settings, WeightTrend, TdeeEvalResult } from '../types'
 import { toISO, addDays, daysBetween, getWeekdayNum } from './dates'
+import { tdeeForDate } from './goalPeriods'
 
 export function computeWeightTrend(weights: WeightEntry[]): WeightTrend {
   const valid = weights
@@ -79,7 +80,7 @@ export function estimateTdeeAdjustment(
   const tdeeArr = daysWithKcal.map((dateISO) => {
     const dow = getWeekdayNum(dateISO)
     const dayType = settings.weeklyPattern[dow] ?? 'rest'
-    return settings.tdee[dayType]
+    return tdeeForDate(settings, dateISO, dayType)
   })
   const avgAssumedTdee = tdeeArr.reduce((s, v) => s + v, 0) / tdeeArr.length
 
