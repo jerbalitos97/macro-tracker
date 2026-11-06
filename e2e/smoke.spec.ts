@@ -57,6 +57,13 @@ function fixture() {
   }
 }
 
+/** Kuittaa "lisäbudjettia jaettavaksi" -kehotteen fixturen viimeisille
+ *  päiville. Kehote aukeaa jos eilinen vaje ylitti suunnitellun yli 200 kcal,
+ *  ja fixturen ateriat ja päivätyypit tekevät niin vain tiettyinä viikonpäivinä
+ *  — testi meni punaiseksi torstaina ja vihreäksi muina päivinä. Kehote ei ole
+ *  se mitä nämä testit tarkistavat, joten se kuitataan pois alta. */
+const SURPLUS_ACK = { key: 'cutdata:surplus-ack:v1', dates: [daysAgo(0), daysAgo(1), daysAgo(2)] }
+
 /** Kerää kaatumiset. Konsolin `error` jätetään pois, koska paikallisessa tilassa
  *  osa pilvikutsuista raportoi sinne odotetusti — kaatumisen tunnistaa
  *  `pageerror`ista ja siitä, että React tyhjentää #rootin. */
@@ -84,8 +91,9 @@ for (const seeded of [false, true]) {
   test(`jokainen näkymä piirtyy (${seeded ? 'datalla' : 'tyhjänä'})`, async ({ page }) => {
     if (seeded) {
       await page.addInitScript((data) => {
-        if (!localStorage.getItem('cutdata:v1')) localStorage.setItem('cutdata:v1', JSON.stringify(data))
-      }, fixture())
+        if (!localStorage.getItem('cutdata:v1')) localStorage.setItem('cutdata:v1', JSON.stringify(data.d))
+        if (!localStorage.getItem(data.ack.key)) localStorage.setItem(data.ack.key, JSON.stringify(data.ack.dates))
+      }, { d: fixture(), ack: SURPLUS_ACK })
     }
     const errors = watchCrashes(page)
     await page.goto('/')
@@ -108,9 +116,10 @@ test('paikallinen data säilyy uudelleenlatauksen yli', async ({ page }) => {
   // localStorage on monen työkalun ainoa totuus. Build joka "siivoaa" tai
   // migroi sen väärin on se virhe, jota rollback ei korjaa.
   const data = fixture()
-  await page.addInitScript((d) => {
+  await page.addInitScript(({ d, ack }) => {
     if (!localStorage.getItem('cutdata:v1')) localStorage.setItem('cutdata:v1', JSON.stringify(d))
-  }, data)
+    if (!localStorage.getItem(ack.key)) localStorage.setItem(ack.key, JSON.stringify(ack.dates))
+  }, { d: data, ack: SURPLUS_ACK })
   const errors = watchCrashes(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Fitness Tracking', exact: true }).click()
