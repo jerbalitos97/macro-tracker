@@ -23,6 +23,14 @@ const TOOLS: { card: string; tabs: string[] }[] = [
 // puuttuminen ei ole se mitä tässä testataan.
 test.beforeEach(async ({ page }) => {
   await page.route(/^https?:\/\/(?!localhost[:/])/, (r) => r.abort())
+  // Ylijäämäpopup (SurplusPrompt) aukeaa jos eilinen oli suunnitelmaa isompi
+  // vaje, ja se riippuu viikonpäivästä: fixturen ~2100–2400 kcal ylittää
+  // vajeen torstain "double"-päivän TDEE:llä (3050) mutta ei lepopäivällä.
+  // Ilman tätä testi oli vihreä keskiviikkona ja kaatui perjantaina, koska
+  // backdrop peittää launcherin. Popup ei ole se mitä savutesti tarkistaa.
+  await page.addInitScript((yesterday) => {
+    localStorage.setItem('cutdata:surplus-ack:v1', JSON.stringify([yesterday]))
+  }, new Date(Date.now() - 86_400_000).toISOString().slice(0, 10))
 })
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
