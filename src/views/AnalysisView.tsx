@@ -286,6 +286,16 @@ export function AnalysisView({
         </Card>
       )}
 
+      {/* Toissijaiset osiot yhden avattavan otsikon taakse. Palaute #3: ruutu oli
+          liian sekava, koska verdikti, painokäyrä ja kolme erillistä raporttia
+          (viikkorytmi, kalorivaje, kulutusarvio) olivat kaikki auki yhtä aikaa.
+          Verdikti, tasoitus ja painokäyrä pysyvät näkyvissä; loput ovat yhden
+          napautuksen päässä. Laskenta ja yksi tuomio ovat ennallaan. */}
+      <details className="group mt-6 border-t border-white/[0.06] pt-4">
+        <summary className="cursor-pointer select-none font-display text-[15px] font-bold tracking-[-0.02em] text-text [list-style:none]">
+          ▸ Lisätiedot: viikkorytmi, kalorivaje, kulutusarvio
+        </summary>
+        <div>
       {/* ── Weekly rhythm / water weight ───────────────────────── */}
       <SectionTitle>Viikkorytmi ja turvotus</SectionTitle>
       <BloatCard bloat={bloat} headlineRate={a.weeklyChange} />
@@ -364,6 +374,9 @@ export function AnalysisView({
           ±0,2 kg/vko tavoitteesta · vaje ±100 kcal/pv.
         </p>
       </Explain>
+
+        </div>
+      </details>
 
       {showRollout && a.recovery && (
         <RolloutModal
