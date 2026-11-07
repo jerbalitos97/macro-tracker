@@ -82,7 +82,11 @@ Jokaiselle:
 5. `npm run build && npm run test:smoke`. Jos testit kaatuvat, korjaa. Jos et
    saa niitä vihreiksi kahdella yrityksellä, siirry kohtaan *Ei julkaista*.
 6. `node scripts/feedback-risk.mjs origin/main` ja tallenna tulos.
-7. Commit, push haaraan, PR:
+7. Commit, push haaraan, PR GitHub MCP:llä (`mcp__github__create_pull_request`,
+   lataa ToolSearchilla). Kaikki GitHub-toiminnot tehdään MCP-työkaluilla, ei
+   `gh`-komennolla: ajon ympäristön `gh`-tunnukseen ei luoteta, MCP-yhteys on
+   se joka toimii. Jos MCP-työkalut eivät ole käytettävissä, PR jää avaamatta
+   ja palaute tilaan `needs_review`.
    - Commit-viesti suomeksi: `fix: <mitä muuttui> (palaute #<id>)` tai `feat: …`.
      Perustelu commitin runkoon.
    - PR:n kuvaukseen: palautteen teksti lainauksena, suunnitelma, mitä
@@ -92,14 +96,19 @@ Jokaiselle:
 
 - luokittelija: `"risk": "low"`
 - palaute `fromOwner: true`
-- GitHubin `smoke`-tarkistus PR:ssä on vihreä (`gh pr checks <nr> --watch`)
+- GitHubin `smoke`-tarkistus PR:ssä on vihreä: `mcp__github__pull_request_read`
+  metodilla `get_check_runs`. Jos `smoke` on vielä kesken, odota Monitorilla
+  tai lyhyellä silmukalla (enintään 15 min) ja lue uudestaan. Punainen tai
+  puuttuva `smoke` = ei julkaista.
 
-```bash
-gh pr merge <nr> --squash --delete-branch
-```
+Merge: `mcp__github__merge_pull_request`, `merge_method: "squash"` ja
+`expectedHeadSha` = PR:n kärki, jonka `smoke` tarkisti. Näin mergeen ei voi
+livahtaa committia, jota testit eivät nähneet.
 
-Odota, että tuotannon deploy valmistuu (`gh api repos/{owner}/{repo}/deployments`
-tai muutaman minuutin tauko), ja tarkista, että `$PRODUCTION_URL` vastaa 200:lla,
+Mainin push käynnistää Smoken ja sen jälkeen Deploy-workflown. Odota, että
+`mcp__github__actions_list` (`list_workflow_runs`, `branch: main`) näyttää
+merge-commitin Deploy-ajon tilassa `completed`/`success` (enintään 15 min),
+ja tarkista, että `$PRODUCTION_URL` vastaa 200:lla,
 palauttaa sivun jossa on `<div id="root">` ja että `$PRODUCTION_URL/sw.js`
 sisältää juuri nostetun `CACHE`-version. Jos ei:
 `git revert` merge-commitille omassa haarassa, PR, merge sen `smoke`-tarkistuksen
