@@ -164,8 +164,8 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
       if (!switching) {
         haptic('warning')
         beep(660); setTimeout(() => beep(660), 200)
-        speak('Vaihda jalka')
-        notifyDone(`${exercise.name}: vaihda jalka`)
+        speak('Vaihda puoli')
+        notifyDone(`${exercise.name}: vaihda puoli`)
         setSwitching(true)
       }
       return
@@ -181,7 +181,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
     work: 'Contraction',
     rest: 'Lepo',
     done: 'Valmis',
-    switch: 'Vaihda jalka',
+    switch: 'Vaihda puoli',
   }
 
   const phaseColor: Record<Shown, string> = {
@@ -229,7 +229,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               onClick={() => startClock(run.setIndex, 2)}
               className="my-6 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet font-display text-[15px] font-bold text-bg"
             >
-              Jalka 2
+              Puoli 2
             </button>
           )}
 
