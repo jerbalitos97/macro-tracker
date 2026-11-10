@@ -281,7 +281,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
                       }`}
                     >
                       <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />
-                      Molemmille puolille (esim. per jalka)
+                      Molemmille puolille (esim. per puoli tai käsi)
                     </button>
                   </>
                 ) : (
