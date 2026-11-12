@@ -5,12 +5,18 @@ import { supabase } from './supabase'
 // Kuvaa ei tallenneta mihinkään — se lähtee analysoitavaksi ja katoaa. Kantaan
 // päätyvät vain luvut ja kuvaus, ja vain jos käyttäjä hyväksyy ne.
 
+/** Sama muoto kuin api/_mealVision.ts:n MealEstimate — tarjoajasta
+ *  (Anthropic / OpenRouter) riippumatta. */
 export interface MealAnalysis {
   description: string
   items: string[]
+  components: { name: string; grams: number; kcal: number; protein: number }[]
   calories: number
   protein: number
+  /** Kalorien vaihteluväli; leveä väli = epävarma annoskoko. */
+  kcalRange: [number, number]
   confidence: 'low' | 'medium' | 'high'
+  notes: string
 }
 
 /** Pisin sivu skaalattuna. 1024 px riittää annoksen tunnistukseen ja

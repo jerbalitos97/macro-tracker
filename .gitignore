@@ -24,8 +24,10 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# Environment (add if you ever use one)
+# Environment — real keys live only in these. .env.example is tracked on
+# purpose and holds names without secrets.
 .env
 .env.local
+.env.*.local
 .claude/
 .vercel

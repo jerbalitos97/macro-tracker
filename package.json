@@ -8,10 +8,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:smoke": "playwright test",
-    "gen-icons": "node scripts/gen-icons.mjs"
+    "gen-icons": "node scripts/gen-icons.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.120.0",
     "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/vite": "^4.3.1",
     "lucide-react": "^0.511.0",
@@ -30,6 +30,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "sharp": "^0.34.5",
     "typescript": "^5.6.3",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "vitest": "^3.2.7"
   }
 }

@@ -154,18 +154,35 @@ export function MealCapture({ onAccept }: Props) {
         <div className="flex flex-col gap-3">
           <div>
             <div className="font-display text-[16px] font-semibold text-text">{result.description}</div>
-            {result.items.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {result.items.map((it, i) => (
-                  <span
-                    key={`${it}-${i}`}
-                    className="rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[11px] text-fg-muted"
-                  >
-                    {it}
-                  </span>
+            {/* Arvio ja sen väli yhdellä rivillä: väli kertoo epävarmuuden
+                suoremmin kuin luottamussana. */}
+            <div className="mt-1 font-mono text-[12px] text-fg-muted">
+              {result.calories} kcal
+              {result.kcalRange && result.kcalRange[1] > result.kcalRange[0] && (
+                <span className="text-fg-ghost">
+                  {' '}
+                  ({result.kcalRange[0]}–{result.kcalRange[1]})
+                </span>
+              )}
+              {' · '}
+              {result.protein} g proteiinia
+            </div>
+            {result.components?.length > 0 && (
+              <ul className="mt-1.5 flex flex-col gap-0.5 text-[11px] text-fg-muted">
+                {result.components.map((c, i) => (
+                  <li key={`${c.name}-${i}`} className="flex justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      {c.name}
+                      {c.grams > 0 && <span className="text-fg-ghost"> · {c.grams} g</span>}
+                    </span>
+                    <span className="shrink-0 font-mono text-fg-ghost">
+                      {c.kcal} kcal · {c.protein} g P
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
+            {result.notes && <p className="mt-1.5 text-[11px] text-fg-ghost">{result.notes}</p>}
             <div
               className={`mt-2 font-mono text-[10px] uppercase tracking-[0.08em] ${
                 result.confidence === 'low' ? 'text-danger' : 'text-fg-ghost'

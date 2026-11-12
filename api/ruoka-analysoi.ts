@@ -1,56 +1,36 @@
 // Kuva → kalorit ja proteiini.
 //
-// Ainoa aidosti uusi backend-pala tässä työssä, ja etuoikeutettu: se kuluttaa
-// ANTHROPIC_API_KEY:tä. Siksi se ei ole avoin päätepiste vaan tarkistaa
-// kutsujan kolmella tasolla:
+// Etuoikeutettu päätepiste: se kuluttaa OPENROUTER_API_KEY:tä. Siksi se ei
+// ole avoin vaan tarkistaa kutsujan kolmella tasolla:
 //
 //   1. Supabase-JWT täytyy olla voimassa (auth.getUser hoitaa allekirjoituksen).
 //   2. Kutsujalla täytyy olla `fitness:photo`-oikeus kannassa. Sama sääntö kuin
 //      käyttöliittymässä, mutta täällä se pitää myös suoraa curl-kutsua vastaan —
 //      muuten kuvakortin piilottaminen olisi koko pääsynhallinta.
-//   3. Kuvan koko on rajattu, jotta yksi pyyntö ei polta budjettia.
+//   3. Kuvan koko on rajattu, jotta yksi pyyntö ei polta kiintiötä.
 //
-// Kuvaa ei tallenneta mihinkään. Se lähtee Anthropicille analysoitavaksi ja
+// Kuvaa ei tallenneta mihinkään. Se lähtee OpenRouterille analysoitavaksi ja
 // katoaa; vain luvut ja kuvaus päätyvät kantaan käyttäjän hyväksynnän jälkeen.
 //
+// Yksi tarjoaja, ei valintaa: kaikki käyttäjät saavat saman reitin ilman
+// asetuksia. Malli vaihdetaan env-muuttujalla, ei koodissa.
+//
 // Vaadittavat env-muuttujat Vercelissä:
-//   ANTHROPIC_API_KEY            — Anthropic Console
+//   OPENROUTER_API_KEY           — openrouter.ai, ainoa pakollinen uusi muuttuja
+//   OPENROUTER_MODEL             — valinnainen, oletus ks. _mealVision.ts
 //   SUPABASE_URL                 — sama kuin VITE_SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY    — oikeustarkistukseen (ohittaa RLS:n lukiessa)
 
-import Anthropic from '@anthropic-ai/sdk'
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { createClient } from '@supabase/supabase-js'
-import { z } from 'zod'
+// .js-pääte: paketti on ESM, ja Vercelin Node-ajossa suhteellinen import
+// tarvitsee päätteen. TypeScript ratkaisee sen .ts-tiedostoon.
+import { DEFAULT_OPENROUTER_MODEL, VisionError, analyseWithOpenRouter } from './_mealVision.js'
 
-// Opus 5, koska arvio on numeerinen päättely kuvasta eikä pelkkä tunnistus:
-// annoskoko, ainesosien määrä ja niiden ravintosisältö yhdessä. Halvempi malli
-// tunnistaa ruoan mutta arvioi määrät selvästi huonommin, ja väärä luku
-// päiväkirjassa on pahempi kuin muutama sentti kuvaa kohden.
-const MODEL = 'claude-opus-5'
-
-// 6 MB base64 ≈ 4,5 MB kuva. Puhelimen kamerakuva mahtuu tähän skaalattuna;
-// raakaa 12 megapikselin kuvaa ei ole tarkoitus lähettää, ja selain kutistaa
-// sen ennen lähetystä (ks. MealCapture).
+// 6 MB base64 ≈ 4,5 MB kuva. Selain kutistaa kuvan 1024 px:iin ennen
+// lähetystä (ks. mealPhoto.ts), joten tämä on vain katto suoria kutsuja vastaan.
 const MAX_BASE64_BYTES = 6 * 1024 * 1024
 
 const ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/webp'] as const
-
-const SYSTEM_PROMPT = `Olet ravitsemusanalyytikko. Saat kuvan ateriasta ja mahdollisesti käyttäjän korjauksen aiempaan arvioon. Tunnista annoksen ainekset ja arvioi sen kalori- ja proteiinimäärä realistisesti.
-
-Arvioi annoskoko kuvasta: astian koko, kerroksen paksuus ja ainesten suhteet kertovat määrän. Älä anna geneeristä keskiarvoa vaan arvio juuri tästä annoksesta.
-
-Jos käyttäjä on antanut korjauksen, kuuntele sitä — hän tietää annoksensa paremmin kuin sinä kuvasta. Päivitä kuvaus, ainekset ja luvut vastaamaan korjattua tulkintaa.
-
-Kirjoita kuvaus ja ainekset suomeksi. Merkitse luottamus matalaksi jos kuva on epäselvä tai annoskoko vaikea päätellä.`
-
-const AnalysisSchema = z.object({
-  description: z.string().describe('Lyhyt suomenkielinen kuvaus annoksesta, enintään 60 merkkiä'),
-  items: z.array(z.string()).describe('Yksittäiset tunnistetut ruoka-aineet suomeksi'),
-  calories: z.number().int().describe('Arvioidut kalorit kokonaislukuna'),
-  protein: z.number().int().describe('Arvioitu proteiini grammoina kokonaislukuna'),
-  confidence: z.enum(['low', 'medium', 'high']).describe('Kuinka varma arvio on'),
-})
 
 interface VercelReq {
   method?: string
@@ -142,9 +122,7 @@ export default async function handler(req: VercelReq, res: VercelRes) {
   }
   const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : ''
   const rawMedia = typeof body.mediaType === 'string' ? body.mediaType : 'image/jpeg'
-  const mediaType = (ALLOWED_MEDIA as readonly string[]).includes(rawMedia)
-    ? (rawMedia as (typeof ALLOWED_MEDIA)[number])
-    : 'image/jpeg'
+  const mediaType = (ALLOWED_MEDIA as readonly string[]).includes(rawMedia) ? rawMedia : 'image/jpeg'
   const correction = typeof body.userCorrection === 'string' ? body.userCorrection.trim().slice(0, 300) : ''
 
   if (!imageBase64) {
@@ -156,60 +134,27 @@ export default async function handler(req: VercelReq, res: VercelRes) {
     return
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     // Selkeä virhe eikä keksitty arvio: tekaistu luku päiväkirjassa on
     // pahempi kuin toimimaton nappi, koska se näyttää oikealta.
-    res.status(503).json({ error: 'Kuva-analyysi ei ole vielä konfiguroitu (ANTHROPIC_API_KEY puuttuu)' })
+    res.status(503).json({ error: 'Kuva-analyysi ei ole vielä konfiguroitu (OPENROUTER_API_KEY puuttuu)' })
     return
   }
 
-  const client = new Anthropic({ apiKey })
-
   try {
-    const response = await client.beta.messages.parse({
-      model: MODEL,
-      max_tokens: 2048,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: SYSTEM_PROMPT,
-      output_config: { format: zodOutputFormat(AnalysisSchema) },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            {
-              type: 'text',
-              text: correction
-                ? `Analysoi annos. Käyttäjän korjaus aiempaan arvioon: "${correction}". Päivitä arvio sen mukaan.`
-                : 'Analysoi annos.',
-            },
-          ],
-        },
-      ],
+    const estimate = await analyseWithOpenRouter({
+      apiKey,
+      model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
+      imageDataUrl: `data:${mediaType};base64,${imageBase64}`,
+      correction,
     })
-
-    if (response.stop_reason === 'refusal') {
-      res.status(422).json({ error: 'Kuvaa ei voitu analysoida. Kirjaa annos käsin.' })
-      return
-    }
-
-    const parsed = response.parsed_output
-    if (!parsed) {
-      res.status(502).json({ error: 'Analyysin muoto ei kelvannut. Yritä uudelleen tai kirjaa käsin.' })
-      return
-    }
-
-    res.status(200).json({
-      description: parsed.description.slice(0, 80),
-      items: parsed.items.slice(0, 12).map(String),
-      // Selkeät rajat: negatiivinen tai absurdi luku on virhe eikä arvio.
-      calories: Math.max(0, Math.min(5000, Math.round(parsed.calories))),
-      protein: Math.max(0, Math.min(400, Math.round(parsed.protein))),
-      confidence: parsed.confidence,
-    })
+    res.status(200).json(estimate)
   } catch (e) {
+    if (e instanceof VisionError) {
+      res.status(e.status).json({ error: e.message })
+      return
+    }
     const message = e instanceof Error ? e.message : 'Tuntematon virhe'
     res.status(502).json({ error: `Analyysi ei onnistunut: ${message}` })
   }
