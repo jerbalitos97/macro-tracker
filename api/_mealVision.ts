@@ -40,8 +40,12 @@ export function parseModels(env: string | undefined): string[] {
   return list.length > 0 ? list.slice(0, 3) : DEFAULT_OPENROUTER_MODELS
 }
 
+// Kielivaatimus erikseen ja kahdesti (kehote + käyttäjäviesti): ilmaismallit
+// vastasivat suomenkieliseenkin kehotteeseen englanniksi, kun JSON-avaimet
+// ovat englantia. Avaimet pysyvät englanniksi, arvot suomeksi.
 export const OPENROUTER_SYSTEM_PROMPT =
-  "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Jos annoskoko on epävarma, levennä kcal_rangea."
+  "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Jos annoskoko on epävarma, levennä kcal_rangea. " +
+  'Kirjoita name- ja notes-kenttien arvot AINA suomeksi (esim. "Kanafilee", "Keitetty riisi"), vaikka JSON-avaimet ovat englanniksi.'
 
 export const RATE_LIMIT_MESSAGE = 'Kuva-analyysi on ruuhkautunut — yritä hetken päästä.'
 
@@ -177,8 +181,8 @@ export async function analyseWithOpenRouter(opts: {
           {
             type: 'text',
             text: opts.correction
-              ? `Käyttäjän korjaus aiempaan arvioon: "${opts.correction}". Päivitä arvio sen mukaan.`
-              : 'Arvioi ateria.',
+              ? `Käyttäjän korjaus aiempaan arvioon: "${opts.correction}". Päivitä arvio sen mukaan. Vastaa suomeksi.`
+              : 'Arvioi ateria. Vastaa suomeksi.',
           },
           { type: 'image_url', image_url: { url: opts.imageDataUrl } },
         ],
