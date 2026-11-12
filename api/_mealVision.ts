@@ -15,7 +15,11 @@
 import { z } from 'zod'
 
 export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-export const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct:free'
+// qwen/qwen2.5-vl-72b-instruct:free poistui OpenRouterin luettelosta
+// (tarkistettu 12.11.2026 /api/v1/models). Ilmaiset mallit vaihtuvat usein:
+// jos analyysi alkaa palauttaa "No endpoints found", tarkista luettelo ja
+// vaihda OPENROUTER_MODEL Vercelissä ennen kuin muutat tätä.
+export const DEFAULT_OPENROUTER_MODEL = 'google/gemma-4-31b-it:free'
 
 export const OPENROUTER_SYSTEM_PROMPT =
   "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Jos annoskoko on epävarma, levennä kcal_rangea."

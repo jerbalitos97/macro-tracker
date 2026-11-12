@@ -21,7 +21,7 @@ const MEAL_JSON = {
   notes: null,
 }
 
-const base = { apiKey: 'test-key', model: 'qwen/qwen2.5-vl-72b-instruct:free', imageDataUrl: 'data:image/jpeg;base64,AAAA' }
+const base = { apiKey: 'test-key', model: 'google/gemma-4-31b-it:free', imageDataUrl: 'data:image/jpeg;base64,AAAA' }
 
 describe('analyseWithOpenRouter', () => {
   it('parsii aidatun JSON-vastauksen ja normalisoi sen', async () => {
