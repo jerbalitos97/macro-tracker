@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Camera, Check, RotateCcw, X } from 'lucide-react'
+import { AlertCircle, Camera, Check, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
 import { analyseMealPhoto, previewUrl, type MealAnalysis } from '../../lib/mealPhoto'
 
 interface Props {
@@ -31,6 +31,7 @@ export function MealCapture({ onAccept }: Props) {
   const [kcal, setKcal] = useState('')
   const [protein, setProtein] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
 
   // Esikatselu-URL on objektiviittaus, ei tavallinen linkki: jos sitä ei
   // vapauteta, jokainen otettu kuva jää muistiin koko istunnon ajaksi.
@@ -49,6 +50,7 @@ export function MealCapture({ onAccept }: Props) {
     setKcal('')
     setProtein('')
     if (inputRef.current) inputRef.current.value = ''
+    if (galleryRef.current) galleryRef.current.value = ''
   }
 
   const run = async (f: File, corr?: string) => {
@@ -98,16 +100,35 @@ export function MealCapture({ onAccept }: Props) {
         className="hidden"
         onChange={(e) => pick(e.target.files?.[0])}
       />
+      {/* Toinen input ilman capturea: capture pakottaa iPhonessa kameran,
+          joten jo otettu kuva (esim. ravintolassa) vaatii oman valitsimen. */}
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => pick(e.target.files?.[0])}
+      />
 
       {phase === 'idle' && (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-input border border-sky/40 bg-sky/[0.10] py-3.5 font-mono text-[12px] uppercase tracking-[0.06em] text-sky"
-        >
-          <Camera size={15} />
-          Kuvaa ateria
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-input border border-sky/40 bg-sky/[0.10] py-3.5 font-mono text-[12px] uppercase tracking-[0.06em] text-sky"
+          >
+            <Camera size={15} />
+            Kuvaa ateria
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-input border border-sky/40 bg-sky/[0.10] py-3.5 font-mono text-[12px] uppercase tracking-[0.06em] text-sky"
+          >
+            <ImageIcon size={15} />
+            Galleriasta
+          </button>
+        </div>
       )}
 
       {phase !== 'idle' && preview && (
