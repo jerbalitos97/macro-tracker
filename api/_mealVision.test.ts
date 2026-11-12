@@ -21,7 +21,7 @@ const MEAL_JSON = {
   notes: null,
 }
 
-const base = { apiKey: 'test-key', model: 'google/gemma-4-31b-it:free', imageDataUrl: 'data:image/jpeg;base64,AAAA' }
+const base = { apiKey: 'test-key', models: ['google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-super-vl:free'], imageDataUrl: 'data:image/jpeg;base64,AAAA' }
 
 describe('analyseWithOpenRouter', () => {
   it('parsii aidatun JSON-vastauksen ja normalisoi sen', async () => {
@@ -46,7 +46,8 @@ describe('analyseWithOpenRouter', () => {
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe(OPENROUTER_URL)
     const sent = JSON.parse(init.body as string)
-    expect(sent.model).toBe(base.model)
+    expect(sent.model).toBe(base.models[0])
+    expect(sent.models).toEqual(base.models)
     expect(sent.messages[1].content[1]).toEqual({ type: 'image_url', image_url: { url: base.imageDataUrl } })
   })
 

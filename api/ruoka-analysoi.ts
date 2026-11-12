@@ -24,7 +24,7 @@
 import { createClient } from '@supabase/supabase-js'
 // .js-pääte: paketti on ESM, ja Vercelin Node-ajossa suhteellinen import
 // tarvitsee päätteen. TypeScript ratkaisee sen .ts-tiedostoon.
-import { DEFAULT_OPENROUTER_MODEL, VisionError, analyseWithOpenRouter } from './_mealVision.js'
+import { VisionError, analyseWithOpenRouter, parseModels } from './_mealVision.js'
 
 // 6 MB base64 ≈ 4,5 MB kuva. Selain kutistaa kuvan 1024 px:iin ennen
 // lähetystä (ks. mealPhoto.ts), joten tämä on vain katto suoria kutsuja vastaan.
@@ -145,7 +145,7 @@ export default async function handler(req: VercelReq, res: VercelRes) {
   try {
     const estimate = await analyseWithOpenRouter({
       apiKey,
-      model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
+      models: parseModels(process.env.OPENROUTER_MODEL),
       imageDataUrl: `data:${mediaType};base64,${imageBase64}`,
       correction,
     })

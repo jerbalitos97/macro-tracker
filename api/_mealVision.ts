@@ -6,7 +6,7 @@
 //
 // Env-muuttujat:
 //   OPENROUTER_API_KEY    — pakollinen
-//   OPENROUTER_MODEL      — oletus DEFAULT_OPENROUTER_MODEL, esim. google/gemini-2.5-flash
+//   OPENROUTER_MODEL      — malli tai pilkkulista (max 3), oletus DEFAULT_OPENROUTER_MODELS
 //
 // Ilmaistason mallilla on minuuttikohtainen rate limit, ja ilmaismallien
 // tarjoajat voivat lokittaa syötteet. Jos käyttäjiä tulee lisää tai arviot
@@ -19,7 +19,26 @@ export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // (tarkistettu 12.11.2026 /api/v1/models). Ilmaiset mallit vaihtuvat usein:
 // jos analyysi alkaa palauttaa "No endpoints found", tarkista luettelo ja
 // vaihda OPENROUTER_MODEL Vercelissä ennen kuin muutat tätä.
-export const DEFAULT_OPENROUTER_MODEL = 'google/gemma-4-31b-it:free'
+//
+// Lista eikä yksi malli: ilmaismallilla on tyypillisesti yksi tarjoaja, jonka
+// oma ilmaiskiintiö loppuu kaikilta OpenRouterin käyttäjiltä yhteisesti.
+// Ensimmäinen kokeilu tuotannossa sai 429:n heti ensimmäisestä kuvasta.
+// OpenRouter kokeilee `models`-listan mallit järjestyksessä, joten yhden
+// ruuhka ei kaada analyysia.
+export const DEFAULT_OPENROUTER_MODELS = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-super-vl:free',
+  'google/gemma-4-26b-a4b-it:free',
+]
+
+/** OPENROUTER_MODEL voi olla yksi malli tai pilkuilla erotettu lista. */
+export function parseModels(env: string | undefined): string[] {
+  const list = (env ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return list.length > 0 ? list.slice(0, 3) : DEFAULT_OPENROUTER_MODELS
+}
 
 export const OPENROUTER_SYSTEM_PROMPT =
   "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Jos annoskoko on epävarma, levennä kcal_rangea."
@@ -135,7 +154,8 @@ function retryAfterMs(res: Response): number {
 
 export async function analyseWithOpenRouter(opts: {
   apiKey: string
-  model: string
+  /** Kokeilujärjestyksessä; OpenRouter siirtyy seuraavaan virheen tai ruuhkan sattuessa. */
+  models: string[]
   imageDataUrl: string
   correction?: string
   deps?: Deps
@@ -145,7 +165,8 @@ export async function analyseWithOpenRouter(opts: {
   let rateLimitRetried = false
 
   const body = JSON.stringify({
-    model: opts.model,
+    model: opts.models[0],
+    models: opts.models,
     temperature: 0.2,
     max_tokens: 1200,
     messages: [
@@ -186,6 +207,11 @@ export async function analyseWithOpenRouter(opts: {
       // OpenRouter välittää ylävirran rate limitin joskus 200-vastauksen
       // error-kentässä, joten molemmat tulkitaan samoin.
       const limited = res.status === 429 || json?.error?.code === 429
+      if (limited || !res.ok || json?.error) {
+        // Vercelin lokiin syy, jotta "ruuhkautunut" on jäljitettävissä.
+        // Vain tila ja OpenRouterin viesti — ei avainta eikä kuvaa.
+        console.warn('openrouter error', res.status, json?.error?.code, json?.error?.message)
+      }
       if (limited) {
         if (rateLimitRetried) throw new VisionError(429, RATE_LIMIT_MESSAGE)
         rateLimitRetried = true
