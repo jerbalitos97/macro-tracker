@@ -65,10 +65,25 @@ reach the client through the normal sync path.
 `api/mcp.ts` is one Vercel function serving both halves, and the split between
 them is the rule:
 
-- **Nutrition, weight, habits are read-only.** They are a record of what
-  happened. Nothing reached through a chat should be able to rewrite it.
-- **Templates, blocks and warm-ups are writable**, because they are a plan, and
-  a plan is the thing worth shaping in conversation.
+- **What happened is read-only**: meals, weight, habits, mobility, completed
+  workouts. They are a record. Nothing reached through a chat should be able to
+  rewrite it, and `_mcp.test.ts` fails if a write tool for any of them appears.
+- **What is intended is writable**: templates, warm-ups, blocks, training
+  locations and goal periods. They are a plan, and a plan is the thing worth
+  shaping in conversation.
+
+Goal periods are the one plan that lives inside a row the phone also writes
+whole (`settings.data.goalPeriods`). So `put_goal_period` touches only that
+field, makes the update conditional on the row's `updated_at`, and logs the
+period list rather than the settings row — and the app re-reads settings when
+it returns to the foreground (`pullSettingsIfNewer`), or its next save would
+upload a stale copy over the change. Any future MCP write into `settings` needs
+all three.
+
+The nutrition maths in `api/mcp.ts` is a **mirror** of `src/lib/compute.ts` and
+`goalPeriods.ts`, not an import. `api/_mcp.test.ts` runs both on the same data;
+when you change how a budget or a period is computed, that test is what tells
+you the MCP now disagrees with the screen.
 
 Every write tool follows the same protocol, and a new one must too:
 
@@ -84,6 +99,8 @@ Every write tool follows the same protocol, and a new one must too:
    (`undo_write`); a partial restore would leave a state that never existed.
 4. **Unchanged means no write**, same idempotency rule as the content
    migrations.
+5. **List it in `WRITE_TOOLS`.** That is what marks it as a write to the client,
+   which decides from it when to ask the user for permission.
 
 `stage()` does 1, 3 and 4 — route new write tools through it rather than
 touching the tables directly, and pass `logBefore`/`logAfter` when the compared

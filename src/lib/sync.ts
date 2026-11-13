@@ -12,11 +12,38 @@ import type {
 
 // ── Individual upserts (called on every mutation) ─────────────
 
-export function syncSettings(userId: string, s: Settings) {
+/** Returns the `updated_at` it wrote, so the caller can tell its own write
+ *  apart from a newer one made elsewhere — see pullSettingsIfNewer. */
+export function syncSettings(userId: string, s: Settings): string {
+  const stamp = new Date().toISOString()
   supabase
     ?.from('settings')
-    .upsert({ user_id: userId, data: s, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+    .upsert({ user_id: userId, data: s, updated_at: stamp }, { onConflict: 'user_id' })
     .then(({ error }) => { if (error) console.warn('[sync] settings:', error.message) })
+  return stamp
+}
+
+/** The settings row, but only when the cloud copy is newer than `since`.
+ *
+ *  Settings are pushed whole on every change and were pulled only at login. As
+ *  long as the phone was the only writer that was enough. It no longer is: the
+ *  MCP writes goal periods into this same row (api/mcp.ts, put_goal_period), and
+ *  an app left open would neither show that change nor survive it — its next
+ *  settings save would upload the stale copy over the top. Checking on every
+ *  return to the foreground closes that gap without re-pulling everything.
+ *
+ *  Strictly newer, never merely different: an older cloud copy means our own
+ *  last push has not landed yet, and adopting it would undo the user's edit. */
+export async function pullSettingsIfNewer(
+  userId: string,
+  since: string | null,
+): Promise<{ settings: Settings; updatedAt: string } | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('settings').select('data, updated_at').eq('user_id', userId).maybeSingle()
+  if (error || !data?.updated_at) return null
+  if (since && Date.parse(data.updated_at) <= Date.parse(since)) return null
+  return { settings: data.data as Settings, updatedAt: data.updated_at }
 }
 
 export function syncMeal(userId: string, m: Meal) {

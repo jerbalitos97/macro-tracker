@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
@@ -13,7 +13,7 @@ import {
   syncEvent, deleteEvent as syncDeleteEvent,
   syncExtra, deleteExtra as syncDeleteExtra,
   syncAdjustment, deleteAdjustment as syncDeleteAdjustment,
-  pushAllData, pullAllData,
+  pushAllData, pullAllData, pullSettingsIfNewer,
 } from './lib/sync'
 import {
   listHabits, syncHabit, archiveHabit as archiveHabitRemote, reorderHabits,
@@ -128,6 +128,8 @@ export default function App() {
     if (!isViewAllowed(view, grantedTools)) setView('home')
   }, [view, grantedTools, toolsLoading])
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
+  /** `updated_at` of the settings row this device last saw or wrote. */
+  const settingsStamp = useRef<string | null>(null)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
@@ -195,6 +197,11 @@ export default function App() {
         setAdjustments(cloudData.adjustments ?? [])
         setSyncStatus('synced')
         setShowMigration(false)
+        // Remember which version of the settings row this is, so a later
+        // foreground check can tell a newer one apart from our own.
+        pullSettingsIfNewer(user.id, null).then((r) => {
+          if (r) settingsStamp.current = r.updatedAt
+        })
       } else {
         // Cloud is empty — check if there's local data to migrate
         const localData = loadData()
@@ -223,6 +230,24 @@ export default function App() {
 
     pull()
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loaded])
+
+  // ── Settings: pick up changes made elsewhere ──────────────────
+  // The MCP can write goal periods into the settings row while the app sits
+  // open in the background. Without this the app would keep showing the old
+  // plan and its next settings save would overwrite the new one.
+  useEffect(() => {
+    if (!user || !loaded) return
+    const check = () => {
+      if (document.visibilityState !== 'visible') return
+      pullSettingsIfNewer(user.id, settingsStamp.current).then((r) => {
+        if (!r) return
+        settingsStamp.current = r.updatedAt
+        setSettingsState(r.settings)
+      })
+    }
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
   }, [user, loaded])
 
   // ── Habits: pull from cloud on login ──────────────────────────
@@ -263,7 +288,7 @@ export default function App() {
   const setSettings = useCallback(
     (s: Settings) => {
       setSettingsState(s)
-      if (user) syncSettings(user.id, s)
+      if (user) settingsStamp.current = syncSettings(user.id, s)
     },
     [user],
   )
