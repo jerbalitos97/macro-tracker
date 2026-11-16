@@ -31,6 +31,7 @@ export interface GroceryList {
 
 const K_LIST = 'friday.grocery.listId'
 const K_NAME = 'friday.grocery.name'
+const K_SHARED = 'friday.grocery.shared'
 
 // ── Participant name (per device) ──────────────────────────────────────────
 export function getName(): string {
@@ -38,6 +39,18 @@ export function getName(): string {
 }
 export function setName(name: string): void {
   try { localStorage.setItem(K_NAME, name.trim()) } catch { /* ignore */ }
+}
+
+// ── Share mode ─────────────────────────────────────────────────────────────
+// Nimeä kysytään vain kun lista on jaettu ihmisille; yksin käytetyllä listalla
+// "kuka otti" ei kerro mitään. Jakotila on laitekohtainen merkki: lista on
+// avattu jakolinkistä tai linkki on lähetetty tältä laitteelta.
+export function isSharedList(listId: string): boolean {
+  if (sharedListIdFromUrl() === listId) return true
+  try { return localStorage.getItem(K_SHARED) === listId } catch { return false }
+}
+export function markListShared(listId: string): void {
+  try { localStorage.setItem(K_SHARED, listId) } catch { /* ignore */ }
 }
 
 // ── List bootstrap ──────────────────────────────────────────────────────────
