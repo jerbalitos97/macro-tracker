@@ -66,10 +66,10 @@ export function ResetPasswordView({ token, onDone }: { token: string; onDone: ()
         <div className="mb-3.5 flex justify-center">
           <AppMark size={64} />
         </div>
-        <h1 className="font-display m-0 mb-1 text-[22px] font-bold uppercase tracking-[0.18em] text-text">
+        <h1 className="font-display m-0 mb-1 text-[22px] font-bold   text-text">
           Uusi salasana
         </h1>
-        <p className="m-0 text-[13px] leading-relaxed text-fg-faint">
+        <p className="m-0 text-[14px] leading-relaxed text-fg-faint">
           {phase === 'checking'
             ? 'Tarkistetaan linkkiä…'
             : phase === 'ready'
@@ -78,7 +78,7 @@ export function ResetPasswordView({ token, onDone }: { token: string; onDone: ()
         </p>
       </div>
 
-      <div className="card-enter w-full max-w-[320px] rounded-glass border border-white/[0.14] bg-[rgba(9,11,20,0.50)] p-6 [backdrop-filter:blur(26px)_saturate(180%)] [-webkit-backdrop-filter:blur(26px)_saturate(180%)]">
+      <div className="card-enter w-full max-w-[320px] rounded-glass border border-white/[0.14] bg-[var(--surface-1)] p-6">
         {phase === 'ready' && (
           <div className="flex flex-col gap-1">
             <Field
@@ -104,7 +104,7 @@ export function ResetPasswordView({ token, onDone }: { token: string; onDone: ()
         )}
         {phase === 'invalid' && (
           <div className="flex flex-col gap-3">
-            <p role="alert" className="text-[13px] text-danger">{error}</p>
+            <p role="alert" className="text-[14px] text-danger">{error}</p>
             <Button variant="secondary" onClick={leave}>Kirjautumiseen</Button>
           </div>
         )}

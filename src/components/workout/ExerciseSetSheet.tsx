@@ -18,8 +18,8 @@ interface Props {
 }
 
 const cell =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-1.5 py-2 text-center text-base tabular-nums text-text [color-scheme:dark]'
-const colLabel = 'font-mono text-[8.5px] uppercase tracking-[0.12em] text-fg-faint'
+  'h-11 w-full min-w-0 rounded-[10px] border border-white/[0.18] bg-[var(--surface-2)] px-1.5 text-center font-mono text-[16px] tabular-nums text-text [color-scheme:dark]'
+const colLabel = 'text-[12px] text-fg-muted'
 
 function num(v: string): number | undefined {
   if (v === '') return undefined
@@ -65,9 +65,9 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
       {onShowInfo && (
         <button
           onClick={onShowInfo}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+          className="mb-3 flex min-h-10 items-center gap-2 self-start rounded-full px-3 text-[14px] font-semibold text-cyan"
         >
-          <Info size={13} /> Pohjan ohje
+          <Info size={16} /> Pohjan ohje
         </button>
       )}
 
@@ -76,7 +76,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
           needs, because the point is to decide which gym to walk into. */}
       {exercise.alternatives && exercise.alternatives.length > 1 && (
         <div className="mb-3">
-          <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">
+          <div className="mb-1.5 text-[12px] text-fg-muted">
             Valitse paikan mukaan
           </div>
           <div className="flex flex-col gap-1.5">
@@ -87,21 +87,21 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
                   key={alt.name}
                   onClick={() => active ? undefined : onChange({ ...exercise, name: alt.name, tempo: alt.tempo, note: [alt.note, alt.dose].filter(Boolean).join(' · ') || undefined })}
                   aria-pressed={active}
-                  className={`w-full !min-h-0 rounded-[8px] border px-3 py-2 text-left ${
-                    active ? 'border-accent/45 bg-accent/[0.10]' : 'border-white/[0.09]'
+                  className={`min-h-12 w-full rounded-[8px] border px-3 py-2 text-left ${
+                    active ? 'border-transparent bg-cyan/[0.16]' : 'border-white/[0.18]'
                   }`}
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[12.5px] leading-snug text-text">{alt.name}</span>
-                    <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">{alt.dose}</span>
+                    <span className="text-[14px] leading-5 text-text">{alt.name}</span>
+                    <span className="flex-shrink-0 font-mono text-[12px] tabular-nums text-fg-muted">{alt.dose}</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
                     {alt.placeLabel && (
-                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${active ? 'text-accent' : 'text-fg-faint'}`}>
+                      <span className={`text-[12px] ${active ? 'text-[#a5f3fc]' : 'text-fg-muted'}`}>
                         {alt.placeLabel}
                       </span>
                     )}
-                    {alt.note && <span className="text-[10.5px] leading-snug text-fg-faint">{alt.note}</span>}
+                    {alt.note && <span className="text-[12px] leading-4 text-fg-muted">{alt.note}</span>}
                   </div>
                 </button>
               )
@@ -111,14 +111,14 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
       )}
 
       {suggestion && (
-        <div className="mb-3 rounded-row border border-cyan/20 bg-cyan/[0.07] px-3 py-2">
-          <div className="mb-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-cyan">Viime kerralla</div>
-          <div className="font-mono text-[11px] tabular-nums text-fg-muted">{summarize(suggestion)}</div>
+        <div className="mb-3 rounded-[16px] bg-cyan/[0.10] px-3.5 py-2.5">
+          <div className="mb-0.5 text-[12px] text-[#a5f3fc]">Viime kerralla</div>
+          <div className="font-mono text-[14px] tabular-nums text-text">{summarize(suggestion)}</div>
         </div>
       )}
 
       {/* Column headers */}
-      <div className="mb-1.5 grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2 px-0.5">
+      <div className="mb-1.5 grid grid-cols-[20px_1fr_1fr_1fr_40px_32px] items-center gap-2 px-0.5">
         <span className={colLabel}>#</span>
         <span className={`${colLabel} text-center`}>Toistot</span>
         <span className={`${colLabel} text-center`}>Paino kg</span>
@@ -129,8 +129,8 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
 
       <div className="flex flex-col gap-1.5">
         {sets.map((s, i) => (
-          <div key={i} className="grid grid-cols-[20px_1fr_1fr_1fr_34px_30px] items-center gap-2">
-            <span className="text-center font-mono text-[12px] tabular-nums text-fg-faint">{i + 1}</span>
+          <div key={i} className="grid grid-cols-[20px_1fr_1fr_1fr_40px_32px] items-center gap-2">
+            <span className="text-center font-mono text-[14px] tabular-nums text-fg-muted">{i + 1}</span>
             <input inputMode="numeric" value={s.reps ?? ''} placeholder="–"
               onChange={(e) => patchSet(i, { reps: num(e.target.value) })} className={cell} />
             <input inputMode="decimal" value={s.weight ?? ''} placeholder="–"
@@ -140,19 +140,19 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
             <button
               onClick={() => patchSet(i, { done: !s.done })}
               aria-label={s.done ? 'Merkitse sarja tekemättömäksi' : 'Merkitse sarja tehdyksi'}
-              className={`flex h-[34px] w-[34px] !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
-                s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
+              className={`hit-44 flex h-10 w-10 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+                s.done ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'border-2 border-white/30 text-fg-muted'
               }`}
             >
-              <Check size={13} strokeWidth={3} />
+              <Check size={16} strokeWidth={3} />
             </button>
             <button
               onClick={() => removeSet(i)}
               disabled={sets.length <= 1}
               aria-label="Poista sarja"
-              className="icon-btn flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-md text-fg-faint hover:text-danger disabled:opacity-30"
+              className="icon-btn hit-44 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full text-fg-muted hover:text-danger disabled:opacity-30"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
         ))}
@@ -160,9 +160,9 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
 
       <button
         onClick={addSet}
-        className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+        className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-dashed border-white/[0.18] bg-transparent text-[14px] font-medium text-text"
       >
-        <Plus size={14} /> Lisää sarja
+        <Plus size={16} /> Lisää sarja
       </button>
 
       <div className="mt-4 flex items-center gap-2">
@@ -170,7 +170,7 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
           onClick={() => onMoveUp?.()}
           disabled={!onMoveUp}
           aria-label="Siirrä liike ylöspäin"
-          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-text disabled:opacity-25"
         >
           <ArrowUp size={16} />
         </button>
@@ -178,14 +178,14 @@ export function ExerciseSetSheet({ exercise, suggestion, onChange, onRemoveExerc
           onClick={() => onMoveDown?.()}
           disabled={!onMoveDown}
           aria-label="Siirrä liike alaspäin"
-          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-text disabled:opacity-25"
         >
           <ArrowDown size={16} />
         </button>
         <button
           onClick={() => { onRemoveExercise(); onClose() }}
           aria-label="Poista liike"
-          className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-[#FFB4AB]"
         >
           <Trash2 size={16} />
         </button>

@@ -42,32 +42,32 @@ export function MonthCalendar({
   while (cells.length % 7 !== 0) cells.push(null)
 
   return (
-    <div className="rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-4 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="flex flex-col gap-2.5 rounded-panel border border-white/[0.08] bg-[var(--surface-1)] p-4">
+      <div className="flex items-center gap-1">
+        <span className="flex-1 pl-1 text-[16px] font-medium leading-6 text-text first-letter:uppercase">
+          {MONTHS[monthIndex0]} {year}
+        </span>
         <button
           type="button"
           onClick={onPrev}
           aria-label="Edellinen kuukausi"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-black/30 text-fg-muted"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-transparent text-text"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={22} />
         </button>
-        <div className="font-mono text-[11px] uppercase tracking-[0.10em] text-fg-dim">
-          {MONTHS[monthIndex0]} {year}
-        </div>
         <button
           type="button"
           onClick={onNext}
           aria-label="Seuraava kuukausi"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-black/30 text-fg-muted"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-transparent text-text"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={22} />
         </button>
       </div>
 
-      <div className="mb-1.5 grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="text-center font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">
+          <div key={w} className="text-center text-[12px] leading-4 text-fg-muted">
             {w}
           </div>
         ))}
@@ -81,6 +81,9 @@ export function MonthCalendar({
           const open = openByDate.get(c.iso) ?? 0
           const selected = c.iso === selectedISO
           const isToday = c.iso === todayISO
+          // Rästipäivän piste lämmin, tulevien cyaani — sama erottelu kuin
+          // listan "Aiemmilta päiviltä" -ryhmässä.
+          const dot = selected ? '#05060c' : c.iso < todayISO ? '#F2D29B' : '#22d3ee'
           return (
             <button
               key={c.iso}
@@ -88,22 +91,18 @@ export function MonthCalendar({
               onClick={() => onSelect(c.iso)}
               aria-label={`${c.day}. ${MONTHS[monthIndex0]}${open > 0 ? `, ${open} avointa` : ''}`}
               aria-current={selected ? 'date' : undefined}
-              className={`relative flex aspect-square min-h-0 min-w-0 cursor-pointer flex-col items-center justify-center rounded-lg border text-[13px] transition-colors ${
+              className={`flex min-h-12 min-w-0 cursor-pointer flex-col items-center justify-center gap-[3px] rounded-[14px] text-[14px] transition-colors ${
                 selected
-                  ? 'border-border-hi bg-accent/[0.16] text-text'
-                  : isToday
-                    ? 'border-white/15 bg-white/[0.04] text-text'
-                    : 'border-transparent text-fg-muted'
-              }`}
+                  ? 'bg-gradient-to-br from-cyan to-violet font-semibold text-bg'
+                  : 'bg-[var(--surface-2)] text-text'
+              } ${isToday && !selected ? 'outline-2 -outline-offset-2 outline-cyan [outline-style:solid]' : ''}`}
             >
-              <span className={selected || isToday ? 'font-semibold' : ''}>{c.day}</span>
-              {open > 0 && (
-                <span
-                  aria-hidden
-                  className="absolute bottom-1 h-1 w-1 rounded-full bg-violet"
-                  style={{ boxShadow: '0 0 6px rgba(167,139,250,0.8)' }}
-                />
-              )}
+              <span className="font-mono">{c.day}</span>
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: open > 0 ? dot : 'transparent' }}
+              />
             </button>
           )
         })}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, X, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical, Archive, RotateCcw } from 'lucide-react'
-import { Card, Button, Sheet, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
+import { Plus, Dumbbell, ClipboardList, CalendarDays, Play, Trash2, ChevronRight, ChevronLeft, Timer, Layers, Bell, BellOff, GripVertical, Archive, RotateCcw } from 'lucide-react'
+import { Button, Sheet, DragItem, useDragReorder, moveById, moveByDelta, snack } from '../components/ui'
 import { TemplateEditor } from '../components/workout/TemplateEditor'
 import { WorkoutTools } from '../components/workout/WorkoutTools'
 import { DailyCheckSheet } from '../components/workout/DailyCheckSheet'
@@ -50,7 +50,7 @@ const TABS: Array<{ id: Tab; label: string; Icon: typeof Dumbbell }> = [
   { id: 'calendar',  label: 'Kalenteri', Icon: CalendarDays },
 ]
 
-const sectionLabel = 'mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim'
+const sectionLabel = 'mb-2 px-1 text-[16px] font-medium leading-6 text-text'
 
 const KINDS: Array<{ id: TemplateKind; label: string; Icon: typeof Dumbbell }> = [
   { id: 'strength', label: 'Voimatreeni',   Icon: Dumbbell },
@@ -92,8 +92,7 @@ function TemplateGroup({ group, onOpen, onDelete, onReorder }: GroupProps) {
             role="button"
             tabIndex={0}
             ariaLabel={`Muokkaa pohjaa ${t.name}, ${t.exercises.length} liikettä`}
-            className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 [backdrop-filter:blur(14px)]"
-            style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
+            className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-[24px] border border-white/[0.08] bg-[var(--surface-1)] p-[14px] pl-[18px]"
           >
             {({ handleProps }) => (
               <>
@@ -107,14 +106,14 @@ function TemplateGroup({ group, onOpen, onDelete, onReorder }: GroupProps) {
                     aria-label={`Poista pohja ${t.name}`}
                     className="icon-btn hit-44 flex !min-h-0 !min-w-0 items-center justify-center rounded-md p-1 text-fg-faint hover:text-danger"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
                 <div>
-                  <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+                  <div className="line-clamp-2 text-[16px] font-medium leading-6 text-text">
                     {t.name}
                   </div>
-                  <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                  <div className="text-[12px] leading-4 text-fg-muted">
                     {t.exercises.length} liikettä
                   </div>
                 </div>
@@ -285,10 +284,12 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     setScreen('logging')
   }
 
+  // Act now, undo from the snackbar: the draft is a local record, so putting
+  // it back is the same saveDraft the autosave uses.
   const discardDraft = (d: Workout) => {
-    if (!window.confirm(`Hylätäänkö "${d.name}"?`)) return
     setDrafts(clearDraft(d.id))
     if (session?.id === d.id) setSession(null)
+    snack({ text: `Hylätty: ${d.name}`, onAction: () => setDrafts(saveDraft(d)) })
   }
 
   const finishWorkout = () => {
@@ -392,10 +393,20 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
     }
   }
 
+  // Act now, undo from the snackbar. Restoring is the ordinary save + upsert,
+  // so the row comes back whole with its id, position and block binding.
   const handleDeleteTemplate = (id: string) => {
-    if (!window.confirm('Poistetaanko pohja?')) return
+    const removed = templates.find((t) => t.id === id)
     setTemplates(deleteTemplate(id))
     if (user) deleteTemplateCloud(user.id, id)
+    if (!removed) return
+    snack({
+      text: `Pohja poistettu: ${removed.name}`,
+      onAction: () => {
+        setTemplates(saveTemplate(removed))
+        if (user) syncTemplateCloud(user.id, removed)
+      },
+    })
   }
 
   // ── Sub-screens ──────────────────────────────────────────────────
@@ -465,8 +476,18 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           }
           onLogBurn={(kcal) => onAddBurn({ kcal, note: viewing.name || 'Treeni' }, viewing.date)}
           onDelete={(id) => {
+            // Act now, undo from the snackbar: the record is put back whole
+            // through the same save + upsert a finished session uses.
+            const removed = workouts.find((w) => w.id === id) ?? viewing
             setWorkouts(deleteWorkout(id))
             if (user) deleteWorkoutCloud(user.id, id)
+            snack({
+              text: 'Treeni poistettu',
+              onAction: () => {
+                setWorkouts(saveWorkout(removed))
+                if (user) syncWorkoutCloud(user.id, removed)
+              },
+            })
           }}
           onEdit={() => startEditPast(viewing)}
           onClose={() => { setViewing(null); setScreen('home'); setTab('calendar') }}
@@ -497,12 +518,35 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
   }
 
   // ── Home (3 tabs) ────────────────────────────────────────────────
-  return (
-    <div className="px-4 pb-10 pt-4">
-      <h1 className="mb-3 font-display text-[22px] font-bold tracking-[-0.02em] text-text">Workout</h1>
+  // "Seuraavaksi" hero: a display suggestion only, read from what is already
+  // loaded. Among the templates offered today (strength first, since that is
+  // what a block programmes), the one done longest ago — never-done ones first,
+  // ties kept in the user's own order. Nothing is stored; an empty template
+  // list (not synced yet) simply means no hero.
+  const offered = templates.filter((t) => templateInPlay(t, currentBlockId))
+  const heroPool = offered.some((t) => templateKind(t) === 'strength')
+    ? offered.filter((t) => templateKind(t) === 'strength')
+    : offered
+  const lastDoneById = new Map<string, string>()
+  for (const w of workouts) {
+    if (w.completed && w.templateId && !lastDoneById.has(w.templateId)) lastDoneById.set(w.templateId, w.date)
+  }
+  const nextTemplate = heroPool.length
+    ? [...heroPool].sort((a, b) => (lastDoneById.get(a.id) ?? '').localeCompare(lastDoneById.get(b.id) ?? ''))[0]
+    : null
+  const nextLast = nextTemplate ? lastDoneById.get(nextTemplate.id) : undefined
+  const blockWeek = status.current
+    ? Math.floor((fromISO(todayISO).getTime() - fromISO(status.current.startDate).getTime()) / (7 * 86400000)) + 1
+    : null
 
+  return (
+    <div className="flex flex-col gap-3 px-4 pb-10 pt-2">
       {/* Segmented tabs */}
-      <div role="tablist" aria-label="Workout-näkymät" className="mb-4 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
+      <div
+        role="tablist"
+        aria-label="Workout-näkymät"
+        className="flex gap-1 rounded-[24px] border border-white/[0.08] bg-[var(--surface-2)] p-1"
+      >
         {TABS.map((t) => {
           const active = tab === t.id
           return (
@@ -511,57 +555,75 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               role="tab"
               aria-selected={active}
               onClick={() => setTab(t.id)}
-              className={`flex min-h-0 items-center justify-center gap-1.5 rounded-[14px] py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
-                active ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'text-fg-muted'
+              className={`flex min-h-10 flex-1 items-center justify-center rounded-[20px] text-[14px] font-medium transition-colors ${
+                active ? 'bg-cyan/[0.18] text-[#a5f3fc]' : 'text-fg-muted'
               }`}
             >
-              <t.Icon size={13} /> {t.label}
+              {t.label}
             </button>
           )
         })}
       </div>
 
       {tab === 'log' && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
+          {drafts.length === 0 && nextTemplate && (
+            <section
+              className="flex flex-col gap-2 rounded-[36px_36px_36px_12px] border border-[rgba(96,165,250,0.4)] p-[22px]"
+              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.34), rgba(34,211,238,0.22))' }}
+            >
+              <span className="text-[14px] leading-5 text-[#dbeafe]">
+                Seuraavaksi{status.current ? ` · ${status.current.name}, viikko ${blockWeek}` : ''}
+              </span>
+              <span
+                className="break-words text-[40px] font-[250] leading-[44px] tracking-[-0.03em] text-text"
+                style={{ fontVariationSettings: "'opsz' 144, 'wdth' 110" }}
+              >
+                {nextTemplate.name}
+              </span>
+              <span className="text-[15px] text-[#dbeafe]">
+                {nextTemplate.exercises.length} liikettä
+                {' · '}
+                {nextLast
+                  ? `viimeksi ${fromISO(nextLast).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}`
+                  : 'ei vielä tehty'}
+              </span>
+              <Button variant="primary" onClick={() => startWorkout(nextTemplate)} className="mt-1.5 w-full">
+                Aloita treeni
+              </Button>
+            </section>
+          )}
+
           {/* Every unfinished session, not just the last one. A mobility
               routine started in the morning and a strength session in the
               evening genuinely overlap, and making one of them be finished or
               thrown away to start the other loses real work. */}
           {drafts.map((d) => (
-            <Card key={d.id} variant="glass" className="border-cyan/25">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-cyan">Kesken</div>
-                  <div className="mt-0.5 truncate font-display text-[16px] font-semibold text-text">{d.name}</div>
-                  <div className="font-mono text-[10px] text-fg-faint">
-                    {d.exercises.length} liikettä
-                    {d.date !== todayISO && ` · ${d.date}`}
-                  </div>
-                </div>
-                <button
-                  onClick={() => discardDraft(d)}
-                  aria-label={`Hylkää ${d.name}`}
-                  className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
-                >
-                  <X size={16} />
-                </button>
+            <div key={d.id} className="flex flex-col gap-2.5 rounded-[24px] border border-[rgba(242,210,155,0.4)] bg-[var(--surface-1)] p-4">
+              <span className="text-[12px] leading-4 text-[#F2D29B]">Kesken</span>
+              <span className="truncate text-[18px] font-medium text-text">{d.name}</span>
+              <span className="text-[14px] leading-5 text-fg-muted">
+                {d.exercises.length} liikettä
+                {d.date !== todayISO && ` · ${fromISO(d.date).toLocaleDateString('fi-FI')}`}
+              </span>
+              <div className="flex gap-2">
+                <Button variant="primary" onClick={() => continueDraft(d)}>
+                  Jatka treeniä
+                </Button>
+                <Button variant="ghost" onClick={() => discardDraft(d)} aria-label={`Hylkää ${d.name}`}>
+                  Hylkää
+                </Button>
               </div>
-              <Button variant="primary" onClick={() => continueDraft(d)} className="mt-3 w-full">
-                <Play size={16} /> Jatka treeniä
-              </Button>
-            </Card>
+            </div>
           ))}
 
-          <button
-            onClick={() => startWorkout()}
-            className="active:scale-[0.98] flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-4 font-mono text-[13px] uppercase tracking-[0.06em] text-text transition-transform [backdrop-filter:blur(14px)]"
-          >
+          <Button variant="ghost" onClick={() => startWorkout()} className="w-full border-dashed">
             <Plus size={18} /> Aloita tyhjästä
-          </button>
+          </Button>
 
-          <div className="mt-3">
-            <div className={sectionLabel}>Aloita pohjasta</div>
-            <div className="grid grid-cols-2 gap-3">
+          <div>
+            <h2 className="mb-2 px-1 pt-1 text-[16px] font-medium leading-6 text-text">Tai valitse pohja</h2>
+            <div className="grid grid-cols-2 gap-2.5">
               {KINDS.map((k) => {
                 const count = templates.filter(
                   (t) => templateKind(t) === k.id && templateInPlay(t, currentBlockId),
@@ -570,15 +632,15 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                   <button
                     key={k.id}
                     onClick={() => setPicking(k.id)}
-                    className="active:scale-[0.97] flex min-h-[104px] flex-col justify-between rounded-tile border border-white/10 bg-[rgba(9,11,20,0.48)] p-4 text-left transition-transform [backdrop-filter:blur(14px)]"
+                    className="flex min-h-[116px] flex-col justify-between gap-2 rounded-[24px] border border-white/[0.08] bg-[var(--surface-1)] p-[14px] text-left"
                   >
-                    <k.Icon size={20} className="text-cyan" />
-                    <div>
-                      <div className="font-display text-[15px] font-semibold leading-tight text-text">{k.label}</div>
-                      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                    <k.Icon size={22} className="text-cyan" />
+                    <span className="flex flex-col">
+                      <span className="text-[16px] font-medium leading-6 text-text">{k.label}</span>
+                      <span className="text-[12px] leading-4 text-fg-muted">
                         {count} {count === 1 ? 'pohja' : 'pohjaa'}
-                      </div>
-                    </div>
+                      </span>
+                    </span>
                   </button>
                 )
               })}
@@ -589,12 +651,9 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
       {tab === 'templates' && (
         <div className="flex flex-col gap-4">
-          <button
-            onClick={() => { setEditing(null); setScreen('editTemplate') }}
-            className="active:scale-[0.98] flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-4 font-mono text-[13px] uppercase tracking-[0.06em] text-fg-muted transition-transform"
-          >
+          <Button variant="primary" onClick={() => { setEditing(null); setScreen('editTemplate') }} className="w-full">
             <Plus size={18} /> Uusi pohja
-          </button>
+          </Button>
 
           {KINDS.map((k) => {
             const group = templates.filter((t) => templateKind(t) === k.id && templateInPlay(t, currentBlockId))
@@ -603,7 +662,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               <div key={k.id}>
                 <div className={sectionLabel}>{k.label}</div>
                 {group.length === 0 ? (
-                  <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] text-fg-faint">
+                  <p className="rounded-[20px] border border-dashed border-white/[0.12] px-4 py-4 text-center text-[14px] leading-5 text-fg-muted">
                     Ei pohjia tässä kategoriassa.
                   </p>
                 ) : (
@@ -619,7 +678,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                     tarjolla — pohja jota ei näe on pohja jota ei ehdi korjata. */}
                 {tulossa.length > 0 && (
                   <div className="mt-3">
-                    <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">
+                    <div className="mb-1.5 px-1 text-[12px] leading-4 text-fg-muted">
                       Tulossa käyttöön
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -629,14 +688,14 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                           <button
                             key={t.id}
                             onClick={() => { setEditing(t); setScreen('editTemplate') }}
-                            className="relative flex min-h-[92px] flex-col justify-between overflow-hidden rounded-tile border border-dashed border-white/[0.16] bg-[rgba(9,11,20,0.35)] p-4 text-left"
+                            className="relative flex min-h-[92px] flex-col justify-between overflow-hidden rounded-[24px] border border-dashed border-white/[0.16] bg-[var(--surface-1)] p-4 text-left opacity-80"
                           >
                             <Layers size={16} className="text-fg-faint" />
                             <div>
-                              <div className="line-clamp-2 font-display text-[13px] font-semibold leading-tight text-fg-dim">
+                              <div className="line-clamp-2 text-[14px] font-medium leading-5 text-fg-muted">
                                 {t.name}
                               </div>
-                              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">
+                              <div className="mt-0.5 text-[12px] leading-4 text-fg-muted">
                                 {b ? `${b.name} · ${fromISO(b.startDate).toLocaleDateString('fi-FI')}` : 'ei blokkia'}
                               </div>
                             </div>
@@ -652,7 +711,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
 
           <button
             onClick={() => setShowArchive(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-white/[0.18] text-[14px] font-medium text-text"
           >
             <Archive size={14} /> Arkisto ({archivedTemplates().length})
           </button>
@@ -686,55 +745,54 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               <div className={sectionLabel}>Treeniblokit</div>
               {status.current ? (
                 <div
-                  className="rounded-row border p-4"
-                  style={{ borderColor: `${status.current.color}59`, backgroundColor: `${status.current.color}14` }}
+                  className="rounded-[24px] border border-white/[0.08] bg-[var(--surface-1)] p-4"
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="min-w-0 truncate font-display text-[15px] font-semibold text-text">
+                    <div className="min-w-0 truncate text-[18px] font-medium text-text">
                       {status.current.name}
                     </div>
                     <div
-                      className="flex-shrink-0 font-mono text-[12px] tabular-nums"
+                      className="flex-shrink-0 font-mono text-[12px] tabular-nums text-fg-muted"
                       style={{ color: status.current.color }}
                     >
                       {status.daysLeft} pv jäljellä
                     </div>
                   </div>
                   {status.current.note && (
-                    <div className="mt-0.5 text-[12px] text-fg-muted">{status.current.note}</div>
+                    <div className="mt-0.5 text-[14px] leading-5 text-fg-muted">{status.current.note}</div>
                   )}
-                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-[3px] bg-black/40">
+                  <div className="mt-2.5 h-2 overflow-hidden rounded-[4px] bg-white/[0.12]">
                     <div
                       className="h-full rounded-[3px] transition-[width] duration-500"
                       style={{ width: `${Math.round((status.progress ?? 0) * 100)}%`, backgroundColor: status.current.color }}
                     />
                   </div>
-                  <div className="mt-1.5 font-mono text-[10px] text-fg-faint">
+                  <div className="mt-1.5 text-[14px] leading-5 text-fg-muted">
                     {fromISO(status.current.startDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })}
                     {' – '}
                     {fromISO(status.current.endDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })}
                   </div>
                   {status.endingSoon && (
-                    <p role="status" className="mt-2 text-[12px] leading-relaxed text-accent">
+                    <p role="status" className="mt-2 text-[14px] leading-5 text-accent">
                       Blokki päättyy pian — suunnittele seuraava.
                     </p>
                   )}
                 </div>
               ) : (
-                <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] leading-relaxed text-fg-faint">
+                <p className="rounded-[20px] border border-dashed border-white/[0.12] px-4 py-4 text-center text-[14px] leading-5 text-fg-muted">
                   Ei blokkia käynnissä tänään.
                 </p>
               )}
 
               {status.next && (
-                <div className="mt-2 flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-2.5">
+                <div className="mt-2 flex min-h-14 items-center gap-3 rounded-[20px] bg-[var(--surface-1)] px-4 py-2">
                   <span
                     aria-hidden
                     className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
                     style={{ backgroundColor: status.next.color }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-text">{status.next.name}</span>
-                  <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">
+                  <span className="min-w-0 flex-1 truncate text-[16px] leading-6 text-text">{status.next.name}</span>
+                  <span className="flex-shrink-0 font-mono text-[14px] tabular-nums text-fg-muted">
                     {status.daysToNext === 0 ? 'huomenna' : `${status.daysToNext} pv päästä`}
                   </span>
                 </div>
@@ -744,20 +802,20 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               {status.current && notifyState !== 'granted' && notifyState !== 'unsupported' && (
                 <button
                   onClick={async () => setNotifyState(await requestNotifyPermission())}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.16] py-3 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+                  className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-cyan/[0.16] text-[14px] font-medium text-[#cde7ec]"
                 >
                   <Bell size={14} /> Muistuta {BLOCK_ENDING_SOON_DAYS} pv ennen loppua
                 </button>
               )}
               {notifyState === 'granted' && (
-                <p className="mt-2 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-faint">
+                <p className="mt-2 flex items-start gap-1.5 px-1 text-[12px] leading-4 text-fg-muted">
                   <Bell size={12} className="mt-0.5 flex-shrink-0 text-accent" />
                   Muistutus päällä. iOS ei salli verkkosovelluksen ajastaa ilmoituksia suljettuna,
                   joten se näytetään kerran päivässä kun avaat appin.
                 </p>
               )}
               {notifyState === 'denied' && (
-                <p className="mt-2 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-faint">
+                <p className="mt-2 flex items-start gap-1.5 px-1 text-[12px] leading-4 text-fg-muted">
                   <BellOff size={12} className="mt-0.5 flex-shrink-0" />
                   Ilmoitukset estetty. Salli ne Asetukset → Friday → Ilmoitukset.
                 </p>
@@ -767,21 +825,25 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                   done; blocks are planned in Suunnittelu, against the
                   nutrition periods they have to coexist with. */}
               <div className="mt-3 flex flex-col gap-1.5">
+                {blocks.length > 0 && (
+                <div className="flex flex-col gap-[2px] overflow-hidden rounded-[20px]">
                 {blocks.map((b) => (
                   <div
                     key={b.id}
-                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-2.5"
+                    className="flex min-h-14 items-center gap-3 bg-[var(--surface-1)] px-4 py-2"
                   >
                     <span aria-hidden className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: b.color }} />
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-text">{b.name}</span>
-                    <span className="flex-shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
+                    <span className="min-w-0 flex-1 truncate text-[16px] leading-6 text-text">{b.name}</span>
+                    <span className="flex-shrink-0 font-mono text-[14px] tabular-nums text-fg-muted">
                       {fromISO(b.startDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
                       –
                       {fromISO(b.endDate).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
                     </span>
                   </div>
                 ))}
-                <p className="mt-1 flex items-start gap-1.5 font-mono text-[10px] leading-relaxed text-fg-ghost">
+                </div>
+                )}
+                <p className="mt-1 flex items-start gap-1.5 px-1 text-[12px] leading-4 text-fg-muted">
                   <Layers size={12} className="mt-0.5 flex-shrink-0" />
                   Blokit luodaan ja muokataan Suunnittelu-työkalussa.
                 </p>
@@ -797,7 +859,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
               >
                 <ChevronLeft size={18} />
               </button>
-              <div className="font-display text-[15px] font-semibold capitalize text-text">{monthLabel}</div>
+              <div className="text-[16px] font-medium capitalize text-text">{monthLabel}</div>
               <button
                 onClick={() => shiftMonth(1)}
                 aria-label="Seuraava kuukausi"
@@ -810,7 +872,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
             {/* Weekday labels */}
             <div className="mb-1 grid grid-cols-7 gap-1">
               {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
-                <div key={d} className="py-1 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-fg-dim">{d}</div>
+                <div key={d} className="py-1 text-center text-[12px] text-fg-muted">{d}</div>
               ))}
             </div>
 
@@ -835,12 +897,12 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                     aria-label={`${fromISO(date).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })}${
                       has ? ` — ${(byDate.get(date) ?? []).length} treeni${(byDate.get(date) ?? []).length > 1 ? 'ä' : ''}` : ' — ei treenejä'
                     }`}
-                    className={`relative flex aspect-square !min-h-0 !min-w-0 flex-col items-center justify-center rounded-xl border text-[13px] tabular-nums transition-colors ${
+                    className={`relative flex aspect-square !min-h-0 !min-w-0 flex-col items-center justify-center rounded-xl border font-mono text-[14px] tabular-nums transition-colors ${
                       isSelected
-                        ? 'border-cyan/50 bg-cyan/[0.12] font-bold text-cyan'
+                        ? 'border-cyan bg-cyan/[0.12] font-semibold text-cyan'
                         : isToday
-                          ? 'border-white/25 bg-black/30 font-bold text-text'
-                          : 'border-white/[0.08] bg-black/25 text-fg-muted'
+                          ? 'border-white/25 bg-[var(--surface-1)] font-semibold text-text'
+                          : 'border-white/[0.08] bg-[var(--surface-1)] text-fg-muted'
                     }`}
                   >
                     {Number(date.slice(8, 10))}
@@ -866,7 +928,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                 {fromISO(selectedDay).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'long' })}
               </div>
               {dayWorkouts.length === 0 ? (
-                <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-5 text-center text-[12px] leading-relaxed text-fg-faint">
+                <p className="rounded-[20px] border border-dashed border-white/[0.12] px-4 py-5 text-center text-[14px] leading-5 text-fg-muted">
                   Ei treenejä tänä päivänä.
                 </p>
               ) : (
@@ -875,16 +937,12 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                     <button
                       key={w.id}
                       onClick={() => { setViewing(w); setScreen('summary') }}
-                      className="active:scale-[0.99] flex items-center gap-3 rounded-row border px-4 py-3 text-left transition-transform [backdrop-filter:blur(14px)]"
-                      style={{
-                        borderColor: `${w.color ?? DEFAULT_TEMPLATE_COLOR}44`,
-                        backgroundColor: `${w.color ?? DEFAULT_TEMPLATE_COLOR}12`,
-                      }}
+                      className="flex min-h-[72px] items-center gap-3 rounded-[24px] border border-white/[0.08] bg-[var(--surface-1)] px-4 py-3 text-left"
                     >
                       <Dumbbell size={16} className="flex-shrink-0" style={{ color: w.color ?? DEFAULT_TEMPLATE_COLOR }} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-display text-[14px] font-semibold text-text">{w.name}</div>
-                        <div className="font-mono text-[10px] text-fg-faint">
+                        <div className="truncate text-[16px] font-medium leading-6 text-text">{w.name}</div>
+                        <div className="text-[14px] leading-5 text-fg-muted">
                           {w.exercises.length} liikettä · {w.exercises.reduce((n, e) => n + e.sets.length, 0)} sarjaa
                         </div>
                       </div>
@@ -950,12 +1008,12 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
         const arch = archivedTemplates()
         return (
           <Sheet open onClose={() => setShowArchive(false)} title={<><Archive size={14} />Arkisto</>}>
-            <p className="mb-3 text-[11px] leading-relaxed text-fg-muted">
+            <p className="mb-3 text-[14px] leading-5 text-fg-muted">
               Arkistoitu pohja ei näy valinnoissa, mutta siitä aloitetut treenit säilyvät
               koskemattomina — treeni on tallenne siitä mitä tehtiin, ei siitä mitä pohja sanoo.
             </p>
             {arch.length === 0 ? (
-              <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-4 text-center text-[12px] text-fg-faint">
+              <p className="rounded-[20px] border border-dashed border-white/[0.12] px-4 py-4 text-center text-[14px] leading-5 text-fg-muted">
                 Arkisto on tyhjä.
               </p>
             ) : (
@@ -963,7 +1021,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                 {arch.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center gap-2.5 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-3"
+                    className="flex min-h-[72px] items-center gap-3 rounded-[20px] bg-[var(--surface-2)] px-4 py-2"
                   >
                     <span
                       aria-hidden
@@ -971,8 +1029,8 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                       style={{ backgroundColor: t.color ?? DEFAULT_TEMPLATE_COLOR }}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] text-text">{t.name}</div>
-                      <div className="font-mono text-[10px] text-fg-faint">
+                      <div className="truncate text-[16px] leading-6 text-text">{t.name}</div>
+                      <div className="text-[14px] leading-5 text-fg-muted">
                         arkistoitu {t.archivedAt ? fromISO(t.archivedAt.slice(0, 10)).toLocaleDateString('fi-FI') : '—'}
                       </div>
                     </div>
@@ -985,7 +1043,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                         if (user && restored) syncTemplateCloud(user.id, restored)
                       }}
                     >
-                      <RotateCcw size={13} /> Palauta
+                      <RotateCcw size={16} /> Palauta
                     </Button>
                   </div>
                 ))}
@@ -1001,13 +1059,13 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
           onClose={() => setArchivePrompt(false)}
           title={<><Layers size={14} /> Uusi blokki alkoi</>}
         >
-          <p className="text-[13px] leading-relaxed text-fg-dim">
+          <p className="text-[14px] leading-5 text-fg-muted">
             <strong className="text-text">{status.current.name}</strong> on alkanut ja sen omat pohjat
             ovat nyt käytössä. Edelliset {superseded.length} pohjaa ovat yhä valikossa.
           </p>
           <div className="mt-2.5 flex flex-col gap-1">
             {superseded.map((t) => (
-              <div key={t.id} className="truncate font-mono text-[11px] text-fg-faint">{t.name}</div>
+              <div key={t.id} className="truncate text-[14px] leading-5 text-fg-muted">{t.name}</div>
             ))}
           </div>
           <div className="mt-4 flex gap-2">
@@ -1016,7 +1074,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
             </Button>
             <Button variant="secondary" onClick={() => answerArchive(false)}>Pidä käytössä</Button>
           </div>
-          <p className="mt-2.5 text-[10px] leading-relaxed text-fg-ghost">
+          <p className="mt-2.5 text-[12px] leading-4 text-fg-muted">
             Arkistointi ei poista mitään: vanhat treenit osoittavat edelleen näihin pohjiin, ja ne
             voi palauttaa arkistosta milloin tahansa. Kysytään kerran tätä blokkia kohden.
           </p>
@@ -1033,7 +1091,7 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
             title={<><kind.Icon size={14} /> {kind.label}</>}
           >
             {group.length === 0 ? (
-              <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-5 text-center text-[12px] leading-relaxed text-fg-faint">
+              <p className="rounded-[20px] border border-dashed border-white/[0.12] px-4 py-5 text-center text-[14px] leading-5 text-fg-muted">
                 Ei pohjia tässä kategoriassa. Luo pohja Pohjat-välilehdellä.
               </p>
             ) : (
@@ -1044,16 +1102,15 @@ export function WorkoutView({ settings, burns, bodyWeightKg, onAddBurn }: Props)
                     <button
                       key={t.id}
                       onClick={() => startWorkout(t)}
-                      className="active:scale-[0.97] relative flex min-h-[104px] flex-col justify-between overflow-hidden rounded-tile border p-4 text-left transition-transform"
-                      style={{ borderColor: `${c}55`, backgroundColor: `${c}14` }}
+                      className="relative flex min-h-[104px] flex-col justify-between overflow-hidden rounded-[24px] border border-white/[0.08] bg-[var(--surface-2)] p-[14px] pl-[18px] text-left"
                     >
                       <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: c }} />
                       <Play size={17} style={{ color: c }} />
                       <div>
-                        <div className="line-clamp-2 font-display text-[14px] font-semibold leading-tight text-text">
+                        <div className="line-clamp-2 text-[16px] font-medium leading-6 text-text">
                           {t.name}
                         </div>
-                        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                        <div className="text-[12px] leading-4 text-fg-muted">
                           {t.exercises.length} liikettä
                         </div>
                       </div>

@@ -2,7 +2,7 @@ import { PartyPopper, Dumbbell, Trash2 } from 'lucide-react'
 import type { SpecialEvent, ExtraWorkout } from '../types'
 import { formatDateShort } from '../lib/dates'
 
-const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const sectionLabel = 'mb-2 text-[12px] font-medium   text-muted'
 
 interface Props {
   events: SpecialEvent[]
@@ -39,10 +39,10 @@ export function UpcomingList({ events, extras, todayISO, onDeleteEvent, onDelete
               <Dumbbell size={12} className="flex-shrink-0 text-protein" />
             )}
             <div className="min-w-0">
-              <div className="truncate text-[13px] text-text">
+              <div className="truncate text-[14px] text-text">
                 {u.type === 'event' ? u.name : `Treeni (${u.kcal} kcal)`}
               </div>
-              <div className="truncate text-[10px] text-muted">
+              <div className="truncate text-[12px] text-muted">
                 {formatDateShort(u.date)}
                 {u.type === 'event' &&
                   ` · +${u.excessKcal} kcal · buffer ${u.bufferDays} pv`}

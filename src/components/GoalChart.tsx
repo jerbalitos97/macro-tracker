@@ -1,4 +1,4 @@
-import { fromISO, toISO } from '../lib/dates'
+import { addDays, fromISO, toISO } from '../lib/dates'
 import type { GoalPeriod, WeightTrend } from '../types'
 
 interface Props {
@@ -29,8 +29,8 @@ export function GoalChart({
   periods,
 }: Props) {
   const W = 380
-  const H = 160
-  const pad = { top: 12, right: 12, bottom: 22, left: 38 }
+  const H = 200
+  const pad = { top: 12, right: 12, bottom: 26, left: 42 }
   const innerW = W - pad.left - pad.right
   const innerH = H - pad.top - pad.bottom
 
@@ -131,7 +131,26 @@ export function GoalChart({
   const yLabels = [maxKg, (maxKg + minKg) / 2, minKg]
 
   // Axis / label font — var() so it picks up the theme token
-  const monoFont = "ui-monospace, 'SF Mono', monospace"
+  const monoFont = "var(--font-sans)"
+
+  // Ennuste: viimeisen 14 päivän trendin kulmakerroin jatkettuna jakson
+  // loppuun, ±0,1 kg/vko haarukalla. Haarukka on rehellisempi kuin yksi viiva:
+  // kahden viikon kulmakerroin heiluu juuri sen verran.
+  const last = inRange[inRange.length - 1]
+  const base = last ? inRange.find((d) => d.date >= addDays(last.date, -14)) : undefined
+  let projection: { line: string; fan: string } | null = null
+  if (last && base && base.date < last.date && last.date < chartEnd) {
+    const days = (fromISO(last.date).getTime() - fromISO(base.date).getTime()) / 86_400_000
+    const slope = (last.trend - base.trend) / days
+    const left = (end.getTime() - fromISO(last.date).getTime()) / 86_400_000
+    const x0 = xPos(last.date), x1 = xPos(chartEnd)
+    const y = (s: number) => yPos(Math.max(minKg, Math.min(maxKg, last.trend + s * left)))
+    const band = 0.1 / 7
+    projection = {
+      line: `M${x0.toFixed(1)} ${yPos(last.trend).toFixed(1)}L${x1.toFixed(1)} ${y(slope).toFixed(1)}`,
+      fan: `M${x0.toFixed(1)} ${yPos(last.trend).toFixed(1)}L${x1.toFixed(1)} ${y(slope + band).toFixed(1)}L${x1.toFixed(1)} ${y(slope - band).toFixed(1)}Z`,
+    }
+  }
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
@@ -142,7 +161,7 @@ export function GoalChart({
           x={pad.left - 5}
           y={yPos(kg) + 3}
           fill="var(--color-muted)"
-          fontSize="8.5"
+          fontSize="13"
           textAnchor="end"
           fontFamily={monoFont}
         >
@@ -158,7 +177,7 @@ export function GoalChart({
           y1={yPos(kg)}
           x2={W - pad.right}
           y2={yPos(kg)}
-          stroke="#1c1c1c"
+          stroke="rgba(255,255,255,0.08)"
           strokeWidth="1"
         />
       ))}
@@ -194,14 +213,36 @@ export function GoalChart({
         </g>
       ))}
 
+      {/* Ennustehaarukka ja -viiva */}
+      {projection && (
+        <>
+          <path d={projection.fan} fill="#a78bfa" fillOpacity="0.18" />
+          <path d={projection.line} stroke="#c4b5fd" strokeWidth="2" strokeDasharray="2 4" strokeLinecap="round" />
+        </>
+      )}
+
+      {/* Punnitus → trendi -tikut: kuinka kaukana kukin lukema on omasta
+          keskiarvostaan. Pitkä tikku ylös on yleensä nestettä, ei rasvaa. */}
+      <path
+        d={inRange.map((d) => `M${xPos(d.date).toFixed(1)} ${yPos(d.kg).toFixed(1)}V${yPos(d.trend).toFixed(1)}`).join('') || 'M0 0'}
+        stroke="rgba(255,255,255,0.18)"
+        strokeWidth="1"
+      />
+
       {/* Raw weight dots */}
       {inRange.map((d, i) => (
-        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="1.8" fill="#8f94a3" />
+        <circle key={i} cx={xPos(d.date)} cy={yPos(d.kg)} r="2.4" fill="#899294" />
       ))}
 
-      {/* Actual trend line (solid gold) */}
+      {/* Trend line, aurora gradient */}
+      <defs>
+        <linearGradient id="goalTrendGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#22d3ee" />
+          <stop offset="1" stopColor="#a78bfa" />
+        </linearGradient>
+      </defs>
       {trendPath && (
-        <path d={trendPath} fill="none" stroke="#22d3ee" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d={trendPath} fill="none" stroke="url(#goalTrendGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       )}
 
       {/* Latest trend dot */}
@@ -219,7 +260,7 @@ export function GoalChart({
         x={pad.left}
         y={H - 4}
         fill="var(--color-muted)"
-        fontSize="8.5"
+        fontSize="13"
         fontFamily={monoFont}
       >
         {chartStart.slice(5)}
@@ -228,7 +269,7 @@ export function GoalChart({
         x={W - pad.right}
         y={H - 4}
         fill="var(--color-muted)"
-        fontSize="8.5"
+        fontSize="13"
         textAnchor="end"
         fontFamily={monoFont}
       >
@@ -239,7 +280,7 @@ export function GoalChart({
           x={todayX}
           y={H - 4}
           fill="rgba(255,255,255,0.25)"
-          fontSize="8"
+          fontSize="13"
           textAnchor="middle"
           fontFamily={monoFont}
         >
@@ -249,9 +290,9 @@ export function GoalChart({
 
       {/* Legend */}
       <line x1={W - 90} y1={pad.top + 4} x2={W - 78} y2={pad.top + 4} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.55" />
-      <text x={W - 75} y={pad.top + 7} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>tavoitelinja</text>
+      <text x={W - 75} y={pad.top + 7} fill="#a8abb8" fontSize="13" fontFamily={monoFont}>tavoitelinja</text>
       <line x1={W - 90} y1={pad.top + 14} x2={W - 78} y2={pad.top + 14} stroke="#22d3ee" strokeWidth="2" />
-      <text x={W - 75} y={pad.top + 17} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>trendi</text>
+      <text x={W - 75} y={pad.top + 17} fill="#a8abb8" fontSize="13" fontFamily={monoFont}>trendi</text>
     </svg>
   )
 }

@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Crown, Flame, CalendarCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Crown } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO, toISO } from '../lib/dates'
 
-import { Card } from '../components/ui'
+import { Card, Chip } from '../components/ui'
 
-const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-text'
-const dateMain = 'font-display text-[22px] font-bold tracking-[-0.025em] text-text'
-const dateSub = 'mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted'
+const iconBtn = 'flex h-12 w-12 min-h-0 min-w-0 flex-none items-center justify-center rounded-full text-text'
 
 interface Props {
   habits: Habit[]
@@ -15,7 +13,7 @@ interface Props {
   onClose: () => void
 }
 
-const DAY_HEADERS = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU']
+const DAY_HEADERS = ['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su']
 const MONTH_NAMES = [
   'tammikuu', 'helmikuu', 'maaliskuu', 'huhtikuu', 'toukokuu', 'kesäkuu',
   'heinäkuu', 'elokuu', 'syyskuu', 'lokakuu', 'marraskuu', 'joulukuu',
@@ -160,126 +158,110 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
   const accent = selectedHabit?.color ?? '#22d3ee'
 
   return (
-    <div className="px-4 pb-2 pt-4">
-      {/* Header */}
-      <div className="mb-3.5 flex items-center gap-2">
+    <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+104px)] pt-2">
+      {/* Sub-screen header: back + context (the AppBar carries the tool name) */}
+      <div className="flex items-center gap-1">
         <button onClick={onClose} className={iconBtn} aria-label="Takaisin">
-          <ChevronLeft size={22} />
+          <ChevronLeft size={24} />
         </button>
-        <div className="min-w-0 flex-1">
-          <div className={dateMain}>Tilastot</div>
-          <div className={dateSub}>{selectedHabit ? selectedHabit.name : 'Yhteenveto kaikista'}</div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h2 className="text-[18px] font-medium leading-6 text-text">Tilastot</h2>
+          <p className="truncate text-[14px] leading-5 text-fg-muted">
+            {selectedHabit ? selectedHabit.name : 'Yhteenveto kaikista'}
+          </p>
         </div>
       </div>
 
       {/* Habit filter chips */}
-      <div className="mb-3.5 flex gap-1.5 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-        <FilterChip
-          label="Kaikki"
-          color="#22d3ee"
-          active={selectedId === null}
-          onClick={() => setSelectedId(null)}
-        />
+      <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+        <Chip active={selectedId === null} onClick={() => setSelectedId(null)} className="min-h-9 flex-shrink-0 whitespace-nowrap">
+          Kaikki
+        </Chip>
         {habits.map((h) => (
-          <FilterChip
+          <Chip
             key={h.id}
-            label={h.name}
-            color={h.color}
             active={selectedId === h.id}
             onClick={() => setSelectedId(h.id)}
-          />
+            className="min-h-9 flex-shrink-0 whitespace-nowrap"
+          >
+            <span aria-hidden className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: h.color }} />
+            {h.name}
+          </Chip>
         ))}
       </div>
 
-      {/* Month nav */}
-      <div className="mb-2.5 flex items-center justify-between">
-        <button onClick={prevMonth} className={iconBtn} aria-label="Edellinen kuukausi">
-          <ChevronLeft size={18} />
-        </button>
-        <div className="text-[13px] font-bold capitalize tabular-nums text-white">
-          {MONTH_NAMES[month]} {year}
-        </div>
-        <button onClick={nextMonth} className={iconBtn} aria-label="Seuraava kuukausi">
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Day headers */}
-      <div className="mb-1 grid grid-cols-7 gap-1">
-        {DAY_HEADERS.map((d) => (
-          <div key={d} className="py-1 text-center font-mono text-[9px] tracking-[0.08em] text-fg-faint">
-            {d}
+      <Card variant="panel" className="flex flex-col gap-2.5 p-4">
+        {/* Month nav */}
+        <div className="flex items-center gap-1">
+          <button onClick={prevMonth} className={iconBtn} aria-label="Edellinen kuukausi">
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex-1 text-center text-[18px] font-medium capitalize leading-6 text-text">
+            {MONTH_NAMES[month]} {year}
           </div>
-        ))}
-      </div>
+          <button onClick={nextMonth} className={iconBtn} aria-label="Seuraava kuukausi">
+            <ChevronRight size={20} />
+          </button>
+        </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">
-        {monthCells.map((c) => {
-          const r = completionForDate(c.date)
-          const isToday = c.date === today
-          const isPast = c.date <= today
-          const dayNum = fromISO(c.date).getDate()
-          const perfect = r.total > 0 && r.crowns === r.total
-
-          // Fill driven by activity ratio (which days had progress logged).
-          // Crown is driven separately by period-goal completion.
-          const fillOpacity = r.total === 0 ? 0 : r.ratio === 0 ? 0 : Math.max(0.18, r.ratio * 0.85)
-          const fillColor =
-            r.activity > 0 ? `${accent}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}` : 'transparent'
-
-          return (
-            <div
-              key={c.date}
-              className="relative flex aspect-square flex-col items-center justify-center rounded-full"
-              style={{
-                border: isToday
-                  ? `1.5px solid ${accent}`
-                  : c.inMonth
-                    ? '1px solid rgba(255,255,255,0.05)'
-                    : '1px solid transparent',
-                backgroundColor: c.inMonth ? fillColor : 'transparent',
-                opacity: c.inMonth ? (isPast ? 1 : 0.5) : 0.18,
-              }}
-            >
-              {perfect && (
-                <Crown
-                  size={9}
-                  color={accent}
-                  fill={accent}
-                  className="absolute -top-[3px] -right-0.5"
-                />
-              )}
-              <div
-                className={`text-xs leading-none tabular-nums ${perfect ? 'font-bold' : 'font-medium'} ${r.ratio > 0.5 ? 'text-white' : c.inMonth ? 'text-[#ebebeb]' : 'text-fg-ghost'}`}
-              >
-                {dayNum}
-              </div>
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1">
+          {DAY_HEADERS.map((d) => (
+            <div key={d} className="text-center text-[12px] leading-4 text-fg-muted">
+              {d}
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {monthCells.map((c) => {
+            const r = completionForDate(c.date)
+            const isToday = c.date === today
+            const isPast = c.date <= today
+            const dayNum = fromISO(c.date).getDate()
+            const perfect = r.total > 0 && r.crowns === r.total
+
+            // Fill driven by activity ratio (which days had progress logged).
+            // Crown is driven separately by period-goal completion.
+            const fillOpacity = r.total === 0 ? 0 : r.ratio === 0 ? 0 : Math.max(0.18, r.ratio * 0.72)
+            const fillColor =
+              r.activity > 0 ? `${accent}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}` : 'var(--surface-2)'
+
+            return (
+              <div
+                key={c.date}
+                className="relative flex aspect-square flex-col items-center justify-center rounded-[10px]"
+                style={{
+                  outline: isToday ? `2px solid ${accent}` : 'none',
+                  outlineOffset: '-2px',
+                  backgroundColor: c.inMonth ? (isPast ? fillColor : 'var(--surface-2)') : 'transparent',
+                  opacity: c.inMonth ? (isPast ? 1 : 0.4) : 0.25,
+                }}
+              >
+                {perfect && c.inMonth && isPast && (
+                  <Crown
+                    size={12}
+                    color="#fde68a"
+                    fill="#fde68a"
+                    aria-hidden
+                    className="absolute right-0.5 top-0.5"
+                  />
+                )}
+                <span className="text-[12px] leading-4 tabular-nums text-text">
+                  {dayNum}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </Card>
 
       {/* Monthly stats */}
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <StatTile
-          icon={<CalendarCheck size={14} color={accent} />}
-          value={`${stats.rate.toFixed(0)} %`}
-          label="Kuukauden täyttöaste"
-          accent={accent}
-        />
-        <StatTile
-          icon={<Crown size={14} color={accent} />}
-          value={`${stats.perfect}`}
-          label="Täydellistä päivää"
-          accent={accent}
-        />
-        <StatTile
-          icon={<Flame size={14} color={accent} />}
-          value={`${stats.bestStreak}`}
-          label="Pisin putki"
-          accent={accent}
-        />
+      <div className="grid grid-cols-3 gap-2">
+        <StatTile value={`${stats.rate.toFixed(0)} %`} label="Täyttöaste" />
+        <StatTile value={`${stats.perfect}`} label="Täydelliset" />
+        <StatTile value={`${stats.bestStreak} pv`} label="Pisin putki" />
       </div>
     </div>
   )
@@ -287,55 +269,11 @@ export function HabitsHistoryView({ habits, entries, onClose }: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────
 
-function FilterChip({
-  label,
-  color,
-  active,
-  onClick,
-}: {
-  label: string
-  color: string
-  active: boolean
-  onClick: () => void
-}) {
+function StatTile({ value, label }: { value: string; label: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex min-h-0 min-w-0 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs ${active ? 'text-white' : 'text-fg-muted'}`}
-      style={{
-        backgroundColor: active ? `${color}22` : 'rgba(255,255,255,0.04)',
-        border: active ? `1px solid ${color}66` : '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
-      {label}
-    </button>
-  )
-}
-
-function StatTile({
-  icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: React.ReactNode
-  value: string
-  label: string
-  accent: string
-}) {
-  return (
-    <Card variant="glass" className="p-2.5 text-center">
-      <div className="mb-1 flex justify-center">{icon}</div>
-      <div
-        className="font-display text-base font-bold tabular-nums tracking-[-0.01em]"
-        style={{ color: accent }}
-      >
-        {value}
-      </div>
-      <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-fg-muted">
-        {label}
-      </div>
+    <Card variant="panel" className="flex flex-col gap-0.5 p-3.5">
+      <span className="text-[12px] leading-4 text-fg-muted">{label}</span>
+      <span className="text-[22px] font-medium leading-7 tabular-nums text-text">{value}</span>
     </Card>
   )
 }

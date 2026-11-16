@@ -37,7 +37,7 @@ export function SurplusPrompt({
   return (
     /* Backdrop */
     <div
-      className="backdrop-enter fixed inset-0 z-[100] overscroll-contain [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)] bg-black/[0.72]"
+      className="backdrop-enter fixed inset-0 z-[100] overscroll-contain bg-black/[0.72]"
       onClick={onDismiss}
     >
       {/* Bottom sheet */}
@@ -50,12 +50,12 @@ export function SurplusPrompt({
         <div className="-mt-1 mx-auto mb-3.5 h-1 w-9 rounded-sm bg-white/[0.15]" />
 
         {/* Title */}
-        <div className="mb-[18px] flex items-center gap-2 font-mono text-[13px] font-bold uppercase tracking-[0.12em] text-accent">
+        <div className="mb-[18px] flex items-center gap-2 font-mono text-[14px] font-bold   text-accent">
           <TrendingDown size={14} />
           Lisäbudjettia jaettavaksi
         </div>
 
-        <p className="m-0 mb-3.5 text-[13px] leading-[1.55] text-fg-dim">
+        <p className="m-0 mb-3.5 text-[14px] leading-[1.55] text-fg-dim">
           {dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)} vajetta kertyi{' '}
           <strong className="text-[#34d399]">
             {surplus.toLocaleString('fi-FI')} kcal
@@ -66,7 +66,7 @@ export function SurplusPrompt({
         {!pickerOpen ? (
           <>
             {/* Spread label */}
-            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+            <div className="mb-1.5 font-mono text-[12px]   text-fg-faint">
               Jaa tasaisesti
             </div>
 
@@ -83,11 +83,11 @@ export function SurplusPrompt({
                     onClick={() => onApplySpread(n)}
                     className="rounded-[8px] border border-white/[0.08] bg-black/30 px-1.5 py-[10px] text-center text-fg-faint cursor-pointer"
                   >
-                    <div className="text-[13px] font-bold tabular-nums text-text">
+                    <div className="text-[14px] font-bold tabular-nums text-text">
                       +{perDay}
                       <span className="font-normal text-fg-faint"> kcal/pv</span>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-fg-faint">
+                    <div className="mt-0.5 text-[12px] text-fg-faint">
                       {n} päivälle
                     </div>
                   </button>

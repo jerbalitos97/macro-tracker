@@ -6,36 +6,28 @@ interface Props {
   onDelete: (id: number) => void
 }
 
+/** One row of a list group (design `.list`): surface-1, no borders, the
+ *  group's 2px gaps separate rows. Name/description left, kcal right. */
 export function MealRow({ meal, onDelete }: Props) {
   return (
-    <div className="flex w-full items-center justify-between border-b border-white/[0.05] py-[11px]">
-      <div className="flex min-w-0 items-center gap-3">
-        {/* Left accent stripe */}
-        <div className="h-7 w-[3px] flex-shrink-0 rounded-sm bg-accent/35" />
-        <div className="min-w-0">
-          {/* Kuva-analyysin kuvaus, kun ateria on kirjattu kuvasta. Käsin
-              kirjatulla ei ole kuvausta, ja rivi näyttää silloin entiseltään. */}
-          {meal.description && (
-            <div className="truncate text-[12px] text-fg-muted">{meal.description}</div>
-          )}
-          <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
-            {meal.kcal.toLocaleString('fi-FI')}
-            <span className="ml-1 text-[11px] font-normal text-fg-faint">kcal</span>
-          </div>
-          {meal.protein > 0 && (
-            <div className="mt-px text-[11px] tabular-nums text-protein">
-              {meal.protein.toFixed(1)} g P
-            </div>
-          )}
-        </div>
+    <div className="flex min-h-[72px] w-full items-center gap-3 bg-[var(--surface-1)] py-2 pl-4 pr-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        {/* Kuva-analyysin kuvaus, kun ateria on kirjattu kuvasta. Käsin
+            kirjatulla ei ole kuvausta, ja rivi näyttää silloin entiseltään. */}
+        <span className="truncate text-[16px] leading-6 text-text">{meal.description || 'Ateria'}</span>
+        <span className="text-[14px] leading-5 tabular-nums text-fg-muted">
+          {meal.protein > 0 ? `${meal.protein.toFixed(1).replace('.', ',')} g proteiinia` : 'Ei proteiinia kirjattu'}
+        </span>
       </div>
-
+      <span className="shrink-0 text-[16px] font-medium leading-6 tabular-nums text-text">
+        {meal.kcal.toLocaleString('fi-FI')}
+      </span>
       <button
-        className="icon-btn flex items-center justify-center rounded-md bg-transparent border-none p-2 text-fg-ghost transition-colors hover:text-danger"
+        className="icon-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:text-danger"
         onClick={() => onDelete(meal.id)}
         aria-label="Poista ateria"
       >
-        <X size={14} />
+        <X size={18} />
       </button>
     </div>
   )

@@ -12,8 +12,8 @@ import { Card, Button, Field } from '../components/ui'
 // answers exactly two questions: what have I recorded, and which of those
 // readings is the current average built from.
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
-const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[12px] font-medium   text-muted'
+const sectionLabel = 'mb-2 text-[12px] font-medium   text-muted'
 
 interface Props {
   weights: WeightEntry[]
@@ -48,6 +48,10 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
       .slice(-7)
     return new Set(lastSeven.map((w) => w.id))
   }, [weights])
+  const activeAvgDates = useMemo(
+    () => new Set(weights.filter((w) => activeAvgIds.has(w.id)).map((w) => w.date)),
+    [weights, activeAvgIds],
+  )
 
   return (
     <div className="px-4 pb-2 pt-4">
@@ -55,7 +59,7 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="mb-4">
         <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">Paino</div>
-        <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">Kirjaukset ja keskiarvo</div>
+        <div className="mt-[3px] text-[12px]   text-muted">Kirjaukset ja keskiarvo</div>
       </div>
 
       {/* ── Current average ─────────────────────────────────────────── */}
@@ -64,27 +68,30 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
         {trend.currentTrend ? (
           <div className="flex items-end justify-between">
             <div>
-              <span className="font-display text-[42px] font-extrabold tabular-nums leading-none tracking-[-0.04em] text-text">
-                {trend.currentTrend.toFixed(2)}
+              <span className="num-display text-[56px] leading-none">
+                {trend.currentTrend.toFixed(2).replace('.', ',')}
               </span>
-              <span className="ml-1 text-sm font-normal text-muted">kg</span>
+              <span className="ml-1.5 text-[18px] font-normal text-muted">kg</span>
             </div>
             {trend.weeklyChange !== null && (
               <div className="pb-1 text-right">
                 <div className={`text-[20px] font-bold tabular-nums tracking-[-0.025em] ${trend.weeklyChange < 0 ? 'text-accent' : 'text-danger'}`}>
                   {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)}
-                  <span className="text-[11px] font-normal text-muted"> kg/vko</span>
+                  <span className="text-[12px] font-normal text-muted"> kg/vko</span>
                 </div>
-                <div className="mt-0.5 text-[10px] text-fg-ghost">14 pv:n muutos</div>
+                <div className="mt-0.5 text-[12px] text-fg-ghost">14 pv:n muutos</div>
               </div>
             )}
           </div>
         ) : (
-          <div className="mt-1 text-[13px] leading-relaxed text-fg-ghost">
+          <div className="mt-1 text-[14px] leading-relaxed text-fg-ghost">
             Kirjaa vähintään 2 päivän paino<br />aloittaaksesi keskiarvon.
           </div>
         )}
-        <p className="m-0 mt-3 border-t border-white/[0.06] pt-2.5 text-[11px] leading-relaxed text-fg-ghost">
+        {trend.trendData.length >= 2 && (
+          <MiniChart points={trend.trendData} inAvg={activeAvgDates} />
+        )}
+        <p className="m-0 mt-3 border-t border-white/[0.06] pt-2.5 text-[12px] leading-relaxed text-fg-ghost">
           Vertailu tavoitteeseen, ennusteet ja kulutusarvio ovat Analyysi-välilehdellä.
         </p>
       </Card>
@@ -127,9 +134,7 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
         <div className="mt-[18px]">
           <div className="mb-1 flex items-baseline justify-between">
             <div className={sectionLabel}>Kirjaukset ({weights.length})</div>
-            <div className="font-mono text-[9px] tracking-[0.06em] text-fg-ghost">
-              <span className="text-accent">■</span> nyk. keskiarvossa
-            </div>
+            <div className="text-[12px] text-fg-ghost">Ohita = jätä pois keskiarvosta</div>
           </div>
           <div className="list-stagger">
             {displayedWeights.map((w) => {
@@ -157,44 +162,42 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
                       }}
                     />
                     <div>
-                      <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-text">
-                        {w.kg.toFixed(1)}
-                        <span className="ml-1 text-[11px] font-normal text-fg-faint">kg</span>
+                      <div className="flex flex-wrap items-center gap-2 text-[16px] font-medium tabular-nums text-text">
+                        <span>
+                          {w.kg.toFixed(1).replace('.', ',')}
+                          <span className="ml-1 text-[14px] font-normal text-fg-faint">kg</span>
+                        </span>
                         {w.excludeFromTrend ? (
-                          <span className="ml-2 text-[9px] uppercase tracking-[0.06em] text-danger">
-                            ohitettu
-                          </span>
+                          <span className="rounded-md bg-[#452826] px-2 py-0.5 text-[12px] font-medium text-[#ffb4ab]">Ohitettu</span>
                         ) : inAvg ? (
-                          <span className="ml-2 text-[9px] uppercase tracking-[0.06em] text-accent">
-                            keskiarvossa
-                          </span>
+                          <span className="rounded-md bg-cyan/[0.16] px-2 py-0.5 text-[12px] font-medium text-[#a5f3fc]">Keskiarvossa</span>
                         ) : null}
+                        {swing && (
+                          <span className="rounded-md bg-violet/[0.22] px-2 py-0.5 text-[12px] font-medium text-[#ddd6fe]">Turvotuspiikki</span>
+                        )}
                       </div>
-                      <div className="mt-px text-[10px] text-fg-ghost">
-                        {formatDateShort(w.date)}
-                        {swing && <span className="ml-2 text-[9px] text-fg-faint">· turvotuspiikki</span>}
-                      </div>
+                      <div className="mt-0.5 text-[14px] text-fg-ghost">{formatDateShort(w.date)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onToggleExclude(w.id)}
-                      className={`rounded-[7px] border px-2.5 py-1.5 text-[10px] tracking-[0.04em] ${
+                      className={`h-10 rounded-full border px-3.5 text-[14px] font-medium ${
                         w.excludeFromTrend
-                          ? 'border-accent/30 text-accent'
-                          : 'border-white/[0.06] text-fg-ghost'
+                          ? 'border-cyan/40 text-accent'
+                          : 'border-white/[0.18] text-text'
                       }`}
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >
-                      {w.excludeFromTrend ? '+ keskiarvo' : '− keskiarvo'}
+                      {w.excludeFromTrend ? 'Palauta' : 'Ohita'}
                     </button>
                     <button
-                      className="icon-btn flex items-center justify-center rounded-md p-1.5 text-fg-ghost"
+                      className="icon-btn flex h-10 w-10 items-center justify-center rounded-full text-fg-ghost"
                       onClick={() => onDeleteWeight(w.id)}
                       aria-label="Poista kirjaus"
                       style={{ minHeight: 'auto', minWidth: 'auto' }}
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -205,7 +208,7 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
             <Button
               variant="ghost"
               onClick={() => setShowAll(!showAll)}
-              className="mt-2.5 w-full text-[11px]"
+              className="mt-2.5 w-full text-[12px]"
             >
               {showAll ? 'Näytä vähemmän' : `Näytä kaikki (${sortedWeights.length})`}
             </Button>
@@ -214,4 +217,52 @@ export function WeightView({ weights, onAddWeight, onDeleteWeight, onToggleExclu
       )}
     </div>
   )
+}
+
+// Viimeiset 14 päivää: punnitukset pisteinä, keskiarvo viivana. Kertoo saman
+// kuin lista — mitkä lukemat keskiarvo on rakennettu — mutta yhdellä
+// silmäyksellä. Ei tavoitelinjaa eikä ennustetta: arviointi kuuluu Analyysiin.
+function MiniChart({
+  points, inAvg,
+}: {
+  points: Array<{ date: string; kg: number; trend: number }>
+  inAvg: Set<string>
+}) {
+  const last = points[points.length - 1].date
+  const from = addDaysISO(last, -14)
+  const pts = points.filter((p) => p.date >= from)
+  if (pts.length < 2) return null
+
+  const W = 326, H = 116, pl = 34, pr = 8, pt = 8, pb = 20
+  const kgs = pts.flatMap((p) => [p.kg, p.trend])
+  const lo = Math.min(...kgs) - 0.3
+  const hi = Math.max(...kgs) + 0.3
+  const t0 = Date.parse(from), t1 = Date.parse(last)
+  const X = (d: string) => pl + ((Date.parse(d) - t0) / Math.max(1, t1 - t0)) * (W - pl - pr)
+  const Y = (kg: number) => pt + ((hi - kg) / (hi - lo)) * (H - pt - pb)
+  const f = (n: number) => n.toFixed(1)
+  const dot = (p: { date: string; kg: number }) => `M${f(X(p.date))} ${f(Y(p.kg))}h0`
+  const ticks = [hi - (hi - lo) * 0.15, lo + (hi - lo) * 0.15]
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 block h-[116px] w-full" role="img"
+      aria-label="Viimeiset 14 päivää: punnitukset ja liukuva keskiarvo">
+      <path d={ticks.map((v) => `M${pl} ${f(Y(v))}H${W - pr}`).join('')} stroke="rgba(255,255,255,0.08)" />
+      <path d={pts.map((p) => `M${f(X(p.date))} ${f(Y(p.kg))}V${f(Y(p.trend))}`).join('')} stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+      <path d={pts.map((p, i) => `${i ? 'L' : 'M'}${f(X(p.date))} ${f(Y(p.trend))}`).join('')} fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={pts.filter((p) => !inAvg.has(p.date)).map(dot).join('') || 'M0 0'} stroke="#899294" strokeWidth="7" strokeLinecap="round" />
+      <path d={pts.filter((p) => inAvg.has(p.date)).map(dot).join('') || 'M0 0'} stroke="#a5f3fc" strokeWidth="7" strokeLinecap="round" />
+      {ticks.map((v) => (
+        <text key={v} x={pl - 4} y={f(Y(v) + 4)} textAnchor="end" fill="#b4b7c3" fontSize="12">{v.toFixed(1).replace('.', ',')}</text>
+      ))}
+      <text x={pl} y={H - 4} fill="#b4b7c3" fontSize="12">{formatDateShort(from)}</text>
+      <text x={W - pr} y={H - 4} textAnchor="end" fill="#b4b7c3" fontSize="12">{formatDateShort(last)}</text>
+    </svg>
+  )
+}
+
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return toISO(d)
 }

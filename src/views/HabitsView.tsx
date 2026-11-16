@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Plus, Check, Minus, Plus as PlusIcon, BarChart2, ChevronLeft, ChevronRight, Crown } from 'lucide-react'
+import { Plus, Check, ChevronLeft, ChevronRight, Crown } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO, getWeekdayNum, toISO } from '../lib/dates'
 import { HabitFormModal } from '../components/HabitFormModal'
 import { HabitDetailModal } from '../components/HabitDetailModal'
 import { HabitsHistoryView } from './HabitsHistoryView'
-import { Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
+import { Button, Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
 import { celebrate } from '../lib/flash'
 
 interface Props {
@@ -20,10 +20,7 @@ interface Props {
   onReorder: (habits: Habit[]) => void
 }
 
-const DAY_LETTERS = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU']
-
-const dateMain = 'font-display text-[22px] font-bold tracking-[-0.025em] text-text'
-const dateSub = 'mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted'
+const DAY_LETTERS = ['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su']
 
 // Returns the ISO date of Monday at the start of the week containing `iso`.
 function weekStart(iso: string): string {
@@ -132,114 +129,122 @@ export function HabitsView({
     )
   }
 
+  const doneCount = scheduledHabits.filter((h) => h.goalValue > 0 && valueFor(h, selectedDate) >= h.goalValue).length
+  const dueCount = scheduledHabits.length
+  const allDone = dueCount > 0 && doneCount === dueCount
+  const heroTitle = allDone ? 'Täydellinen päivä' : doneCount === 0 ? 'Aloitetaan' : 'Hyvällä matkalla'
+  const heroSub = allDone ? 'Kaikki tavat tehty' : `${dueCount - doneCount} tapaa jäljellä`
+  const HERO_C = 2 * Math.PI * 50
+  const ROW_C = 2 * Math.PI * 21
+
   return (
-    <div className="px-4 pb-2 pt-4">
-      {/* Header */}
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <div className={dateMain}>Tavat</div>
-          <div className={dateSub}>{dateLabel}</div>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          aria-label="Lisää tapa"
-          className="active:scale-95 flex h-[52px] w-[52px] min-h-0 min-w-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet p-0 text-bg shadow-[0_0_24px_rgba(34,211,238,0.55)] transition-transform duration-150"
+    <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+176px)] pt-2">
+      {/* Hero: the day's one number */}
+      {dueCount > 0 && (
+        <section
+          className="flex items-center gap-[18px] border p-5"
+          style={{
+            borderRadius: '36px 36px 36px 12px',
+            background: 'linear-gradient(135deg, rgba(167,139,250,0.34), rgba(34,211,238,0.22))',
+            borderColor: 'rgba(167,139,250,0.4)',
+          }}
         >
-          <Plus size={24} strokeWidth={2.2} />
-        </button>
-      </div>
+          <div className="relative h-[116px] w-[116px] flex-none">
+            <svg width="116" height="116" viewBox="0 0 116 116" role="img" aria-label={`${doneCount} / ${dueCount} tapaa tehty`}>
+              <defs>
+                <linearGradient id="habits-hero-g" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#a78bfa" />
+                  <stop offset="1" stopColor="#22d3ee" />
+                </linearGradient>
+              </defs>
+              <circle cx="58" cy="58" r="50" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="10" />
+              <circle
+                cx="58" cy="58" r="50" fill="none" stroke="url(#habits-hero-g)" strokeWidth="10" strokeLinecap="round"
+                strokeDasharray={`${(doneCount / dueCount) * HERO_C} ${HERO_C}`}
+                transform="rotate(-90 58 58)"
+                style={{ transition: 'stroke-dasharray 600ms cubic-bezier(.34,1.3,.64,1)', filter: 'drop-shadow(0 0 6px rgba(167,139,250,0.5))' }}
+              />
+            </svg>
+            <span aria-hidden className="num-display absolute inset-0 flex items-center justify-center text-[36px]">
+              {doneCount}/{dueCount}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-[14px] leading-5 text-[#e7e2f3]">{dateLabel}</span>
+            <span className="text-[24px] font-medium leading-[30px] text-text">{heroTitle}</span>
+            <span className="text-[14px] leading-5 text-[#e7e2f3]">{heroSub}</span>
+          </div>
+        </section>
+      )}
 
       {/* Week strip — tap a day to backfill entries on that date */}
-      <div className="mb-4">
-        <div className="mb-1.5 flex items-center justify-between">
-          <button
-            onClick={goPrevWeek}
-            aria-label="Edellinen viikko"
-            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-muted"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-faint">
-            {fromISO(stripWeekStart).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
-            {' – '}
-            {fromISO(addDays(stripWeekStart, 6)).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
-          </div>
-          <button
-            onClick={goNextWeek}
-            aria-label="Seuraava viikko"
-            disabled={!canGoNextWeek}
-            className={`icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-muted ${canGoNextWeek ? '' : 'opacity-25'}`}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {weekDays.map((d, i) => {
-            const c = completionFor(d)
-            const isSelected = d === selectedDate
-            const isToday = d === todayISO
-            const isFuture = d > todayISO
-            const dayNum = fromISO(d).getDate()
-            const fillOpacity = c.total === 0 ? 0 : c.ratio === 0 ? 0 : Math.max(0.15, c.ratio * 0.6)
-            const fillBg = !isSelected && c.ratio > 0
-              ? `rgba(167, 139, 250, ${fillOpacity})`
-              : 'transparent'
-            return (
-              <button
-                key={d}
-                onClick={() => !isFuture && setSelectedDate(d)}
-                disabled={isFuture}
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-1 px-0.5 py-1.5 ${isFuture ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'}`}
-                aria-label={d}
-              >
-                <div
-                  className={`font-mono text-[9px] tracking-[0.08em] ${isSelected ? 'text-accent' : 'text-fg-faint'}`}
-                >
-                  {DAY_LETTERS[i]}
-                </div>
-                <div
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full"
-                  style={{
-                    border: isSelected
-                      ? 'none'
-                      : isToday
-                        ? '1px solid rgba(34,211,238,0.45)'
-                        : '1px solid rgba(255,255,255,0.08)',
-                    background: isSelected
-                      ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
-                      : fillBg,
-                    boxShadow: isSelected ? '0 0 16px rgba(34,211,238,0.55)' : 'none',
-                  }}
-                >
-                  {c.perfect && (
-                    <Crown
-                      size={9}
-                      color="#7dd3fc"
-                      fill="#7dd3fc"
-                      className="absolute -top-[3px] -right-0.5"
-                    />
-                  )}
-                  <span
-                    className={`text-xs leading-none tabular-nums ${isSelected || isToday ? 'font-bold' : 'font-medium'} ${isSelected ? 'text-bg' : isToday ? 'text-accent' : 'text-[#ebebeb]'}`}
-                  >
-                    {dayNum}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={goPrevWeek}
+          aria-label="Edellinen viikko"
+          className="flex h-12 w-11 min-h-0 min-w-0 items-center justify-center rounded-full text-text"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <span className="flex-1 text-center text-[14px] font-medium text-text tabular-nums">
+          {fromISO(stripWeekStart).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+          {' – '}
+          {fromISO(addDays(stripWeekStart, 6)).toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' })}
+        </span>
+        <button
+          onClick={goNextWeek}
+          aria-label="Seuraava viikko"
+          disabled={!canGoNextWeek}
+          className={`flex h-12 w-11 min-h-0 min-w-0 items-center justify-center rounded-full text-text ${canGoNextWeek ? '' : 'opacity-35'}`}
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+      <div className="flex gap-1">
+        {weekDays.map((d, i) => {
+          const c = completionFor(d)
+          const isSelected = d === selectedDate
+          const isToday = d === todayISO
+          const isFuture = d > todayISO
+          const dayNum = fromISO(d).getDate()
+          return (
+            <button
+              key={d}
+              onClick={() => !isFuture && setSelectedDate(d)}
+              disabled={isFuture}
+              aria-label={`${fromISO(d).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'numeric' })}, ${Math.round(c.ratio * 100)} % tavoista tehty`}
+              aria-pressed={isSelected}
+              className={`relative flex min-h-[76px] min-w-0 flex-1 flex-col items-center justify-end gap-1 overflow-hidden rounded-[18px] bg-[var(--surface-1)] px-0 pb-2 pt-1.5 text-text ${isFuture ? 'cursor-default opacity-40' : 'cursor-pointer'}`}
+              style={isSelected ? { outline: '2px solid #22d3ee', outlineOffset: '-2px' } : undefined}
+            >
+              <span
+                aria-hidden
+                className="absolute inset-x-0 bottom-0"
+                style={{
+                  height: `${isFuture ? 0 : Math.round(c.ratio * 100)}%`,
+                  background: 'linear-gradient(0deg, rgba(167,139,250,0.55), rgba(34,211,238,0.35))',
+                  transition: 'height 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              />
+              <span className="relative text-[12px] leading-4 text-fg-muted">{DAY_LETTERS[i]}</span>
+              <span className={`relative text-[18px] font-medium leading-6 tabular-nums ${isToday ? 'text-accent' : ''}`}>{dayNum}</span>
+              <span className="relative flex h-3.5 items-center">
+                {c.perfect && !isFuture && <Crown size={12} color="#fde68a" fill="#fde68a" aria-hidden />}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Empty state */}
       {scheduledHabits.length === 0 && (
-        <Card variant="glass" className="text-center">
-          <p className="mb-1.5 text-sm text-fg-muted">
+        <Card variant="panel" className="flex flex-col items-center gap-1 px-4 py-7 text-center">
+          <p className="text-[16px] font-medium leading-6 text-text">
             {habits.length === 0 ? 'Ei vielä tapoja' : `${dateLabel} ei ole ajastettuja tapoja`}
           </p>
-          <p className="text-xs leading-normal text-fg-ghost">
+          <p className="text-[14px] leading-5 text-fg-muted">
             {habits.length === 0
-              ? 'Lisää ensimmäinen tapa + napista yläoikealla.'
+              ? 'Lisää ensimmäinen tapa Uusi tapa -napista.'
               : 'Tarkista taparyhmän viikkoasetukset.'}
           </p>
         </Card>
@@ -247,13 +252,16 @@ export function HabitsView({
 
       {/* List */}
       {scheduledHabits.length > 0 && (
-        <div ref={reorder.containerRef} className="flex flex-col gap-2 list-stagger">
+        <div ref={reorder.containerRef} className="list-stagger flex flex-col gap-[2px] overflow-hidden rounded-[20px]">
           {scheduledHabits.map((habit) => {
             const value = valueFor(habit, selectedDate)
             const goal = habit.goalValue
             const reached = goal > 0 && value >= goal
             const pct = goal > 0 ? Math.min(1, value / goal) : 0
             const isBinary = habit.goalUnit === 'binary'
+            const meta = isBinary
+              ? (reached ? 'Tehty' : 'Ei vielä')
+              : `${value} / ${goal} · ${habit.goalPeriod === 'week' ? 'viikko' : 'päivä'}`
             return (
               <DragItem
                 key={habit.id}
@@ -266,97 +274,81 @@ export function HabitsView({
                 tabIndex={0}
                 ariaLabel={`${habit.name}, ${value} / ${goal}`}
                 flashTint={habit.color}
-                className="relative cursor-pointer overflow-hidden rounded-row border [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]"
-                style={{
-                  backgroundColor: `${habit.color}12`,
-                  borderColor: `${habit.color}33`,
-                }}
+                className="flex min-h-[72px] cursor-pointer items-center gap-3 bg-[var(--surface-1)] py-2.5 pr-1"
               >
-                {/* Glowing color rail */}
-                <div
+                <span
                   aria-hidden
-                  className="absolute inset-y-0 left-0 w-1"
-                  style={{ background: habit.color, boxShadow: `0 0 12px ${habit.color}` }}
+                  className="w-1 self-stretch rounded-r"
+                  style={{ background: habit.color }}
                 />
-                <div className="px-3.5 pb-3 pt-3.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-white">
-                        {habit.name}
-                      </div>
-                      <div className="mt-0.5 text-[11px] tabular-nums text-fg-faint">
-                        {value} / {goal}
-                        <span className="text-fg-ghost">
-                          {' · '}
-                          {habit.goalPeriod === 'week' ? 'viikko' : 'päivä'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action area */}
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      {isBinary ? (
-                        <button
-                          onClick={(e) => {
-                            onSetBinary(habit, !reached, selectedDate)
-                            // Vain tehdyksi merkintä juhlitaan. Merkinnän
-                            // poisto on korjaus, ja korjauksen palkitseminen
-                            // tekisi molemmista yhtä merkityksettömiä.
-                            if (!reached) celebrate(e.currentTarget, habit.color)
-                          }}
-                          aria-label={reached ? 'Poista merkintä' : 'Merkitse tehdyksi'}
-                          className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full p-0"
-                          style={{
-                            border: reached ? 'none' : `1px solid ${habit.color}66`,
-                            backgroundColor: reached ? habit.color : 'transparent',
-                            color: reached ? '#05060c' : habit.color,
-                          }}
-                        >
-                          {reached ? <Check size={18} strokeWidth={2.4} /> : null}
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => onIncrement(habit, -1, selectedDate)}
-                            disabled={value <= 0}
-                            aria-label="Vähennä"
-                            className={`flex h-8 w-8 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-transparent p-0 text-fg-muted ${value <= 0 ? 'cursor-not-allowed opacity-30' : ''}`}
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              onIncrement(habit, +1, selectedDate)
-                              // Juhlitaan tavoitteen täyttyminen, ei jokaista
-                              // askelta sitä kohti.
-                              if (!reached && value + 1 >= goal) celebrate(e.currentTarget, habit.color)
-                            }}
-                            aria-label="Kasvata"
-                            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full p-0"
-                            style={{
-                              backgroundColor: reached ? habit.color : `${habit.color}22`,
-                              color: reached ? '#05060c' : habit.color,
-                            }}
-                          >
-                            {reached ? <Check size={16} strokeWidth={2.4} /> : <PlusIcon size={16} strokeWidth={2.2} />}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Inline progress bar */}
-                  <div className="mt-3 h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
-                    <div
-                      className="h-full"
-                      style={{
-                        width: `${pct * 100}%`,
-                        backgroundColor: habit.color,
-                        transition: 'width 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
-                      }}
-                    />
-                  </div>
+                <div
+                  className="flex min-w-0 flex-1 flex-col gap-1"
+                  style={{ opacity: reached ? 0.6 : 1, transition: 'opacity 200ms' }}
+                >
+                  <span className="truncate text-[16px] leading-[22px] text-text">{habit.name}</span>
+                  <span className="text-[12px] leading-4 tabular-nums text-fg-muted">{meta}</span>
                 </div>
+
+                {isBinary || reached ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (isBinary) {
+                        onSetBinary(habit, !reached, selectedDate)
+                        // Vain tehdyksi merkintä juhlitaan. Merkinnän
+                        // poisto on korjaus, ja korjauksen palkitseminen
+                        // tekisi molemmista yhtä merkityksettömiä.
+                        if (!reached) celebrate(e.currentTarget, habit.color)
+                      } else {
+                        onIncrement(habit, +1, selectedDate)
+                      }
+                    }}
+                    aria-label={isBinary
+                      ? (reached ? `${habit.name}: poista merkintä` : `${habit.name}: merkitse tehdyksi`)
+                      : `${habit.name}: tavoite täynnä, lisää silti 1`}
+                    className="flex h-11 w-11 min-h-0 min-w-0 flex-none items-center justify-center rounded-full p-0 text-bg"
+                    style={reached
+                      ? { background: 'linear-gradient(135deg, #22d3ee, #a78bfa)' }
+                      : { border: '2px solid rgba(255,255,255,0.3)' }}
+                  >
+                    {reached && <Check size={20} strokeWidth={3} />}
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onIncrement(habit, +1, selectedDate)
+                      // Juhlitaan tavoitteen täyttyminen, ei jokaista
+                      // askelta sitä kohti.
+                      if (value + 1 >= goal) celebrate(e.currentTarget, habit.color)
+                    }}
+                    aria-label={`${habit.name}: lisää 1, nyt ${value} / ${goal}`}
+                    className="relative flex h-12 w-12 min-h-0 min-w-0 flex-none items-center justify-center rounded-full p-0"
+                  >
+                    {/* Edistyminen renkaana +1-napin ympärillä. */}
+                    <svg aria-hidden width="48" height="48" viewBox="0 0 48 48" className="absolute inset-0">
+                      <circle cx="24" cy="24" r="21" fill="rgba(34,211,238,0.12)" stroke="rgba(255,255,255,0.12)" strokeWidth="4" />
+                      <circle
+                        cx="24" cy="24" r="21" fill="none" stroke={habit.color} strokeWidth="4" strokeLinecap="round"
+                        strokeDasharray={`${pct * ROW_C} ${ROW_C}`}
+                        transform="rotate(-90 24 24)"
+                        style={{ transition: 'stroke-dasharray 400ms cubic-bezier(.2,0,0,1)' }}
+                      />
+                    </svg>
+                    <span className="relative text-[15px] font-semibold text-[#a5f3fc]">+1</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDetailId(habit.id)
+                  }}
+                  aria-label={`Tiedot: ${habit.name}`}
+                  className="flex h-12 w-11 min-h-0 min-w-0 flex-none items-center justify-center rounded-full p-0 text-fg-muted"
+                >
+                  <ChevronRight size={20} />
+                </button>
               </DragItem>
             )
           })}
@@ -365,14 +357,20 @@ export function HabitsView({
 
       {/* History button — only when there's at least one habit */}
       {habits.length > 0 && (
-        <button
-          onClick={() => setShowHistory(true)}
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-input border border-white/[0.08] bg-surface px-3.5 py-3 text-xs text-accent"
-        >
-          <BarChart2 size={14} />
+        <Button variant="ghost" onClick={() => setShowHistory(true)} className="mt-1 self-center">
           Tilastot
-        </button>
+        </Button>
       )}
+
+      {/* Extended FAB above the navigation bar */}
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] right-[max(16px,calc((100vw-480px)/2+16px))] z-20 flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-br from-violet to-cyan pl-4 pr-5 text-[16px] font-semibold text-bg shadow-[0_10px_28px_-8px_rgba(167,139,250,0.65)]"
+      >
+        <Plus size={22} strokeWidth={2.4} />
+        Uusi tapa
+      </button>
 
       {/* Create / edit form — bottom sheet */}
       {showCreate && (

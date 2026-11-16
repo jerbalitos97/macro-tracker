@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { addAssetValue, deleteAsset, updateAsset } from '../../lib/wealth/assets'
+import { addAssetValue, updateAsset } from '../../lib/wealth/assets'
 import { formatMoney, formatPercent, todayIso } from '../../lib/wealth/format'
 import type { Asset } from '../../lib/wealth/types'
 import { Card, Field, Button } from '../ui'
 
 const errorBanner =
-  'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
+  'mt-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[14px] text-danger'
+const textBtn =
+  'inline-flex min-h-11 items-center rounded-full bg-transparent px-3 text-[14px] font-semibold text-[#22d3ee]'
 
 type Mode = 'closed' | 'addValue' | 'edit'
 
@@ -18,6 +20,9 @@ type Props = {
   currency: string
   onToggle: () => void
   onChange: () => void
+  /** Removal is the parent's: it hides the card at once and offers undo
+   *  before anything is deleted. */
+  onDelete: () => void
 }
 
 export default function AssetCard({
@@ -29,6 +34,7 @@ export default function AssetCard({
   currency,
   onToggle,
   onChange,
+  onDelete,
 }: Props) {
   const [mode, setMode] = useState<Mode>('closed')
   const [busy, setBusy] = useState(false)
@@ -110,17 +116,6 @@ export default function AssetCard({
     }
   }
 
-  async function onDelete() {
-    if (!confirm(`Delete asset "${asset.name}" and all its history?`)) return
-    setBusy(true)
-    try {
-      await deleteAsset(asset.id)
-      onChange()
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const change =
     currentValue !== null && initialValue !== null && initialValue > 0
       ? ((currentValue - initialValue) / initialValue) * 100
@@ -133,77 +128,70 @@ export default function AssetCard({
         (asset.contributionEnd ? ` to ${asset.contributionEnd}` : '')
       : null
 
-  return (
-    <Card variant="glass">
-      <div className="flex items-start justify-between gap-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-pressed={visible}
-          className="flex min-h-0 min-w-0 cursor-pointer items-start gap-2.5 border-none bg-transparent p-0 text-left text-inherit"
-        >
-          <span
-            aria-hidden
-            className="mt-1 inline-block h-3 w-3 flex-shrink-0 rounded-full"
-            style={{ background: swatch, opacity: visible ? 1 : 0.35 }}
-          />
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-text">{asset.name}</div>
-            <div className="mt-0.5 text-[11px] text-muted">
-              Expected {formatPercent(asset.estimatedAnnualReturn)}/yr · tap to{' '}
-              {visible ? 'hide' : 'show'} on chart
-            </div>
-            {contribLine && (
-              <div className="mt-0.5 text-[11px] text-accent">{contribLine}</div>
-            )}
-          </div>
-        </button>
-        <div className="min-w-0 text-right">
-          <div className="text-[18px] font-semibold tabular-nums text-text">
-            {currentValue !== null ? formatMoney(currentValue, currency) : '—'}
-          </div>
-          {change !== null && (
-            <div className={`mt-0.5 text-[11px] ${change >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
-              {formatPercent(change)} since start
-            </div>
-          )}
-        </div>
-      </div>
+  const meta = [
+    `Expected ${formatPercent(asset.estimatedAnnualReturn)}/yr`,
+    contribLine,
+    change !== null ? `${formatPercent(change)} since start` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
-      <div className="mt-3 flex flex-wrap gap-2">
+  return (
+    <Card className="!p-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={visible}
+        aria-label={`${asset.name}: ${visible ? 'hide from' : 'show on'} chart`}
+        className="flex w-full min-w-0 cursor-pointer flex-col gap-1 border-none bg-transparent p-0 text-left text-inherit"
+      >
+        <span className="flex w-full items-baseline justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              aria-hidden
+              className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+              style={{ background: swatch, opacity: visible ? 1 : 0.35 }}
+            />
+            <span className="truncate text-[16px] font-medium leading-6 text-text">{asset.name}</span>
+          </span>
+          <span className="font-mono text-[18px] leading-6 text-text">
+            {currentValue !== null ? formatMoney(currentValue, currency) : '—'}
+          </span>
+        </span>
+        <span className="text-[14px] leading-5 text-fg-muted">{meta}</span>
+      </button>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          variant="secondary"
+          variant="action"
           className="flex-none"
           onClick={() => setMode((m) => (m === 'addValue' ? 'closed' : 'addValue'))}
         >
           {mode === 'addValue' ? 'Cancel' : '+ Add value'}
         </Button>
-        <Button
+        <button
           type="button"
-          variant="secondary"
-          className="flex-none"
+          className={textBtn}
           onClick={() => (mode === 'edit' ? setMode('closed') : openEdit())}
         >
           {mode === 'edit' ? 'Cancel' : 'Edit'}
-        </Button>
-        <Button type="button" variant="ghost" className="flex-none" onClick={onDelete} disabled={busy}>
-          Delete
-        </Button>
+        </button>
       </div>
 
       {mode === 'addValue' && (
-        <form onSubmit={onSubmitValue} className="mt-3 grid grid-cols-2 gap-2">
-          <Field
-            label={`New value (${currency})`}
-            type="number"
-            inputMode="decimal"
-            step="any"
-            required
-            value={valueInput}
-            onChange={(e) => setValueInput(e.target.value)}
-            className="col-span-2"
-          />
+        <form onSubmit={onSubmitValue} className="mt-3 grid grid-cols-2 gap-x-2">
+          <div className="col-span-2">
+            <Field
+              label={`New value (${currency})`}
+              type="number"
+              inputMode="decimal"
+              step="any"
+              required
+              value={valueInput}
+              onChange={(e) => setValueInput(e.target.value)}
+            />
+          </div>
           <Field
             label="Date"
             type="date"
@@ -211,7 +199,7 @@ export default function AssetCard({
             value={dateInput}
             onChange={(e) => setDateInput(e.target.value)}
           />
-          <div className="flex items-end">
+          <div className="flex items-start pt-[22px]">
             <Button type="submit" variant="primary" disabled={busy}>
               {busy ? 'Saving…' : 'Save'}
             </Button>
@@ -220,15 +208,16 @@ export default function AssetCard({
       )}
 
       {mode === 'edit' && (
-        <form onSubmit={onSubmitEdit} className="mt-3 grid grid-cols-2 gap-2">
-          <Field
-            label="Name"
-            type="text"
-            required
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="col-span-2"
-          />
+        <form onSubmit={onSubmitEdit} className="mt-3 grid grid-cols-2 gap-x-2">
+          <div className="col-span-2">
+            <Field
+              label="Name"
+              type="text"
+              required
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+          </div>
           <Field
             label="Expected annual return (%)"
             type="number"
@@ -263,8 +252,17 @@ export default function AssetCard({
               />
             </>
           )}
-          <div className="col-span-2">
-            <Button type="submit" variant="primary" disabled={busy}>
+          <div className="col-span-2 flex items-center gap-2">
+            <button
+              type="button"
+              className={`${textBtn} !text-[#FFB4AB]`}
+              onClick={onDelete}
+              disabled={busy}
+            >
+              Delete
+            </button>
+            <span className="flex-1" />
+            <Button type="submit" variant="primary" className="flex-none" disabled={busy}>
               {busy ? 'Saving…' : 'Save changes'}
             </Button>
           </div>

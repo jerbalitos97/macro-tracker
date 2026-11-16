@@ -25,7 +25,7 @@ import type { TrainingLocation } from '../../lib/locations'
 //   · Everything is still editable on demand, so the quick path never becomes
 //     a trap: "Muokkaa päiväarviota" opens every region regardless.
 
-const label = 'mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
+const label = 'mb-1.5 block text-[12px] text-fg-dim'
 
 interface Props {
   histories: Record<BodyRegion, RegionHistory>
@@ -97,13 +97,13 @@ export function DailyCheckSheet({
       </div>
 
       {draftLocation && (
-        <div className="mb-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-3">
+        <div className="mb-3 rounded-[20px] bg-[var(--surface-2)] p-3">
           <input
             value={draftLocation.name}
             onChange={(e) => setDraftLocation({ ...draftLocation, name: e.target.value })}
             placeholder="Paikan nimi"
             autoFocus
-            className="mb-2 w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2 text-sm text-text"
+            className="mb-2 h-12 w-full rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-[14px] text-[16px] text-text"
           />
           {CAPABILITIES.map((cap) => {
             const field = FIELD_OF[cap]
@@ -113,8 +113,8 @@ export function DailyCheckSheet({
                 key={cap}
                 onClick={() => setDraftLocation({ ...draftLocation, [field]: !on })}
                 aria-pressed={on}
-                className={`mb-1 flex w-full items-center gap-2 rounded-[8px] border px-3 py-2 text-left text-[12px] !min-h-0 ${
-                  on ? 'border-accent/40 bg-accent/[0.10] text-text' : 'border-white/10 text-fg-muted'
+                className={`mb-1 flex w-full items-center gap-2 min-h-11 rounded-[8px] border px-3 text-left text-[14px] ${
+                  on ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]' : 'border-white/[0.18] text-text'
                 }`}
               >
                 <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-[4px] border ${on ? 'border-accent bg-accent/30' : 'border-white/20'}`}>
@@ -155,8 +155,8 @@ export function DailyCheckSheet({
               key={f}
               onClick={() => toggleFlag(f)}
               aria-pressed={on}
-              className={`flex items-center gap-2 rounded-[8px] border px-3 py-2.5 text-left text-[12px] !min-h-0 ${
-                on ? 'border-danger/45 bg-danger/[0.10] text-danger' : 'border-white/10 text-fg-muted'
+              className={`flex items-center gap-2 min-h-11 rounded-[8px] border px-3 py-2 text-left text-[14px] ${
+                on ? 'border-transparent bg-[#452826] text-[#FFB4AB]' : 'border-white/[0.18] text-text'
               }`}
             >
               <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-[4px] border ${on ? 'border-danger bg-danger/30' : 'border-white/20'}`}>
@@ -169,12 +169,12 @@ export function DailyCheckSheet({
       </div>
 
       {escalating && (
-        <div className="mb-3 rounded-row border border-danger/30 bg-danger/[0.08] px-3.5 py-3">
+        <div className="mb-3 rounded-[16px] bg-[#452826] px-3.5 py-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-danger" />
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-[#FFB4AB]" />
             <div>
-              <p className="m-0 text-[13px] font-bold text-danger">Varaa aika ammattilaiselle</p>
-              <p className="m-0 mt-1 text-[11px] leading-relaxed text-fg-muted">
+              <p className="m-0 text-[14px] font-semibold text-[#FFB4AB]">Varaa aika ammattilaiselle</p>
+              <p className="m-0 mt-1 text-[14px] leading-5 text-[#FFB4AB]">
                 Säteily jalkaan tai ranteen pettäminen kuormalla ei ole kuormanhallinnan asia,
                 joten sovellus ei säädä treeniä sen ympäri. Voit aloittaa session karsitulla
                 listalla: kyseisen alueen kuormittavat liikkeet jätetään pois.
@@ -199,7 +199,7 @@ export function DailyCheckSheet({
               Ei
             </Button>
           </div>
-          <p className="m-0 mb-3 text-[10px] leading-relaxed text-fg-ghost">
+          <p className="m-0 mb-3 text-[12px] leading-relaxed text-fg-ghost">
             Lokissa ei ole mitään mikä pyytäisi kysymään tänään. "Kyllä" tarkoittaa kaikki alueet
             kehittävälle ja treeni alkaa heti.
           </p>
@@ -218,7 +218,7 @@ export function DailyCheckSheet({
                   {REGION_LABEL[region]}
                   {h.flagged && <span className="ml-2 text-accent">liputtaa</span>}
                 </div>
-                <p className="m-0 mb-2 text-[11px] leading-snug text-fg-muted">
+                <p className="m-0 mb-2 text-[12px] leading-snug text-fg-muted">
                   {REGION_QUESTION[region]}
                 </p>
                 <div className="grid grid-cols-11 gap-1">
@@ -227,17 +227,17 @@ export function DailyCheckSheet({
                       key={n}
                       onClick={() => setScores((p) => ({ ...p, [region]: n }))}
                       aria-pressed={score === n}
-                      className={`rounded-[6px] border py-2 text-center font-mono text-[11px] tabular-nums !min-h-0 !min-w-0 ${
+                      className={`min-h-10 rounded-[8px] border text-center font-mono text-[14px] tabular-nums !min-w-0 ${
                         score === n
-                          ? 'border-accent/50 bg-accent/[0.16] text-text'
-                          : 'border-white/10 text-fg-muted'
+                          ? 'border-transparent bg-cyan/[0.18] text-[#a5f3fc]'
+                          : 'border-white/[0.18] text-text'
                       }`}
                     >
                       {n}
                     </button>
                   ))}
                 </div>
-                <div className="mt-1 flex items-baseline justify-between text-[10px] text-fg-ghost">
+                <div className="mt-1 flex items-baseline justify-between text-[12px] text-fg-ghost">
                   <span>
                     {h.baseline != null ? `perustaso ${h.baseline}` : 'ei vertailutasoa vielä'}
                     {h.trend7d !== 'unknown' && ` · trendi ${h.trend7d === 'rising' ? 'nouseva' : h.trend7d === 'falling' ? 'laskeva' : 'vakaa'}`}
@@ -251,7 +251,7 @@ export function DailyCheckSheet({
           })}
 
           {!askAll && (
-            <Button variant="ghost" className="mb-3 w-full text-[11px]" onClick={() => setAskAll(true)}>
+            <Button variant="ghost" className="mb-3 w-full text-[12px]" onClick={() => setAskAll(true)}>
               <SlidersHorizontal size={13} /> Muokkaa päiväarviota
             </Button>
           )}
@@ -278,7 +278,7 @@ export function DailyCheckSheet({
       {!expanded && flagged.length === 0 && (
         <button
           onClick={() => { setExpanded(true); setAskAll(true) }}
-          className="mt-2 w-full text-center text-[11px] text-fg-ghost"
+          className="mt-2 w-full text-center text-[12px] text-fg-ghost"
         >
           Muokkaa päiväarviota
         </button>

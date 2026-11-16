@@ -4,29 +4,23 @@ interface Props extends HTMLAttributes<HTMLDivElement> {
   variant?: 'hero' | 'glass' | 'panel' | 'row' | 'solid'
 }
 
-// Aurora Glass — three translucent tiers stacked over the aurora blob layer.
-// `glass` aliases `hero` and `solid` aliases `panel` so existing callers
-// upgrade without churn. backdrop-filter is inline so it reads the fixed
-// AuroraBackground sibling behind the app.
+// Material 3 tonal surfaces over the aurora. `glass` aliases `hero` and
+// `solid` aliases `panel` so existing callers keep working.
 //
-// The base is a dark translucent ink rather than a white tint. A white tint on
-// top of a saturated backdrop-filter let the aurora through at up to 0.12
-// relative luminance, which no readable secondary text colour can sit on — a
-// pixel sweep of every card interior had small text measuring 1.8–3.1:1. The
-// ink holds the ground near 0.05 while keeping the blur and the glass edge, so
-// the text ramp has somewhere to stand.
+// The glass tiers used backdrop-filter blur on every card. That cost a GPU
+// pass per card while scrolling and still let the aurora through brightly
+// enough that the text ramp had to be re-measured and patched (see the git
+// history of this file). An ink fill at ~0.78 does the job the blur was
+// standing in for: the aurora stays visible around and faintly through the
+// card, and every text token keeps AA without a per-card exception.
 const HERO =
-  'rounded-card border border-white/[0.12] bg-[rgba(9,11,20,0.55)] p-6 ' +
-  '[backdrop-filter:blur(22px)_saturate(180%)] [-webkit-backdrop-filter:blur(22px)_saturate(180%)] ' +
-  'shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_20px_40px_-20px_rgba(0,0,0,0.6)]'
+  'rounded-card border border-white/[0.08] bg-[var(--surface-1)] p-6'
 
 const PANEL =
-  'rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-5 ' +
-  '[backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]'
+  'rounded-panel border border-white/[0.08] bg-[var(--surface-1)] p-5'
 
 const ROW =
-  'rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-4 ' +
-  '[backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)]'
+  'rounded-row border border-white/[0.06] bg-[var(--surface-1)] p-4'
 
 /** The variant classes on their own, for the rare element that needs a Card's
  *  look but not a Card's `div` (a draggable row, say). */

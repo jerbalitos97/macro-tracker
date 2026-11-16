@@ -20,36 +20,40 @@ function messageFor(done: number, total: number): { title: string; sub: string }
   return { title: 'Tämän päivän tehtävät', sub: `${total} kappaletta — aloitetaan rauhassa.` }
 }
 
+/** Näkymän ainoa hero: tehtävätyökalun amber→violetti, iso otsikko ja
+ *  päivän edistymispalkki. */
 export function EncouragingHeader({ done, total }: Props) {
   const { title, sub } = messageFor(done, total)
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
-  const allDone = total > 0 && done === total
+  const dateLabel = new Date().toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'numeric' })
 
   return (
-    <div
-      className={`rounded-panel border p-5 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)] ${
-        allDone ? 'border-border-hi bg-accent/[0.10]' : 'border-white/10 bg-[rgba(9,11,20,0.5)]'
-      }`}
+    <section
+      className="flex flex-col gap-2.5 rounded-[32px_32px_32px_12px] border border-[rgba(232,184,90,0.35)] p-[22px]"
+      style={{ background: 'linear-gradient(135deg, rgba(232,184,90,0.26), rgba(167,139,250,0.24))' }}
     >
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
-        Tehtävät · {pct}%
-      </div>
+      <span className="text-[14px] leading-5 text-[#f5e6c4] first-letter:uppercase">
+        {dateLabel} · <span className="font-mono">{pct} %</span>
+      </span>
       {/* key vaihtaa lohkon kun viesti vaihtuu, jolloin uusi teksti häipyy
           sisään sen sijaan että sanat vain vaihtuisivat paikoillaan. */}
-      <div key={title} className="view-enter">
-        <h2 className="mt-1.5 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] text-text">
-          {title}
-        </h2>
-        <p className="mt-1 text-[13px] text-fg-muted">{sub}</p>
+      <div key={title} className="view-enter flex flex-col gap-2.5">
+        <h2 className="m-0 text-[26px] font-medium leading-8 text-text">{title}</h2>
+        <p className="m-0 text-[15px] leading-[22px] text-[#e7e2f3]">{sub}</p>
       </div>
-      {total > 0 && (
-        <div className="mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.07]">
-          <div
-            className="h-1.5 rounded-full bg-gradient-to-r from-cyan to-violet transition-[width] duration-500"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-    </div>
+      <div
+        className="h-2.5 overflow-hidden rounded-[5px] bg-white/[0.14]"
+        role="progressbar"
+        aria-label="Päivän tehtävät tehty"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+      >
+        <div
+          className="h-2.5 rounded-[5px] transition-[width] duration-500 ease-[cubic-bezier(.2,0,0,1)]"
+          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #e8b85a, #a78bfa)' }}
+        />
+      </div>
+    </section>
   )
 }

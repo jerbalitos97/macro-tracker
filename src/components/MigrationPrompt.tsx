@@ -19,7 +19,7 @@ export function MigrationPrompt({ onMigrate, onSkip, migrating }: Props) {
             className={[
               'cursor-pointer rounded-[8px] border-none px-3.5 py-1.5 text-[12px] font-bold',
               migrating
-                ? 'bg-[rgba(9,11,20,0.50)] text-fg-ghost cursor-not-allowed'
+                ? 'bg-[var(--surface-1)] text-fg-muted cursor-not-allowed'
                 : 'bg-accent text-bg',
             ].join(' ')}
           >

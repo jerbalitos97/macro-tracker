@@ -10,13 +10,12 @@ import {
 } from 'recharts'
 import type { Asset, ChartPoint } from '../../lib/wealth/types'
 import { formatMoney } from '../../lib/wealth/format'
-import { Card } from '../ui'
 
 // recharts renders raw SVG and ignores Tailwind classes, so chart chrome
 // colors are supplied as JS values that mirror the theme tokens.
 const CHART_BORDER = 'rgba(255,255,255,0.07)'
-const CHART_TEXT = '#eef1f6'
-const CHART_MUTED = '#6a6f7a'
+const CHART_TEXT = '#DEE3E5'
+const CHART_MUTED = '#BFC8CA'
 
 const ASSET_COLORS = [
   '#22d3ee', '#a78bfa', '#f472b6', '#fb923c',
@@ -54,28 +53,28 @@ export default function PortfolioChart({
 }: Props) {
   if (data.length === 0) {
     return (
-      <Card variant="glass" className="flex h-[280px] items-center justify-center text-[13px] text-muted">
+      <div className="flex h-[200px] items-center justify-center text-[14px] text-fg-muted">
         Add an asset to start tracking.
-      </Card>
+      </div>
     )
   }
   return (
-    <Card variant="glass" className="p-3">
-      <div className="h-[280px] w-full">
+    <div className="-mx-2">
+      <div className="h-[240px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#1c1c1c" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#8f94a3"
+              stroke="#BFC8CA"
               tickFormatter={formatTick}
               minTickGap={32}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 12 }}
             />
-            <YAxis stroke="#8f94a3" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} width={56} />
+            <YAxis stroke="#BFC8CA" tickFormatter={formatYAxis} tick={{ fontSize: 12 }} width={56} />
             <Tooltip
               contentStyle={{
-                background: '#0a0b12',
+                background: '#171a2c',
                 border: `1px solid ${CHART_BORDER}`,
                 borderRadius: 8,
                 color: CHART_TEXT,
@@ -95,7 +94,7 @@ export default function PortfolioChart({
                 label={{
                   value: `Goal ${formatMoney(wealthGoal, currency)}`,
                   fill: '#a78bfa',
-                  fontSize: 11,
+                  fontSize: 12,
                   position: 'insideTopRight',
                 }}
               />
@@ -160,6 +159,6 @@ export default function PortfolioChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </Card>
+    </div>
   )
 }

@@ -138,26 +138,26 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
       <button
         onClick={() => (running ? setRest(true) : setMenu(true))}
         aria-label={running ? `${hold ? 'Pito' : 'Lepo'} käynnissä ${formatRest(seconds)}` : 'Lisää'}
-        className={`active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex items-center justify-center gap-1.5 rounded-full border transition-transform [backdrop-filter:blur(14px)] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)] ${
+        className={`active:scale-95 fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-30 flex items-center justify-center gap-1.5 rounded-[16px] border transition-transform ${
           running
-            ? `h-12 px-4 ${hold ? 'border-white/12 bg-[rgba(9,11,20,0.62)]' : past ? 'border-accent/50 bg-accent/[0.16] text-accent' : 'border-white/12 bg-[rgba(9,11,20,0.62)] text-text'}`
-            : 'h-12 w-12 border-white/10 bg-[rgba(9,11,20,0.54)] text-accent'
+            ? `h-14 min-w-14 px-[18px] [box-shadow:0_8px_24px_rgba(0,0,0,0.45)] ${hold ? 'border-white/[0.12] bg-[var(--surface-3)]' : past ? 'border-accent/50 bg-[var(--surface-3)] text-accent' : 'border-white/[0.12] bg-[var(--surface-3)] text-text'}`
+            : 'h-14 w-14 border-transparent bg-gradient-to-br from-cyan to-blue text-bg [box-shadow:0_10px_28px_-8px_rgba(34,211,238,0.65)]'
         }`}
       >
         {running ? (
           <>
             {/* A hold carries its colour out here too, so the five-second step
                 is visible without opening anything — which is the point of it. */}
-            <Timer size={16} style={hold ? { color: holdColor } : undefined} />
+            <Timer size={20} style={hold ? { color: holdColor } : undefined} />
             <span
-              className="font-mono text-[14px] tabular-nums"
+              className="font-mono text-[18px] font-semibold tabular-nums"
               style={hold ? { color: holdColor, transition: 'color 220ms var(--smooth)' } : undefined}
             >
               {formatRest(seconds)}
             </span>
           </>
         ) : (
-          <Plus size={22} />
+          <Plus size={24} />
         )}
       </button>
 
@@ -170,12 +170,12 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             puhe on se joka iOS:llä ottaa äänilaitteen haltuun, kun taas lyhyt
             merkkiääni sekoittuu musiikkiin ongelmitta. Moni haluaa vaimentaa
             liikkuvuustreenin laskennan mutta pitää lepohälytyksen. */}
-        <div className="mb-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5">
+        <div className="mb-2 rounded-[20px] bg-[var(--surface-2)] px-4 py-3.5">
           <div className="flex items-center gap-3">
             <Volume2 size={18} className="flex-shrink-0 text-accent" />
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-text">Äänet</div>
-              <div className="text-[11px] text-fg-faint">
+              <div className="text-[16px] font-medium leading-6 text-text">Äänet</div>
+              <div className="text-[14px] leading-5 text-fg-muted">
                 Taustamusiikki vaimenee merkin ajaksi eikä pysähdy
               </div>
             </div>
@@ -185,10 +185,10 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             <button
               onClick={toggleVoice}
               aria-pressed={voice}
-              className={`flex items-center justify-center gap-1.5 rounded-input border px-3 py-2.5 text-[12px] transition-colors ${
+              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-medium transition-colors ${
                 voice
-                  ? 'border-border-hi bg-accent/[0.10] text-text'
-                  : 'border-white/[0.08] bg-black/25 text-fg-muted'
+                  ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]'
+                  : 'border-white/[0.18] bg-transparent text-text'
               }`}
             >
               {voice ? <MessageSquare size={14} /> : <MessageSquareOff size={14} />}
@@ -197,10 +197,10 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             <button
               onClick={toggleTones}
               aria-pressed={tones}
-              className={`flex items-center justify-center gap-1.5 rounded-input border px-3 py-2.5 text-[12px] transition-colors ${
+              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-medium transition-colors ${
                 tones
-                  ? 'border-border-hi bg-accent/[0.10] text-text'
-                  : 'border-white/[0.08] bg-black/25 text-fg-muted'
+                  ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]'
+                  : 'border-white/[0.18] bg-transparent text-text'
               }`}
             >
               {tones ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -208,7 +208,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             </button>
           </div>
           {!voice && !tones && (
-            <p className="m-0 mt-2 text-[10px] leading-snug text-fg-ghost">
+            <p className="m-0 mt-2 text-[12px] leading-4 text-fg-muted">
               Kello käy äänettä — vaiheenvaihto tuntuu värinänä, jos se on päällä.
             </p>
           )}
@@ -217,24 +217,24 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
         {onEditCheck && (
           <button
             onClick={() => { setMenu(false); onEditCheck() }}
-            className="mb-2 flex w-full items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5 text-left"
+            className="mb-2 flex w-full items-center gap-3 rounded-[20px] bg-[var(--surface-2)] px-4 py-3.5 text-left"
           >
             <SlidersHorizontal size={18} className="flex-shrink-0 text-accent" />
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-text">Muokkaa päiväarviota</div>
-              <div className="text-[11px] text-fg-faint">
+              <div className="text-[16px] font-medium leading-6 text-text">Muokkaa päiväarviota</div>
+              <div className="text-[14px] leading-5 text-fg-muted">
                 Jos jokin alkoi tuntua kesken treenin, portit ratkaistaan uudelleen
               </div>
             </div>
           </button>
         )}
 
-        <div className="rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-4 py-3.5">
+        <div className="rounded-[20px] bg-[var(--surface-2)] px-4 py-3.5">
           <div className="flex items-center gap-3">
             <Timer size={18} className="flex-shrink-0 text-accent" />
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-text">Kello</div>
-              <div className="text-[11px] text-fg-faint">
+              <div className="text-[16px] font-medium leading-6 text-text">Kello</div>
+              <div className="text-[14px] leading-5 text-fg-muted">
                 Käy taustalla vaikka suljet sovelluksen — päättyy kun sinä lopetat sen
               </div>
             </div>
@@ -254,14 +254,14 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
           <>
             <div className="flex flex-col items-center py-3">
               <div
-                className={`font-display text-[56px] font-extrabold tabular-nums leading-none tracking-[-0.04em] ${
+                className={`font-mono text-[56px] font-[250] tabular-nums leading-none tracking-[-0.02em] ${
                   hold ? '' : past ? 'text-accent' : 'text-text'
                 }`}
                 style={hold ? { color: holdColor, transition: 'color 220ms var(--smooth)' } : undefined}
               >
                 {formatRest(seconds)}
               </div>
-              <div className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-fg-faint">
+              <div className="mt-1.5 text-[14px] text-fg-muted">
                 {hold
                   ? `${HOLD_STEP_SEC} s välein väri vaihtuu`
                   : `tavoite ${formatRest(active.targetSec)}`}
@@ -271,7 +271,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
                   — and it says when it will stop, so silence reads as "the
                   alarm finished", not "the timer died". */}
               {!hold && alarming && (
-                <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-accent" aria-live="polite">
+                <div className="mt-1 text-[12px] text-accent" aria-live="polite">
                   hälytys · {active.targetSec + ALARM_SEC - seconds} s
                 </div>
               )}
@@ -280,7 +280,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
             {/* A hold has no bar: there is nothing to be a fraction of, and a
                 bar filling towards some number would read as a place to stop. */}
             {!isHold(active) && (
-              <div className="mb-3 h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.55)]">
+              <div className="mb-3 h-2 overflow-hidden rounded-[4px] bg-white/[0.12]">
                 <div
                   className="h-full rounded-sm bg-gradient-to-r from-accent to-[#e8d07a] transition-[width] duration-500"
                   style={{ width: `${Math.min(100, (seconds / active.targetSec) * 100)}%` }}
@@ -288,7 +288,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
               </div>
             )}
 
-            <p className="mb-3 text-[11px] leading-relaxed text-fg-faint">
+            <p className="mb-3 text-[14px] leading-5 text-fg-muted">
               {isHold(active)
                 ? 'Kello ei tarvitse sovellusta pysyäkseen oikeassa: se muistaa alkuhetken ja laskee kuluneen ajan kellosta. Pidolla ei ole tavoitetta — se päättyy kun päätät sen, ja kesto kirjautuu.'
                 : 'Ajastin ei tarvitse sovellusta pysyäkseen oikeassa: se muistaa alkuhetken ja laskee kuluneen ajan kellosta. Voit sulkea sovelluksen ja palata — luku on silti oikein. Tavoite on vain merkki matkan varrella, lepo päättyy kun painat alta.'}
@@ -321,7 +321,7 @@ export function WorkoutTools({ workoutId, onEditCheck }: Props) {
 function ClockChoices({ onRest, onHold }: { onRest: (sec: number) => void; onHold: () => void }) {
   return (
     <>
-      <div className="mb-1 mt-3 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Lepo</div>
+      <div className="mb-1 mt-3 text-[12px] text-fg-muted">Lepo</div>
       <div className="grid grid-cols-4 gap-1.5">
         {REST_TARGETS.map((t) => (
           <Chip key={t} onClick={() => onRest(t)} className="justify-center tabular-nums">
@@ -329,11 +329,11 @@ function ClockChoices({ onRest, onHold }: { onRest: (sec: number) => void; onHol
           </Chip>
         ))}
       </div>
-      <div className="mb-1 mt-3 font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Pito</div>
+      <div className="mb-1 mt-3 text-[12px] text-fg-muted">Pito</div>
       <Chip onClick={onHold} className="w-full justify-center">
-        <InfinityIcon size={13} /> Käynnistä pitokello
+        <InfinityIcon size={16} /> Käynnistä pitokello
       </Chip>
-      <p className="m-0 mt-1.5 text-[10px] leading-snug text-fg-ghost">
+      <p className="m-0 mt-1.5 text-[12px] leading-4 text-fg-muted">
         Ei aikarajaa — mittaa kuinka kauan pito kesti.
       </p>
     </>

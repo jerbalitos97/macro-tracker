@@ -20,8 +20,8 @@ import type { VariantKey } from '../../lib/sessionResolve'
 // then the slot as written. Reading top to bottom answers "what am I doing",
 // "why this and not the heavy version", and "what does the plan actually say".
 
-const label = 'mb-1 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
-const box = 'mb-3 rounded-row border border-white/[0.08] bg-[rgba(9,11,20,0.45)] px-3.5 py-3'
+const label = 'mb-1 block text-[12px] text-fg-dim'
+const box = 'mb-3 rounded-[20px] bg-[var(--surface-2)] px-3.5 py-3'
 
 const VARIANT_ORDER: VariantKey[] = ['develop', 'hybrid', 'treat', 'rest']
 
@@ -49,18 +49,18 @@ function EnvChain({ env, depth = 0 }: { env: EnvRequirement; depth?: number }) {
   const fb = env.fallback
   return (
     <div className={depth > 0 ? 'mt-1 border-l border-white/[0.10] pl-2.5' : ''}>
-      <div className="text-[11px] leading-snug text-fg-muted">
+      <div className="text-[12px] leading-snug text-fg-muted">
         <span className="text-fg-faint">Vaatii: </span>
         <span className="text-text">{caps(env.requires)}</span>
       </div>
       {fb === null ? (
-        <div className="mt-0.5 flex items-start gap-1 text-[11px] leading-snug text-fg-faint">
+        <div className="mt-0.5 flex items-start gap-1 text-[12px] leading-snug text-fg-faint">
           <Ban size={11} className="mt-0.5 flex-shrink-0" />
           Jos ei ole: liike jää pois, ei korvaajaa
         </div>
       ) : (
         <>
-          <div className="mt-0.5 flex items-start gap-1 text-[11px] leading-snug">
+          <div className="mt-0.5 flex items-start gap-1 text-[12px] leading-snug">
             <CornerDownRight size={11} className="mt-0.5 flex-shrink-0 text-fg-faint" />
             <span>
               <span className="text-text">{fb.name}</span>
@@ -102,8 +102,8 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
       {/* ── What you are actually doing ── */}
       <div className={label}>Tänään</div>
       <div className={box}>
-        <div className="font-display text-[15px] font-semibold leading-tight text-text">{ex.name}</div>
-        <div className="mt-1 font-mono text-[11px] tabular-nums text-fg-muted">
+        <div className="text-[18px] font-medium leading-6 text-text">{ex.name}</div>
+        <div className="mt-1 font-mono text-[12px] tabular-nums text-fg-muted">
           {ex.interval
             ? `${ex.interval.workSeconds} s työ / ${ex.interval.restSeconds} s lepo × ${ex.interval.rounds}`
             : `${ex.sets.length} ${ex.sets.length === 1 ? 'sarja' : 'sarjaa'}`}
@@ -157,10 +157,10 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
         <>
           <div className={label}>Pohjassa</div>
           <div className={box}>
-            <div className="font-display text-[14px] font-semibold leading-tight text-text">
+            <div className="text-[14px] font-semibold leading-tight text-text">
               {slot.name}
             </div>
-            <div className="mt-1 font-mono text-[11px] tabular-nums text-fg-muted">
+            <div className="mt-1 font-mono text-[12px] tabular-nums text-fg-muted">
               {dose({
                 name: slot.name,
                 sets: slot.defaultSets,
@@ -192,22 +192,22 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
                       key={key}
                       onClick={canSwap && !isToday ? () => onSwapVariant!(key) : undefined}
                       aria-pressed={canSwap ? isToday : undefined}
-                      className={`mb-1.5 block w-full !min-h-0 rounded-[8px] border px-2.5 py-2 text-left ${
+                      className={`mb-1.5 block min-h-12 w-full rounded-[8px] border px-3 py-2 text-left ${
                         isToday ? 'border-accent/40 bg-accent/[0.08]' : 'border-white/[0.07]'
                       }`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className={`font-mono text-[10px] uppercase tracking-[0.1em] ${isToday ? 'text-accent' : 'text-fg-faint'}`}>
+                        <span className={`text-[12px] ${isToday ? 'text-accent' : 'text-fg-faint'}`}>
                           {GATE_LABEL[key]}
                         </span>
                         {isToday && (
-                          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-accent">
+                          <span className="text-[12px] text-accent">
                             tänään
                           </span>
                         )}
                       </div>
                       {v == null ? (
-                        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-fg-faint">
+                        <div className="mt-0.5 flex items-center gap-1 text-[12px] text-fg-faint">
                           <Ban size={11} /> Liike jätetään pois tässä tilassa
                         </div>
                       ) : (
@@ -218,7 +218,7 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
                             {v.tempo && <span className="ml-1.5 font-mono text-fg-faint">{v.tempo}</span>}
                           </div>
                           {v.note && (
-                            <p className="m-0 mt-0.5 text-[11px] leading-relaxed text-fg-faint">{v.note}</p>
+                            <p className="m-0 mt-0.5 text-[12px] leading-relaxed text-fg-faint">{v.note}</p>
                           )}
                           {v.env && (
                             <div className="mt-1.5">
@@ -230,7 +230,7 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
                     </Row>
                   )
                 })}
-                <p className="m-0 text-[10px] leading-snug text-fg-ghost">
+                <p className="m-0 text-[12px] leading-snug text-fg-ghost">
                   {canSwap
                     ? 'Napauta varianttia vaihtaaksesi sen käsin. Käsin tehty vaihto kirjautuu lokiin, jotta jälkikäteen näkyy ettei variantti tullut portista.'
                     : 'Määrittelemätön tila putoaa lähimpään määriteltyyn.'}
@@ -240,7 +240,7 @@ export function ExerciseInfoSheet({ exercise: ex, slot, templateNote, onSwapVari
           </div>
         </>
       ) : (
-        <p className="m-0 mb-3 text-[11px] leading-relaxed text-fg-ghost">
+        <p className="m-0 mb-3 text-[12px] leading-relaxed text-fg-ghost">
           {ex.resolution
             ? 'Pohjan slottia ei löytynyt — pohjaa on muokattu tai se on arkistoitu sen jälkeen kun tämä treeni kirjattiin. Yllä on se mitä sessioon tallennettiin.'
             : 'Tämä liike lisättiin käsin, joten pohjassa ei ole sille ohjetta.'}

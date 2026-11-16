@@ -22,7 +22,7 @@ import { Card, Button } from '../components/ui'
 // its neighbours. Analysis lives here now, and only here — Paino records
 // weigh-ins, the calendar records days, and this reads all of it.
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[12px] font-medium   text-muted'
 
 /** Signed number with a real minus sign, and no "−0.0" for values that round
  *  to zero. Mixing "−370" and "-9" inside one card reads as two different
@@ -36,11 +36,14 @@ function signedInt(n: number): string {
   return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('fi-FI')}`
 }
 
-const TONE: Record<string, { bg: string; border: string; emoji: string }> = {
-  ok: { bg: 'rgba(100,200,120,0.06)', border: 'rgba(100,200,120,0.2)', emoji: '✅' },
-  info: { bg: 'rgba(106,154,212,0.07)', border: 'rgba(106,154,212,0.22)', emoji: '💡' },
-  warn: { bg: 'rgba(232,184,90,0.06)', border: 'rgba(232,184,90,0.2)', emoji: '⚠️' },
-  danger: { bg: 'rgba(248,113,113,0.06)', border: 'rgba(248,113,113,0.2)', emoji: '🔴' },
+// The verdict is this screen's expressive hero: the design's violet→blue
+// gradient when things are on track, the same shape tinted amber or red when
+// the verdict asks for action — the tone still reads before the words do.
+const TONE: Record<string, { bg: string; border: string }> = {
+  ok: { bg: 'linear-gradient(135deg, rgba(167,139,250,0.36), rgba(59,130,246,0.20))', border: 'rgba(167,139,250,0.40)' },
+  info: { bg: 'linear-gradient(135deg, rgba(167,139,250,0.36), rgba(59,130,246,0.20))', border: 'rgba(167,139,250,0.40)' },
+  warn: { bg: 'linear-gradient(135deg, rgba(232,184,90,0.28), rgba(167,139,250,0.18))', border: 'rgba(232,184,90,0.40)' },
+  danger: { bg: 'linear-gradient(135deg, rgba(248,113,113,0.28), rgba(167,139,250,0.18))', border: 'rgba(248,113,113,0.40)' },
 }
 
 interface Props {
@@ -62,6 +65,9 @@ export function AnalysisView({
   const { user } = useAuth()
   const todayISO = toISO(new Date())
   const [showRollout, setShowRollout] = useState(false)
+  // Kulutus on oletuksena auki: kun ero tulee jostain, se tulee useimmiten
+  // siitä, että oletettu TDEE ei pidä — syöminen kirjataan joka tapauksessa.
+  const [lens, setLens] = useState<'eat' | 'burn'>('burn')
   const [blocks, setBlocks] = useState<TrainingBlock[]>(() => getBlocks())
 
   useEffect(() => {
@@ -93,13 +99,13 @@ export function AnalysisView({
     <div className="px-4 pb-8 pt-4">
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="mb-3">
-        <h2 className="m-0 font-display text-[22px] font-bold tracking-[-0.025em] text-text">
+        <h2 className="m-0 flex items-center gap-2 text-[22px] font-medium leading-7 text-text">
           Analyysi
-          <span className="ml-2 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-accent">
+          <span className="rounded-md bg-cyan/[0.16] px-2 py-[3px] text-[12px] font-medium leading-4 text-[#a5f3fc]">
             {goal.type}
           </span>
         </h2>
-        <p className="m-0 mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">
+        <p className="m-0 mt-1 text-[14px] leading-5 tabular-nums text-fg-muted">
           {formatDateShort(goal.startDate)} – {formatDateShort(goal.endDate)} · {goal.startWeight.toFixed(1)} → {goal.targetWeight.toFixed(1)} kg
         </p>
       </div>
@@ -117,13 +123,13 @@ export function AnalysisView({
       />
 
       <div className="mb-4 mt-4">
-        <div className="mb-1.5 flex justify-between text-[11px] text-fg-faint">
+        <div className="mb-1.5 flex justify-between text-[12px] tabular-nums text-fg-muted">
           <span>Päivä {goal.elapsedDays} / {goal.totalDays}</span>
           <span>{progressPct.toFixed(0)} %</span>
         </div>
-        <div className="h-1 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
+        <div className="h-2 overflow-hidden rounded bg-white/[0.12]">
           <div
-            className="h-full rounded-sm bg-gradient-to-r from-accent to-[#e8d07a] transition-[width] duration-[600ms] ease-out"
+            className="h-full rounded bg-gradient-to-r from-cyan to-violet transition-[width] duration-[600ms] ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -135,50 +141,34 @@ export function AnalysisView({
           slope is the normal mid-cut state — and as two separate banners that
           read as the app contradicting itself. */}
       <div
-        className="rounded-card border px-4 py-4"
-        style={{ backgroundColor: tone.bg, borderColor: tone.border }}
+        className="rounded-[48px_48px_48px_16px] border px-6 py-7"
+        style={{ background: tone.bg, borderColor: tone.border }}
       >
-        <div className="flex items-start gap-3">
-          <span className="mt-px flex-shrink-0 text-[18px]">{tone.emoji}</span>
-          <p className="m-0 text-[14px] font-bold text-text">{a.headline.title}</p>
-        </div>
+        <p className="m-0 text-[32px] font-normal leading-10 text-text">{a.headline.title}</p>
         {a.headline.lines.length > 0 && (
-          <dl className="m-0 mt-3 flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+          <dl className="m-0 mt-4 flex flex-col gap-2.5">
             {a.headline.lines.map((line) => (
-              <div key={line.label} className="flex gap-2.5">
+              <div key={line.label} className="flex gap-3">
                 <dt
-                  className={`w-[52px] flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] ${
+                  className={`w-[64px] flex-shrink-0 text-[14px] font-medium ${
                     line.label === 'Toimi' ? 'text-accent' : 'text-fg-ghost'
                   }`}
                 >
                   {line.label}
                 </dt>
-                <dd className="m-0 text-[12px] leading-normal text-fg-muted">{line.text}</dd>
+                <dd className="m-0 text-[14px] leading-5 text-fg-muted">{line.text}</dd>
               </div>
             ))}
           </dl>
         )}
-      </div>
 
-      {/* Tasoitus heti tuomion alle, koska tuomio sanoo "alta".
-          Kortti oli aiemmin kumulatiivisen vajeen osiossa painokäyrän
-          takana, eli kehotuksen ja napin välissä oli puolen ruudun verran
-          vieritystä — ja kun ero on luettu painosta, se ei edes kuulu
-          kaloriosioon. Kortti oli myös `hasDeficitData`-ehdon sisällä, joten
-          ilman kirjattuja aterioita sitä ei ollut lainkaan vaikka paino olisi
-          ollut reilusti linjan yläpuolella. */}
-      {a.recovery && (
-        <Card
-          variant="glass"
-          className={`mt-2.5 ${a.recovery.achievable ? '' : 'border-danger/25'}`}
-        >
-          <div className={cardLabel}>Suositus tasoitukseen</div>
-          <p className="m-0 mb-1.5 text-[11px] leading-normal text-fg-faint">
-            {a.recovery.source === 'weight'
-              ? `Luettu painosta: trendi on ${Math.abs(a.positionGapKg).toFixed(1)} kg tavoitelinjan yläpuolella.`
-              : 'Luettu kirjatuista kaloreista.'}
-          </p>
-          <p className="m-0 text-[13px] leading-relaxed text-text">
+        {/* Tasoitus on osa tuomiota eikä oma korttinsa: tuomio sanoo mitä
+            tehdä, ja tämä on se teko. Erillisenä korttina se toisti sijainnin
+            ("trendi on X kg linjan yläpuolella") jonka tuomion rivi jo kertoi.
+            Ei `hasDeficitData`-ehtoa: ero voidaan lukea painostakin. */}
+        {a.recovery && (
+          <div className={`mt-4 rounded-2xl bg-[rgba(5,6,12,0.45)] p-4 ${a.recovery.achievable ? '' : 'border border-danger/25'}`}>
+          <p className="m-0 text-[14px] leading-relaxed text-text">
             {a.recovery.kind === 'tighten' ? 'Tiukenna' : 'Löysää'}{' '}
             <strong className="text-accent">{a.recovery.extraPerDay} kcal/pv</strong>{' '}
             {a.recovery.weekdaysOnly ? 'jokaiselta jäljellä olevalta' : 'seuraavat'}{' '}
@@ -202,11 +192,12 @@ export function AnalysisView({
           >
             Jalkauta suositus
           </Button>
-          <p className="m-0 mt-1.5 text-center text-[10px] text-fg-ghost">
-            voit säätää osuutta ja jakson pituutta ennen tallennusta
+          <p className="m-0 mt-1.5 text-center text-[12px] text-fg-ghost">
+            Voit säätää osuutta ja jakson pituutta ennen tallennusta.
           </p>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
 
       {activeBlock && (
         <BlockFitCard
@@ -248,109 +239,110 @@ export function AnalysisView({
       </Card>
 
       {a.hasWeightData ? (
-        <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-          <Stat label="Tavoitepaino tänään" value={`${a.expectedWeightToday.toFixed(1)} kg`} sub="lineaarinen tavoitelinja" />
-          <Stat label="Nykyinen trendi" value={`${(a.currentTrend ?? 0).toFixed(1)} kg`} sub={a.weeklyChange !== null ? `${signed(a.weeklyChange, 2)} kg/vko` : undefined} />
+        // Kolme lukua, ei viittä. Sijainti ja vauhti ovat jo tuomion riveillä,
+        // ja "tavoitepaino tänään" + "ero" ovat sama tieto kahdesti (ero on
+        // trendi miinus linja) — kaaviosta näkee molemmat. Tähän jää se mitä
+        // tuomio ei sano: luvut joihin sijainti ja vauhti perustuvat, ja minne
+        // ne johtavat.
+        <div className="mt-2.5 grid grid-cols-3 gap-2">
+          <Stat label="Trendi" value={`${(a.currentTrend ?? 0).toFixed(1)}`} sub={a.weeklyChange !== null ? `${signed(a.weeklyChange, 2)} kg/vko` : 'kg'} />
           <Stat
-            label="Ero tavoitelinjasta"
-            value={`${signed(a.positionGapKg)} kg`}
-            sub={a.positionGapKg > 0 ? 'yli linjan' : 'alle linjan'}
+            label="Linjasta"
+            value={`${signed(a.positionGapKg)}`}
+            sub={a.positionGapKg > 0 ? 'kg yli' : 'kg alle'}
             accent={a.positionGapKg <= 0.3}
           />
           <Stat
-            label="Jäljellä"
-            value={`${a.remainingKg.toFixed(1)} kg`}
-            sub={`${a.daysLeft} pv jäljellä`}
+            label="Tavoitepäivä"
+            value={a.projectedDate ? formatDateShort(a.projectedDate) : '—'}
+            sub={
+              a.projectedDate
+                ? `${a.remainingKg.toFixed(1)} kg · ${a.projectedDate <= goal.endDate ? 'ehtii' : 'ei ehdi'}`
+                : 'vaatii laskevan trendin'
+            }
+            accent={!!a.projectedDate && a.projectedDate <= goal.endDate}
           />
-          <div className="col-span-2">
-            <Stat
-              label="Arvioitu tavoitepäivä"
-              value={a.projectedDate ? formatDateShort(a.projectedDate) : '—'}
-              sub={
-                a.projectedDate
-                  ? a.projectedDate <= goal.endDate
-                    ? `✓ ennen jakson loppua ${formatDateShort(goal.endDate)}`
-                    : `× jakson loppu ${formatDateShort(goal.endDate)} ohittuu nykyvauhdilla`
-                  : 'vaatii selvän laskevan trendin'
-              }
-              accent={!!a.projectedDate && a.projectedDate <= goal.endDate}
-            />
-          </div>
         </div>
       ) : (
         <Card variant="glass" className="mt-2.5 px-4 py-5 text-center">
-          <p className="m-0 text-[13px] text-fg-muted">Ei tarpeeksi painodataa</p>
+          <p className="m-0 text-[14px] text-fg-muted">Ei tarpeeksi painodataa</p>
           <p className="m-0 mt-1 text-[12px] text-fg-ghost">
             Kirjaa paino vähintään 4 päivänä. ({trend.trendData.length}/4)
           </p>
         </Card>
       )}
 
-      {/* Toissijaiset osiot yhden avattavan otsikon taakse. Palaute #3: ruutu oli
-          liian sekava, koska verdikti, painokäyrä ja kolme erillistä raporttia
-          (viikkorytmi, kalorivaje, kulutusarvio) olivat kaikki auki yhtä aikaa.
-          Verdikti, tasoitus ja painokäyrä pysyvät näkyvissä; loput ovat yhden
-          napautuksen päässä. Laskenta ja yksi tuomio ovat ennallaan. */}
-      <details className="group mt-6 border-t border-white/[0.06] pt-4">
-        <summary className="cursor-pointer select-none font-display text-[15px] font-bold tracking-[-0.02em] text-text [list-style:none]">
-          ▸ Lisätiedot: viikkorytmi, kalorivaje, kulutusarvio
-        </summary>
-        <div>
+      {/* ── Mistä ero tulee ──────────────────────────────────────
+          Kalorivaje ja kulutusarvio olivat kaksi raporttia, jotka vastasivat
+          samaan kysymykseen kahdesta suunnasta: syönkö suunnitelman mukaan, ja
+          kuluttaako keho niin kuin suunnitelma olettaa. Erillään niiden luvut
+          näyttivät riitelevän. Yhdessä kortissa ne ovat kaksi riviä samaan
+          kysymykseen, ja kaavio vaihtuu riviä napauttamalla. Aiemmin kaikki
+          tämä oli "Lisätiedot"-taitoksen takana; karsittuna se mahtuu auki. */}
+      <SectionTitle>Mistä ero tulee</SectionTitle>
+      <Card variant="glass" className="p-4">
+        <div className="flex flex-col gap-0.5 overflow-hidden rounded-2xl">
+          {([
+            {
+              id: 'eat' as const,
+              label: 'Syöminen',
+              sub: 'kirjattu vaje vs. suunnitelma',
+              val: a.hasDeficitData ? `${a.gapPerDay > 0 ? '−' : '+'}${Math.abs(Math.round(a.gapPerDay))} kcal/pv` : '—',
+            },
+            {
+              id: 'burn' as const,
+              label: 'Kulutus',
+              sub: 'toteutunut vs. oletus',
+              val: tdee?.ready ? `${signedInt(Math.round(tdee.realTdeeEstimate - tdee.avgAssumedTdee))} kcal/pv` : '—',
+            },
+          ]).map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              aria-pressed={lens === r.id}
+              onClick={() => setLens(r.id)}
+              className={`flex min-h-16 items-center gap-3 px-4 py-2.5 text-left ${
+                lens === r.id ? 'bg-violet/[0.22] text-white' : 'bg-[var(--surface-2)] text-text'
+              }`}
+            >
+              <span className="flex flex-1 flex-col">
+                <span className="text-[16px]">{r.label}</span>
+                <span className="text-[12px] text-fg-muted">{r.sub}</span>
+              </span>
+              <span className="text-[18px] font-medium tabular-nums">{r.val}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          {lens === 'eat' ? (
+            a.hasDeficitData ? (
+              <>
+                <DeficitChart
+                  startDate={goal.startDate}
+                  endDate={goal.endDate}
+                  totalDeficitTarget={computed.totalDeficitTarget}
+                  cumulativePoints={a.cumulativePoints}
+                />
+                <p className="m-0 mt-2 text-[14px] leading-5 text-fg-muted">
+                  Kertynyt {Math.round(a.actualCum).toLocaleString('fi-FI')} kcal, suunnitelma tähän mennessä{' '}
+                  {Math.round(a.expectedCum).toLocaleString('fi-FI')} kcal.
+                </p>
+              </>
+            ) : (
+              <p className="m-0 text-[14px] text-fg-muted">
+                Ei vielä kirjattuja päiviä. Kirjaa aterioita, niin kumulatiivinen vaje alkaa kertyä tähän.
+              </p>
+            )
+          ) : (
+            <TdeeCard tdee={tdee} />
+          )}
+        </div>
+      </Card>
+
       {/* ── Weekly rhythm / water weight ───────────────────────── */}
       <SectionTitle>Viikkorytmi ja turvotus</SectionTitle>
       <BloatCard bloat={bloat} headlineRate={a.weeklyChange} />
-
-      {/* ── Cumulative deficit ─────────────────────────────────── */}
-      <SectionTitle>Kalorivaje</SectionTitle>
-
-      <Card variant="glass" className="p-4">
-        <DeficitChart
-          startDate={goal.startDate}
-          endDate={goal.endDate}
-          totalDeficitTarget={computed.totalDeficitTarget}
-          cumulativePoints={a.cumulativePoints}
-        />
-      </Card>
-
-      {a.hasDeficitData ? (
-        <>
-          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-            <Stat
-              label="Vaadittu tähän asti"
-              value={`${Math.round(a.expectedCum).toLocaleString('fi-FI')} kcal`}
-              sub={`${Math.round(a.plannedPerDayDone)} kcal/pv näinä päivinä`}
-            />
-            <Stat
-              label="Toteutunut"
-              value={`${Math.round(a.actualCum).toLocaleString('fi-FI')} kcal`}
-              sub={`${Math.round(a.avgPerDayActual)} kcal/pv keskim.`}
-            />
-            <Stat
-              label="Ero"
-              value={`${signedInt(a.gapKcal)} kcal`}
-              sub={`${signedInt(a.gapPerDay)} kcal/pv · ${a.gapKcal > 0 ? 'jäljessä' : 'edellä'}`}
-              accent={Math.abs(a.gapPerDay) <= 100}
-            />
-            <Stat
-              label="Jäljellä tavoitteeseen"
-              value={`${Math.max(0, Math.round(a.remainingTotal)).toLocaleString('fi-FI')} kcal`}
-              sub={`tavoite ${Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal`}
-            />
-          </div>
-
-        </>
-      ) : (
-        <Card variant="glass" className="mt-2.5 px-4 py-5 text-center">
-          <p className="m-0 text-[13px] text-fg-muted">Ei vielä kirjattuja päiviä</p>
-          <p className="m-0 mt-1 text-[12px] text-fg-ghost">
-            Kirjaa aterioita, niin kumulatiivinen vaje alkaa kertyä tähän.
-          </p>
-        </Card>
-      )}
-
-      {/* ── TDEE check ─────────────────────────────────────────── */}
-      <SectionTitle>Kulutusarvion tarkistus</SectionTitle>
-      <TdeeCard tdee={tdee} />
 
       <Explain summary="Miten kaikki lasketaan">
         <p className="m-0 mb-1.5">
@@ -374,9 +366,6 @@ export function AnalysisView({
           ±0,2 kg/vko tavoitteesta · vaje ±100 kcal/pv.
         </p>
       </Explain>
-
-        </div>
-      </details>
 
       {showRollout && a.recovery && (
         <RolloutModal
@@ -417,10 +406,10 @@ function SectionTitle({ children }: { children: ReactNode }) {
 function Explain({ summary, children }: { summary: string; children: ReactNode }) {
   return (
     <details className="mt-2">
-      <summary className="flex cursor-pointer select-none items-center gap-1 text-[11px] text-fg-ghost [list-style:none]">
+      <summary className="flex cursor-pointer select-none items-center gap-1 text-[12px] text-fg-ghost [list-style:none]">
         ▸ {summary}
       </summary>
-      <div className="mt-2 px-0.5 text-[11px] leading-[1.7] text-fg-faint">{children}</div>
+      <div className="mt-2 px-0.5 text-[12px] leading-[1.7] text-fg-faint">{children}</div>
     </details>
   )
 }
@@ -437,12 +426,12 @@ function Stat({
   accent?: boolean
 }) {
   return (
-    <div className="rounded-panel border border-white/10 bg-[rgba(9,11,20,0.45)] px-3.5 py-3">
-      <div className="text-[9px] font-medium uppercase tracking-[0.1em] text-fg-ghost">{label}</div>
+    <div className="rounded-panel border border-white/10 bg-[var(--surface-1)] px-3.5 py-3">
+      <div className="text-[12px] font-medium   text-fg-ghost">{label}</div>
       <div className={`mt-1 font-display text-[19px] font-bold tabular-nums tracking-[-0.02em] ${accent ? 'text-accent' : 'text-text'}`}>
         {value}
       </div>
-      {sub && <div className="mt-0.5 text-[10px] leading-tight text-fg-faint">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[12px] leading-tight text-fg-faint">{sub}</div>}
     </div>
   )
 }
@@ -491,8 +480,8 @@ function BloatCard({
                   />
                 )}
               </div>
-              <div className="font-mono text-[9px] uppercase text-fg-ghost">{d.label}</div>
-              <div className="font-mono text-[9px] tabular-nums text-fg-faint">
+              <div className="font-mono text-[12px]  text-fg-ghost">{d.label}</div>
+              <div className="font-mono text-[12px] tabular-nums text-fg-faint">
                 {signed(d.meanDeviation)}
               </div>
             </div>
@@ -512,7 +501,7 @@ function BloatCard({
       </p>
 
       {bloat.weekdayOnlyWeeklyChange !== null && headlineRate !== null && (
-        <p className="m-0 mt-2 text-[11px] leading-relaxed text-fg-faint">
+        <p className="m-0 mt-2 text-[12px] leading-relaxed text-fg-faint">
           Ristiintarkistus: pelkistä arkipäivistä laskettuna vauhti on{' '}
           <span className="tabular-nums text-fg-muted">
             {signed(bloat.weekdayOnlyWeeklyChange, 2)} kg/vko
@@ -592,7 +581,7 @@ function TdeeCard({ tdee }: { tdee: TdeeEvalResult | null }) {
       <div className="flex flex-col gap-2">
         {steps.map((s) => (
           <div key={s.k} className="flex gap-2.5">
-            <span className="w-[86px] flex-shrink-0 font-mono text-[9px] uppercase leading-[1.5] tracking-[0.06em] text-fg-ghost">
+            <span className="w-[86px] flex-shrink-0 font-mono text-[12px]  leading-[1.5]  text-fg-ghost">
               {s.k}
             </span>
             <span className="text-[12px] leading-[1.5] text-fg-muted">{s.v}</span>
@@ -602,13 +591,13 @@ function TdeeCard({ tdee }: { tdee: TdeeEvalResult | null }) {
 
       <div className="mt-3 border-t border-white/[0.08] pt-3">
         {tdee.significantError ? (
-          <p className="m-0 text-[13px] leading-relaxed text-accent">
+          <p className="m-0 text-[14px] leading-relaxed text-accent">
             Oletus on <strong>{off} kcal/pv {tdee.direction === 'lower' ? 'liian korkea' : 'liian matala'}</strong>.
             {' '}{tdee.direction === 'lower' ? 'Laske' : 'Nosta'} Asetusten TDEE-lukuja noin {off} kcal
             kaikissa päivätyypeissä, niin päiväbudjetit osuvat kohdalleen.
           </p>
         ) : (
-          <p className="m-0 text-[13px] leading-relaxed text-accent">
+          <p className="m-0 text-[14px] leading-relaxed text-accent">
             ✓ Oletus ja toteuma ovat {off} kcal/pv päässä toisistaan — alle 100 kcal, eli
             TDEE-asetuksia ei kannata koskea.
           </p>
@@ -641,7 +630,7 @@ function BlockFitCard({
       className="mt-2.5 rounded-panel border px-3.5 py-3"
       style={{
         borderColor: over ? 'rgba(232,184,90,0.25)' : 'rgba(255,255,255,0.10)',
-        backgroundColor: over ? 'rgba(232,184,90,0.05)' : 'rgba(9,11,20,0.45)',
+        backgroundColor: over ? 'rgba(232,184,90,0.05)' : 'var(--surface-1)',
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -652,11 +641,11 @@ function BlockFitCard({
         <div className="min-w-0">
           <div className="text-[12px] font-semibold text-text">
             {block.name || spec.label}
-            <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">
+            <span className="ml-2 font-mono text-[12px]   text-fg-ghost">
               {spec.label}
             </span>
           </div>
-          <div className="mt-1 text-[11px] leading-relaxed text-fg-muted">
+          <div className="mt-1 text-[12px] leading-relaxed text-fg-muted">
             {allowedKg === null ? (
               <>Kilpailupiikki — ravinto ylläpidolle. Jakso suunnittelee {signed(-plannedKg, 2)} kg/vko.</>
             ) : (

@@ -186,7 +186,7 @@ export function AdminView() {
   if (!isAdmin) {
     return (
       <div className="flex min-h-dvh flex-col gap-4 px-5 pt-7">
-        <p className="text-[13px] text-fg-muted">Tämä näkymä on vain ylläpitäjälle.</p>
+        <p className="text-[14px] text-fg-muted">Tämä näkymä on vain ylläpitäjälle.</p>
       </div>
     )
   }
@@ -194,26 +194,26 @@ export function AdminView() {
   return (
     <div className="flex min-h-dvh flex-col gap-4 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-7">
       <div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">Ylläpito</div>
+        <div className="font-mono text-[12px]   text-fg-dim">Ylläpito</div>
         <h2 className="mt-1.5 font-display text-[22px] font-semibold tracking-[-0.015em] text-text">
           Käyttäjäoikeudet
         </h2>
-        <p className="mt-1 text-[13px] text-fg-muted">
+        <p className="mt-1 text-[14px] text-fg-muted">
           Valitse mihin työkaluihin kukin pääsee. Muutos tallentuu heti. Tilit luodaan
           Supabasen dashboardista — käyttäjä ilmestyy tähän listaan ensimmäisen kirjautumisen jälkeen.
         </p>
       </div>
 
       {error && (
-        <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
+        <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[14px] text-danger">
           <AlertCircle size={14} className="shrink-0" />
           {error}
         </p>
       )}
 
       {/* ── Kutsulinkit ─────────────────────────────────────────────── */}
-      <div className="rounded-panel border border-violet/25 bg-violet/[0.05] p-4 [backdrop-filter:blur(14px)]">
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-violet">
+      <div className="rounded-panel border border-violet/25 bg-violet/[0.05] p-4">
+        <div className="flex items-center gap-2 font-mono text-[12px]   text-violet">
           <Link2 size={13} />
           Kutsu uusi käyttäjä
         </div>
@@ -236,7 +236,7 @@ export function AdminView() {
             type="button"
             disabled={creatingInvite}
             onClick={() => void newInvite()}
-            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-violet disabled:opacity-50"
+            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-4 py-2.5 font-mono text-[12px]   text-violet disabled:opacity-50"
           >
             {creatingInvite ? 'Luodaan…' : 'Luo linkki'}
           </button>
@@ -250,10 +250,10 @@ export function AdminView() {
                 className="flex items-center justify-between gap-2 rounded-input border border-white/[0.08] bg-black/25 px-3 py-2"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] text-text">
+                  <span className="block truncate text-[14px] text-text">
                     {inv.label || 'Nimetön kutsu'}
                   </span>
-                  <span className="block font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost">
+                  <span className="block font-mono text-[12px]   text-fg-ghost">
                     vanhenee {new Date(inv.expiresAt).toLocaleDateString('fi-FI')}
                   </span>
                 </span>
@@ -261,7 +261,7 @@ export function AdminView() {
                   type="button"
                   onClick={() => void copy(inv.token)}
                   aria-label="Kopioi kutsulinkki"
-                  className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-input border border-white/10 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+                  className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-input border border-white/10 px-2.5 py-1.5 font-mono text-[12px]   text-fg-muted"
                 >
                   {copied === inv.token ? <Check size={12} /> : <Copy size={12} />}
                   {copied === inv.token ? 'Kopioitu' : 'Kopioi'}
@@ -281,9 +281,9 @@ export function AdminView() {
       </div>
 
       {loading ? (
-        <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>
+        <p className="py-6 text-center font-mono text-[12px]   text-fg-ghost">Ladataan…</p>
       ) : users.length === 0 ? (
-        <p className="py-6 text-center text-[13px] text-fg-ghost">Ei vielä käyttäjiä.</p>
+        <p className="py-6 text-center text-[14px] text-fg-ghost">Ei vielä käyttäjiä.</p>
       ) : (
         <div className="list-stagger flex flex-col gap-3">
           {users.map((u) => {
@@ -293,7 +293,7 @@ export function AdminView() {
             return (
               <div
                 key={u.userId}
-                className="rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-4 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]"
+                className="rounded-panel border border-white/10 bg-[var(--surface-1)] p-4"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
@@ -301,13 +301,13 @@ export function AdminView() {
                       {u.displayName || u.userId.slice(0, 8)}
                     </span>
                     {u.isAdmin && (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full border border-border-hi bg-accent/[0.12] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-accent">
+                      <span className="flex shrink-0 items-center gap-1 rounded-full border border-border-hi bg-accent/[0.12] px-2 py-0.5 font-mono text-[12px]   text-accent">
                         <ShieldCheck size={10} />
                         Admin
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost">
+                  <span className="shrink-0 font-mono text-[12px]   text-fg-ghost">
                     {isSaving
                       ? 'Tallennetaan…'
                       : savedFlash === u.userId
@@ -338,7 +338,7 @@ export function AdminView() {
                         effectiveTools(u.isAdmin, customised.has(u.userId) ? list : null)
                       )
                     }
-                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-input border border-violet/40 bg-violet/[0.10] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-violet"
+                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-input border border-violet/40 bg-violet/[0.10] px-3 py-2 font-mono text-[12px]   text-violet"
                   >
                     <Eye size={13} />
                     Katso tätä näkymää
@@ -371,7 +371,7 @@ export function AdminView() {
                                 onToggle={() => void toggle(u, sub)}
                               />
                             ))}
-                            <p className="text-[11px] leading-snug text-fg-ghost">
+                            <p className="text-[12px] leading-snug text-fg-ghost">
                               Kuvauslisä kytkee myös ylemmän kohdan päälle — kuvasta tunnistettu
                               annos kirjataan ruokapäiväkirjaan.
                             </p>
@@ -432,7 +432,7 @@ function RecoveryLink({ userId, name }: { userId: string; name: string }) {
   }
 
   const btn =
-    'flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-input border border-white/10 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted disabled:opacity-50'
+    'flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-input border border-white/10 px-3 py-2 font-mono text-[12px]   text-fg-muted disabled:opacity-50'
 
   if (!link) {
     return (
@@ -483,7 +483,7 @@ function ToolToggle({ tool, active, disabled, small = false, onToggle }: ToggleP
       onClick={onToggle}
       aria-pressed={active}
       className={`flex cursor-pointer items-center justify-between rounded-input border px-3 text-left transition-colors disabled:opacity-60 ${
-        small ? 'py-2 text-[13px]' : 'py-2.5 text-[14px]'
+        small ? 'py-2 text-[14px]' : 'py-2.5 text-[14px]'
       } ${
         active
           ? 'border-border-hi bg-accent/[0.10] text-text'

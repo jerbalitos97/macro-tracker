@@ -58,7 +58,7 @@ export function LogCalendarView({
       <Card variant="glass">
         <div className="grid grid-cols-7 gap-1 text-center">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="pb-1 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-ghost">{w}</div>
+            <div key={w} className="pb-1 font-mono text-[12px]   text-fg-ghost">{w}</div>
           ))}
           {cells.map((date, i) => {
             if (!date) return <div key={`pad-${i}`} />
@@ -77,7 +77,7 @@ export function LogCalendarView({
               >
                 <span>{Number(date.slice(8))}</span>
                 {kcal ? (
-                  <span className="font-mono text-[8px] tabular-nums text-accent">{Math.round(kcal)}</span>
+                  <span className="font-mono text-[12px] tabular-nums text-accent">{Math.round(kcal)}</span>
                 ) : null}
               </button>
             )
@@ -86,14 +86,16 @@ export function LogCalendarView({
       </Card>
 
       <div className="mt-[18px]">
-        <div className="mb-2 flex items-baseline justify-between text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
+        <div className="mb-2 flex items-baseline justify-between text-[12px] font-medium   text-muted">
           <span>{new Date(`${selected}T12:00:00`).toLocaleDateString('fi-FI', { weekday: 'long', day: 'numeric', month: 'numeric' })}</span>
           <span className="tabular-nums">{Math.round(dayTotal).toLocaleString('fi-FI')} kcal</span>
         </div>
         {dayMeals.length === 0 ? (
-          <div className="py-2.5 text-xs text-fg-ghost">Ei kirjauksia.</div>
+          <div className="py-2.5 text-[14px] text-fg-muted">Ei kirjauksia.</div>
         ) : (
-          dayMeals.map((m) => <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />)
+          <div className="flex flex-col gap-0.5 overflow-hidden rounded-[20px]">
+            {dayMeals.map((m) => <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />)}
+          </div>
         )}
       </div>
     </div>

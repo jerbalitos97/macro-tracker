@@ -15,7 +15,7 @@ const fmtKcal = (v: number) => {
 
 export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativePoints }: Props) {
   const W = 380
-  const H = 160
+  const H = 180
   const pad = { top: 12, right: 12, bottom: 22, left: 50 }
   const innerW = W - pad.left - pad.right
   const innerH = H - pad.top - pad.bottom
@@ -62,7 +62,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
   const yLabels = [maxCum, (maxCum + minCum) / 2, minCum]
 
   // Axis / label font — var() so it picks up the theme token
-  const monoFont = "ui-monospace, 'SF Mono', monospace"
+  const monoFont = "var(--font-sans)"
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
@@ -72,7 +72,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
           x={pad.left - 5}
           y={yPos(v) + 3}
           fill="var(--color-muted)"
-          fontSize="8.5"
+          fontSize="13"
           textAnchor="end"
           fontFamily={monoFont}
         >
@@ -87,7 +87,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
           y1={yPos(v)}
           x2={W - pad.right}
           y2={yPos(v)}
-          stroke="#1c1c1c"
+          stroke="rgba(255,255,255,0.08)"
           strokeWidth="1"
         />
       ))}
@@ -148,14 +148,14 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
       )}
 
       {/* X-axis labels */}
-      <text x={pad.left} y={H - 4} fill="var(--color-muted)" fontSize="8.5" fontFamily={monoFont}>
+      <text x={pad.left} y={H - 4} fill="var(--color-muted)" fontSize="13" fontFamily={monoFont}>
         {startDate.slice(5)}
       </text>
       <text
         x={W - pad.right}
         y={H - 4}
         fill="var(--color-muted)"
-        fontSize="8.5"
+        fontSize="13"
         textAnchor="end"
         fontFamily={monoFont}
       >
@@ -166,7 +166,7 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
           x={todayX}
           y={H - 4}
           fill="rgba(255,255,255,0.25)"
-          fontSize="8"
+          fontSize="13"
           textAnchor="middle"
           fontFamily={monoFont}
         >
@@ -176,27 +176,27 @@ export function DeficitChart({ startDate, endDate, totalDeficitTarget, cumulativ
 
       {/* Legend */}
       <line
-        x1={W - 95}
-        y1={pad.top + 4}
-        x2={W - 83}
-        y2={pad.top + 4}
+        x1={W - 112}
+        y1={pad.top + 6}
+        x2={W - 98}
+        y2={pad.top + 6}
         stroke="var(--color-accent)"
         strokeWidth="1.5"
         strokeDasharray="4,2"
         opacity="0.55"
       />
-      <text x={W - 80} y={pad.top + 7} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>
+      <text x={W - 94} y={pad.top + 10} fill="#b4b7c3" fontSize="12" fontFamily={monoFont}>
         tavoitelinja
       </text>
       <line
-        x1={W - 95}
-        y1={pad.top + 14}
-        x2={W - 83}
-        y2={pad.top + 14}
+        x1={W - 112}
+        y1={pad.top + 23}
+        x2={W - 98}
+        y2={pad.top + 23}
         stroke="var(--color-accent)"
         strokeWidth="2"
       />
-      <text x={W - 80} y={pad.top + 17} fill="#a8abb8" fontSize="8" fontFamily={monoFont}>
+      <text x={W - 94} y={pad.top + 27} fill="#b4b7c3" fontSize="12" fontFamily={monoFont}>
         toteutunut
       </text>
     </svg>

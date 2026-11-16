@@ -21,7 +21,7 @@ const DAY_TYPE_LABEL: Record<string, string> = {
   volleyball: 'Volleyball',
 }
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[12px] font-medium   text-muted'
 
 const iconBtn = 'icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost'
 
@@ -113,7 +113,7 @@ export function CalendarView({
   const addBtn = (label: string, onClick: () => void, mt: string) => (
     <button
       onClick={onClick}
-      className={`flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-fg-faint ${mt}`}
+      className={`flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-white/[0.12] bg-transparent px-4 py-[13px] text-[14px] text-fg-faint ${mt}`}
     >
       <Plus size={14} />
       {label}
@@ -142,7 +142,7 @@ export function CalendarView({
               <div className="font-display text-[15px] font-semibold tracking-[-0.01em] text-text">
                 {formatDateShort(selectedDay.date)}
               </div>
-              <div className="text-[11px] uppercase tracking-[0.1em] text-muted">
+              <div className="text-[12px]   text-muted">
                 {DAY_TYPE_LABEL[selectedDay.dayType]}
               </div>
             </div>
@@ -168,7 +168,7 @@ export function CalendarView({
               {selectedDay.events.map((e) => (
                 <div
                   key={e.id}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[12px] text-accent"
                 >
                   🎉 {e.name}
                   <button
@@ -188,9 +188,13 @@ export function CalendarView({
       {selectedDay && (
         <Card variant="glass" className="mt-2.5">
           <div className={cardLabel}>Ateriat ({dayMeals.length})</div>
-          {dayMeals.map((m) => (
-            <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />
-          ))}
+          {dayMeals.length > 0 && (
+            <div className="flex flex-col gap-0.5 overflow-hidden rounded-[20px]">
+              {dayMeals.map((m) => (
+                <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />
+              ))}
+            </div>
+          )}
           {!showMealForm ? (
             addBtn('Lisää ateria', () => setShowMealForm(true), dayMeals.length > 0 ? 'mt-3' : 'mt-2')
           ) : (
@@ -238,10 +242,10 @@ export function CalendarView({
                 <div className="min-w-0">
                   <div className="text-sm font-semibold tabular-nums text-text">
                     +{b.kcal.toLocaleString('fi-FI')}
-                    <span className="ml-1 text-[11px] text-fg-faint">kcal</span>
+                    <span className="ml-1 text-[12px] text-fg-faint">kcal</span>
                   </div>
                   {b.note && (
-                    <div className="mt-px truncate text-[11px] text-fg-faint">{b.note}</div>
+                    <div className="mt-px truncate text-[12px] text-fg-faint">{b.note}</div>
                   )}
                 </div>
               </div>
@@ -406,7 +410,7 @@ function SettleRow({
         <div className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[rgba(100,200,120,0.28)] bg-[rgba(100,200,120,0.08)] px-4 py-[11px] text-[12px] text-[#7fd694]">
           <Check size={14} />
           {over ? 'Ylimeno jalkautettu' : 'Ylijäämä jalkautettu'}
-          <span className="text-[10px] text-[#7fd694]/70">
+          <span className="text-[12px] text-[#7fd694]/70">
             ({settled > 0 ? '+' : ''}{settled.toLocaleString('fi-FI')} kcal)
           </span>
         </div>

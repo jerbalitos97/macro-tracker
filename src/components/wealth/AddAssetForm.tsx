@@ -3,14 +3,21 @@ import { createAsset } from '../../lib/wealth/assets'
 import { todayIso } from '../../lib/wealth/format'
 import { Card, Field, Button } from '../ui'
 
-const fieldLabel = 'mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
-const inputCls =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-base text-text [color-scheme:dark]'
+const hint = 'mb-2 block text-[12px] leading-4 text-fg-muted'
 const errorBanner =
-  'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
+  'mt-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[14px] text-danger'
 
-export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
-  const [open, setOpen] = useState(false)
+// Open state lives in WealthView: its "+ Add asset" button sits in the
+// section header, the form appears beneath it.
+export default function AddAssetForm({
+  open,
+  onClose,
+  onAdded,
+}: {
+  open: boolean
+  onClose: () => void
+  onAdded: () => void
+}) {
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
   const [date, setDate] = useState(todayIso())
@@ -61,7 +68,7 @@ export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
       setMonthly('')
       setStart('')
       setEnd('')
-      setOpen(false)
+      onClose()
       onAdded()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create asset')
@@ -70,33 +77,24 @@ export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full rounded-glass border border-dashed border-white/[0.12] bg-[rgba(9,11,20,0.40)] px-4 py-3.5 text-[13px] text-muted"
-      >
-        + Add asset
-      </button>
-    )
-  }
+  if (!open) return null
 
   const showContribFields = Number(monthly) > 0
 
   return (
-    <Card variant="glass">
+    <Card className="!p-4">
       <form onSubmit={onSubmit}>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Field
-            label="Name"
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Index fund, Apartment, Loan principal paid"
-            className="col-span-2"
-          />
+        <div className="grid grid-cols-2 gap-x-2.5">
+          <div className="col-span-2">
+            <Field
+              label="Name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Index fund, Apartment, Loan principal paid"
+            />
+          </div>
           <Field
             label="Initial value"
             type="number"
@@ -113,36 +111,34 @@ export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
-          <label className="col-span-2 block">
-            <span className={fieldLabel}>Expected annual return (%)</span>
-            <input
+          <div className="col-span-2">
+            <Field
+              label="Expected annual return (%)"
               type="number"
               inputMode="decimal"
               step="any"
               required
               value={rate}
               onChange={(e) => setRate(e.target.value)}
-              className={inputCls}
             />
-            <span className="mt-1 block text-[10px] text-muted">
+            <span className={hint}>
               Projection applies this monthly: value × (1 + rate/12) + monthly contribution.
             </span>
-          </label>
-          <label className="col-span-2 block">
-            <span className={fieldLabel}>Monthly contribution (€/mo) — leave blank for none</span>
-            <input
+          </div>
+          <div className="col-span-2">
+            <Field
+              label="Monthly contribution (€/mo) — leave blank for none"
               type="number"
               inputMode="decimal"
               step="any"
               placeholder="0"
               value={monthly}
               onChange={(e) => setMonthly(e.target.value)}
-              className={inputCls}
             />
-            <span className="mt-1 block text-[10px] text-muted">
+            <span className={hint}>
               E.g. loan amortisation going into housing equity, or €/mo into ETF.
             </span>
-          </label>
+          </div>
           {showContribFields && (
             <>
               <Field
@@ -169,7 +165,7 @@ export default function AddAssetForm({ onAdded }: { onAdded: () => void }) {
             type="button"
             variant="ghost"
             onClick={() => {
-              setOpen(false)
+              onClose()
               setError(null)
             }}
           >

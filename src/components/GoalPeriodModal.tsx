@@ -110,7 +110,7 @@ export function GoalPeriodModal({
         </>
       }
     >
-      <span className="mt-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted">Tyyppi</span>
+      <span className="mt-1 block text-[12px] font-medium   text-muted">Tyyppi</span>
       <div className="mb-1 mt-1 grid grid-cols-4 gap-1">
         {(['cut', 'maintenance', 'refill', 'bulk'] as PeriodType[]).map((t) => (
           <Chip
@@ -123,7 +123,7 @@ export function GoalPeriodModal({
           </Chip>
         ))}
       </div>
-      <p className="m-0 mb-3 text-[11px] leading-normal text-fg-muted">{TYPE_HINT[form.type]}</p>
+      <p className="m-0 mb-3 text-[12px] leading-normal text-fg-muted">{TYPE_HINT[form.type]}</p>
 
       <div className="grid grid-cols-2 gap-2.5">
         <Field
@@ -192,7 +192,7 @@ export function GoalPeriodModal({
             className={`flex w-full items-center gap-3 rounded-input border px-3.5 py-3 text-left transition-colors ${
               form.weekendMaintenance
                 ? 'border-cyan/35 bg-cyan/[0.10]'
-                : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
+                : 'border-white/10 bg-[var(--surface-2)]'
             }`}
           >
             <span
@@ -204,10 +204,10 @@ export function GoalPeriodModal({
               {form.weekendMaintenance && <Check size={13} strokeWidth={3} />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-text">
+              <span className="block text-[14px] font-semibold text-text">
                 Viikonloput ylläpidolla
               </span>
-              <span className="mt-0.5 block text-[11px] leading-normal text-fg-muted">
+              <span className="mt-0.5 block text-[12px] leading-normal text-fg-muted">
                 {/* Until the dates and weights make a real plan there is no
                     number to preview — "−0 kcal/pv" would just read as broken. */}
                 {!hasPlan

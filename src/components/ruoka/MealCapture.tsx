@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Camera, Check, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
+import { AlertCircle, Camera, Check, RotateCcw, X } from 'lucide-react'
 import { analyseMealPhoto, previewUrl, type MealAnalysis } from '../../lib/mealPhoto'
 
 interface Props {
@@ -31,7 +31,6 @@ export function MealCapture({ onAccept }: Props) {
   const [kcal, setKcal] = useState('')
   const [protein, setProtein] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const galleryRef = useRef<HTMLInputElement>(null)
 
   // Esikatselu-URL on objektiviittaus, ei tavallinen linkki: jos sitä ei
   // vapauteta, jokainen otettu kuva jää muistiin koko istunnon ajaksi.
@@ -50,7 +49,6 @@ export function MealCapture({ onAccept }: Props) {
     setKcal('')
     setProtein('')
     if (inputRef.current) inputRef.current.value = ''
-    if (galleryRef.current) galleryRef.current.value = ''
   }
 
   const run = async (f: File, corr?: string) => {
@@ -89,21 +87,13 @@ export function MealCapture({ onAccept }: Props) {
   }
 
   return (
-    <div className="mt-3 rounded-panel border border-sky/25 bg-sky/[0.05] p-4 [backdrop-filter:blur(14px)]">
+    <div>
+      {/* Yksi input ilman capture-attribuuttia. Ilman capturea iOS ja Android
+          tarjoavat itse valinnan kameran ja kirjaston välillä, joten yksi nappi
+          riittää kumpaankin — capture pakottaisi kameran ja vaatisi toisen
+          napin jo otetuille kuville. */}
       <input
         ref={inputRef}
-        type="file"
-        accept="image/*"
-        // capture avaa kameran suoraan puhelimessa; työpöydällä selain
-        // jättää sen huomiotta ja näyttää tiedostovalitsimen.
-        capture="environment"
-        className="hidden"
-        onChange={(e) => pick(e.target.files?.[0])}
-      />
-      {/* Toinen input ilman capturea: capture pakottaa iPhonessa kameran,
-          joten jo otettu kuva (esim. ravintolassa) vaatii oman valitsimen. */}
-      <input
-        ref={galleryRef}
         type="file"
         accept="image/*"
         className="hidden"
@@ -111,24 +101,14 @@ export function MealCapture({ onAccept }: Props) {
       />
 
       {phase === 'idle' && (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-input border border-sky/40 bg-sky/[0.10] py-3.5 font-mono text-[12px] uppercase tracking-[0.06em] text-sky"
-          >
-            <Camera size={15} />
-            Kuvaa ateria
-          </button>
-          <button
-            type="button"
-            onClick={() => galleryRef.current?.click()}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-input border border-sky/40 bg-sky/[0.10] py-3.5 font-mono text-[12px] uppercase tracking-[0.06em] text-sky"
-          >
-            <ImageIcon size={15} />
-            Galleriasta
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex min-h-14 w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border border-white/[0.18] bg-transparent text-[14px] font-medium text-text"
+        >
+          <Camera size={20} />
+          Arvioi kuvasta (kamera tai galleria)
+        </button>
       )}
 
       {phase !== 'idle' && preview && (
@@ -138,7 +118,7 @@ export function MealCapture({ onAccept }: Props) {
       )}
 
       {phase === 'analysing' && (
-        <p className="flex items-center justify-center gap-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-sky">
+        <p className="flex items-center justify-center gap-2 py-2 font-mono text-[12px]   text-sky">
           <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-sky" aria-hidden />
           Analysoidaan…
         </p>
@@ -146,7 +126,7 @@ export function MealCapture({ onAccept }: Props) {
 
       {phase === 'error' && (
         <div className="flex flex-col gap-2">
-          <p role="status" className="flex items-start gap-2 text-[13px] text-danger">
+          <p role="status" className="flex items-start gap-2 text-[14px] text-danger">
             <AlertCircle size={14} className="mt-0.5 shrink-0" />
             {error}
           </p>
@@ -155,7 +135,7 @@ export function MealCapture({ onAccept }: Props) {
               <button
                 type="button"
                 onClick={() => void run(file, correction || undefined)}
-                className="flex-1 cursor-pointer rounded-input border border-white/10 bg-black/30 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-text"
+                className="flex-1 cursor-pointer rounded-input border border-white/10 bg-black/30 py-2.5 font-mono text-[12px]   text-text"
               >
                 Yritä uudelleen
               </button>
@@ -163,7 +143,7 @@ export function MealCapture({ onAccept }: Props) {
             <button
               type="button"
               onClick={reset}
-              className="flex-1 cursor-pointer rounded-input border border-white/10 bg-black/30 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-muted"
+              className="flex-1 cursor-pointer rounded-input border border-white/10 bg-black/30 py-2.5 font-mono text-[12px]   text-fg-muted"
             >
               Peruuta
             </button>
@@ -189,7 +169,7 @@ export function MealCapture({ onAccept }: Props) {
               {result.protein} g proteiinia
             </div>
             {result.components?.length > 0 && (
-              <ul className="mt-1.5 flex flex-col gap-0.5 text-[11px] text-fg-muted">
+              <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-fg-muted">
                 {result.components.map((c, i) => (
                   <li key={`${c.name}-${i}`} className="flex justify-between gap-2">
                     <span className="min-w-0 truncate">
@@ -203,9 +183,9 @@ export function MealCapture({ onAccept }: Props) {
                 ))}
               </ul>
             )}
-            {result.notes && <p className="mt-1.5 text-[11px] text-fg-ghost">{result.notes}</p>}
+            {result.notes && <p className="mt-1.5 text-[12px] text-fg-ghost">{result.notes}</p>}
             <div
-              className={`mt-2 font-mono text-[10px] uppercase tracking-[0.08em] ${
+              className={`mt-2 font-mono text-[12px]   ${
                 result.confidence === 'low' ? 'text-danger' : 'text-fg-ghost'
               }`}
             >
@@ -218,7 +198,7 @@ export function MealCapture({ onAccept }: Props) {
               kuin ehdotus jota voi korjata. */}
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">kcal</span>
+              <span className="mb-1.5 block font-mono text-[12px]   text-fg-dim">kcal</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -228,7 +208,7 @@ export function MealCapture({ onAccept }: Props) {
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">proteiini g</span>
+              <span className="mb-1.5 block font-mono text-[12px]   text-fg-dim">proteiini g</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -264,7 +244,7 @@ export function MealCapture({ onAccept }: Props) {
             <button
               type="button"
               onClick={accept}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-input bg-gradient-to-br from-cyan to-blue py-3 font-mono text-[13px] font-bold tracking-[0.03em] text-bg shadow-[0_0_20px_rgba(34,211,238,0.45)]"
+              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-input bg-gradient-to-br from-cyan to-blue py-3 font-mono text-[14px] font-bold text-bg shadow-[0_0_20px_rgba(34,211,238,0.45)]"
             >
               <Check size={15} strokeWidth={2.5} />
               Lisää päiväkirjaan

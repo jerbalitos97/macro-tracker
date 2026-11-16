@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { ListChecks } from 'lucide-react'
 import type { Habit, HabitGoalPeriod, HabitGoalUnit } from '../types'
 import { Sheet, Field, Button } from './ui'
 
@@ -29,10 +28,11 @@ interface Props {
   onClose: () => void
 }
 
-const fieldLabel = 'mt-0.5 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
-const toggleBase = 'rounded-input border px-1 py-[7px] text-center text-[11px] font-mono cursor-pointer transition-colors'
-const toggleOff = 'border-white/[0.08] bg-black/30 text-muted'
-const toggleOn = 'border-accent/35 bg-accent/[0.1] text-accent'
+const fieldLabel = 'mb-1.5 block text-[12px] leading-4 text-fg-muted'
+const seg = 'flex gap-1 rounded-3xl bg-[var(--surface-2)] p-1'
+const segBtn = 'min-h-10 flex-1 cursor-pointer rounded-[20px] text-[14px] font-medium transition-colors'
+const segOff = 'bg-transparent text-fg-muted'
+const segOn = 'bg-cyan/[0.18] text-[#a5f3fc]'
 
 export function HabitFormModal({ initial, onSave, onClose }: Props) {
   const [form, setForm] = useState<FormState>({
@@ -60,12 +60,7 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
     <Sheet
       open
       onClose={onClose}
-      title={
-        <>
-          <ListChecks size={14} />
-          {initial ? 'Muokkaa tapaa' : 'Uusi tapa'}
-        </>
-      }
+      title={initial ? 'Muokkaa tapaa' : 'Uusi tapa'}
     >
       <Field
         label="Nimi"
@@ -84,90 +79,90 @@ export function HabitFormModal({ initial, onSave, onClose }: Props) {
         placeholder="esim. nesteytys"
       />
 
-      <label className={fieldLabel}>Väri</label>
-      <div className="mb-2.5 mt-1 grid grid-cols-8 gap-2">
+      <span className={fieldLabel}>Väri</span>
+      <div className="mb-3 flex flex-wrap gap-2">
         {COLOR_SWATCHES.map((c) => {
           const active = form.color === c
           return (
             <button
               key={c}
               onClick={() => setForm({ ...form, color: c })}
-              className={`aspect-square min-h-0 min-w-0 w-full rounded-full p-0 ${active ? 'border-2 border-white' : 'border-2 border-transparent'}`}
-              style={{ backgroundColor: c }}
+              className="h-11 w-11 min-h-0 min-w-0 cursor-pointer rounded-full p-0"
+              style={{ backgroundColor: c, border: active ? '3px solid #ffffff' : '3px solid transparent' }}
               aria-label={`Väri ${c}`}
+              aria-pressed={active}
             />
           )
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <div>
-          <label className={fieldLabel}>Jakso</label>
-          <div className="mt-1 grid grid-cols-2 gap-1">
-            {([
-              ['day', 'Päivä'],
-              ['week', 'Viikko'],
-            ] as const).map(([id, label]) => {
-              const active = form.goalPeriod === id
-              return (
-                <button
-                  key={id}
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      goalPeriod: id,
-                      goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
-                    })
-                  }
-                  className={`${toggleBase} ${active ? toggleOn : toggleOff}`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div>
-          <label className={fieldLabel}>Tyyppi</label>
-          <div className="mt-1 grid grid-cols-2 gap-1">
-            {([
-              ['count', 'Määrä'],
-              ['binary', 'Tehty'],
-            ] as const).map(([id, label]) => {
-              const active = form.goalUnit === id
-              return (
-                <button
-                  key={id}
-                  onClick={() => setForm({ ...form, goalUnit: id })}
-                  className={`${toggleBase} ${active ? toggleOn : toggleOff}`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+      <span className={fieldLabel}>Jakso</span>
+      <div className={`${seg} mb-3`}>
+        {([
+          ['day', 'Päivä'],
+          ['week', 'Viikko'],
+        ] as const).map(([id, label]) => {
+          const active = form.goalPeriod === id
+          return (
+            <button
+              key={id}
+              aria-pressed={active}
+              onClick={() =>
+                setForm({
+                  ...form,
+                  goalPeriod: id,
+                  goalValue: id === 'week' && form.goalValue < 2 ? 7 : form.goalValue,
+                })
+              }
+              className={`${segBtn} ${active ? segOn : segOff}`}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
+      <span className={fieldLabel}>Tyyppi</span>
+      <div className={`${seg} mb-3`}>
+        {([
+          ['count', 'Määrä'],
+          ['binary', 'Tehty'],
+        ] as const).map(([id, label]) => {
+          const active = form.goalUnit === id
+          return (
+            <button
+              key={id}
+              aria-pressed={active}
+              onClick={() => setForm({ ...form, goalUnit: id })}
+              className={`${segBtn} ${active ? segOn : segOff}`}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {form.goalUnit === 'count' && (
-        <div className="mt-2.5">
-          <Field
-            label={`Tavoite (${form.goalPeriod === 'week' ? 'kpl/vk' : 'kpl/pv'})`}
-            type="number"
-            min={1}
-            value={form.goalValue}
-            onChange={(e) => setForm({ ...form, goalValue: Math.max(1, Number(e.target.value)) })}
-            inputMode="numeric"
-          />
-        </div>
+        <Field
+          label={`Tavoite (${form.goalPeriod === 'week' ? 'kpl/vk' : 'kpl/pv'})`}
+          type="number"
+          min={1}
+          value={form.goalValue}
+          onChange={(e) => setForm({ ...form, goalValue: Math.max(1, Number(e.target.value)) })}
+          inputMode="numeric"
+        />
       )}
 
-      <div className="mt-3.5 flex gap-2">
-        <Button variant="primary" onClick={handleSave} disabled={!valid}>
-          Tallenna
-        </Button>
-        <Button variant="ghost" onClick={onClose}>
+      <div className="mt-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-10 cursor-pointer rounded-full px-3 text-[14px] font-semibold text-accent"
+        >
           Peru
+        </button>
+        <Button variant="primary" onClick={handleSave} disabled={!valid} className="flex-none">
+          Tallenna
         </Button>
       </div>
     </Sheet>

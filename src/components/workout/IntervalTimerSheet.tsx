@@ -199,20 +199,20 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
       {onShowInfo && (
         <button
           onClick={onShowInfo}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-row border border-white/[0.10] py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted"
+          className="mb-3 flex min-h-10 items-center gap-2 rounded-full px-3 text-[14px] font-semibold text-cyan"
         >
           <Info size={13} /> Pohjan ohje
         </button>
       )}
 
-      <div className="mb-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] px-3 py-2 font-mono text-[11px] text-fg-muted">
+      <div className="mb-3 rounded-[20px] bg-[var(--surface-2)] px-3 py-2 font-mono text-[12px] text-fg-muted">
         {configLabel}
       </div>
 
       {run && state ? (
         <div className="flex flex-col items-center py-4">
           <div
-            className={`font-mono text-[13px] uppercase tracking-[0.2em] ${paused ? 'text-accent' : phaseColor[shown]}`}
+            className={`font-mono text-[14px]   ${paused ? 'text-accent' : phaseColor[shown]}`}
             aria-live="polite"
           >
             {paused ? `${phaseLabel[shown]} · tauolla` : phaseLabel[shown]}
@@ -220,20 +220,20 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
           {shown !== 'switch' ? (
             <div
-              className={`my-2 font-display text-[96px] font-bold leading-none tabular-nums transition-opacity ${phaseColor[shown]} ${paused ? 'opacity-40' : ''}`}
+              className={`my-2 font-mono text-[96px] font-[250] leading-none tabular-nums transition-opacity ${phaseColor[shown]} ${paused ? 'opacity-40' : ''}`}
             >
               {state.secondsLeft}
             </div>
           ) : (
             <button
               onClick={() => startClock(run.setIndex, 2)}
-              className="my-6 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet font-display text-[15px] font-bold text-bg"
+              className="my-6 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-[16px] font-semibold text-bg"
             >
               Puoli 2
             </button>
           )}
 
-          <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-fg-faint">
+          <div className="text-[12px] text-fg-faint">
             Sarja {run.setIndex + 1}/{exercise.sets.length}
             {' · '}Kierros {state.round}/{iv.rounds}
             {iv.perSide && <>{' · '}Puoli {run.side}/2</>}
@@ -241,7 +241,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
 
           {/* The clock is derived from the wall clock, so saying so is not a
               reassurance — it is the reason closing this is safe. */}
-          <p className="mt-2 max-w-[260px] text-center text-[10px] leading-snug text-fg-ghost">
+          <p className="mt-2 max-w-[260px] text-center text-[12px] leading-snug text-fg-ghost">
             Voit sulkea tämän tai koko sovelluksen — kello jatkaa ja ilmoittaa kun sarja on valmis.
           </p>
 
@@ -252,14 +252,14 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                   if (!paused) stopSpeech()
                   setRunState(paused ? resumeRun(run) : pauseRun(run))
                 }}
-                className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-text"
+                className="flex min-h-12 items-center gap-1.5 rounded-full border border-white/[0.18] px-5 text-[14px] font-medium text-text"
               >
                 {paused ? <><Play size={14} /> Jatka</> : <><Pause size={14} /> Tauko</>}
               </button>
             )}
             <button
               onClick={() => { setSwitching(false); setRun(null) }}
-              className="flex items-center gap-1.5 rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-muted"
+              className="flex min-h-12 items-center gap-1.5 rounded-full border border-white/[0.18] px-5 text-[14px] font-medium text-text"
             >
               <X size={14} /> Keskeytä
             </button>
@@ -271,13 +271,13 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
             {exercise.sets.map((s, i) => (
               <div
                 key={i}
-                className={`flex items-center justify-between rounded-row border px-4 py-3 ${
-                  s.done ? 'border-cyan/25 bg-cyan/[0.08]' : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
+                className={`flex items-center justify-between min-h-14 rounded-[20px] border px-4 py-2 ${
+                  s.done ? 'border-cyan/25 bg-cyan/[0.08]' : 'border-white/10 bg-[var(--surface-2)]'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-[12px] tabular-nums text-fg-faint">{i + 1}</span>
-                  <span className={`font-display text-[14px] font-semibold ${s.done ? 'text-cyan' : 'text-text'}`}>
+                  <span className={`text-[14px] font-semibold ${s.done ? 'text-cyan' : 'text-text'}`}>
                     {s.done ? 'Tehty' : 'Sarja'}
                   </span>
                 </div>
@@ -291,7 +291,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                     onClick={() => toggleDone(i)}
                     aria-label={s.done ? `Merkitse sarja ${i + 1} tekemättömäksi` : `Merkitse sarja ${i + 1} tehdyksi`}
                     aria-pressed={s.done === true}
-                    className={`flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+                    className={`hit-44 flex h-10 w-10 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
                       s.done ? 'bg-cyan text-bg' : 'border border-white/20 text-fg-faint'
                     }`}
                   >
@@ -300,7 +300,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                   <button
                     onClick={() => startClock(i)}
                     aria-label={`Kellota sarja ${i + 1}`}
-                    className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg"
+                    className="hit-44 flex h-10 w-10 !min-h-0 !min-w-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg"
                   >
                     <Play size={15} />
                   </button>
@@ -308,7 +308,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
                     onClick={() => removeSet(i)}
                     disabled={exercise.sets.length <= 1}
                     aria-label={`Poista sarja ${i + 1}`}
-                    className="icon-btn flex h-[30px] w-[30px] !min-h-0 !min-w-0 items-center justify-center rounded-md text-fg-faint hover:text-danger disabled:opacity-30"
+                    className="icon-btn hit-44 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full text-fg-muted hover:text-danger disabled:opacity-30"
                   >
                     <X size={14} />
                   </button>
@@ -321,7 +321,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               day says how many you actually did. */}
           <button
             onClick={addSet}
-            className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+            className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-dashed border-white/[0.18] bg-transparent text-[14px] font-medium text-text"
           >
             <Plus size={14} /> Lisää sarja
           </button>
@@ -331,7 +331,7 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               onClick={() => onMoveUp?.()}
               disabled={!onMoveUp}
               aria-label="Siirrä liike ylöspäin"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-text disabled:opacity-25"
             >
               <ArrowUp size={16} />
             </button>
@@ -339,14 +339,14 @@ export function IntervalTimerSheet({ exercise, onChange, onRemoveExercise, onMov
               onClick={() => onMoveDown?.()}
               disabled={!onMoveDown}
               aria-label="Siirrä liike alaspäin"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-white/10 bg-[rgba(9,11,20,0.48)] text-fg-muted disabled:opacity-25"
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-text disabled:opacity-25"
             >
               <ArrowDown size={16} />
             </button>
             <button
               onClick={() => { onRemoveExercise(); onClose() }}
               aria-label="Poista liike"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-[#FFB4AB]"
             >
               <Trash2 size={16} />
             </button>

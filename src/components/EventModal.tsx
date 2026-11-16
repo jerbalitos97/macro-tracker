@@ -12,7 +12,7 @@ interface Props {
   onClose: () => void
 }
 
-const fieldLabel = 'mt-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const fieldLabel = 'mt-1 block text-[12px] font-medium   text-muted'
 const selectClass =
   'mb-2 mt-1.5 w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text [color-scheme:dark]'
 
@@ -113,11 +113,11 @@ export function EventModal({ defaultDate, onSave, onClose }: Props) {
             {dirBtn('after', 'Jälkeen')}
             {dirBtn('both', 'Molemmat', isPastOrToday)}
           </div>
-          <div className="mt-[7px] text-[10px] leading-[1.5] text-fg-faint">
+          <div className="mt-[7px] text-[12px] leading-[1.5] text-fg-faint">
             {bufferLabel()}
           </div>
           {isPastOrToday && (
-            <div className="mt-1 text-[10px] leading-[1.4] text-danger">
+            <div className="mt-1 text-[12px] leading-[1.4] text-danger">
               Juhla on tänään tai menneisyydessä → vain "Jälkeen" mahdollinen
             </div>
           )}

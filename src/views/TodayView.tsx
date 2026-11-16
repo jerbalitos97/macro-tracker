@@ -3,12 +3,11 @@ import { Flame, X } from 'lucide-react'
 import type { ComputedDay, ComputedResult, Meal, TrainingBurn } from '../types'
 import { formatDayOfWeek, toISO } from '../lib/dates'
 import { parsePositiveInt } from '../lib/format'
-import { AddMealForm } from '../components/AddMealForm'
 import { MealRow } from '../components/MealRow'
-import { MealCapture } from '../components/ruoka/MealCapture'
+import { MealSheet, MealFab } from '../components/MealSheet'
 import { useTools } from '../contexts/ToolsContext'
 import { ProgressBar } from '../components/ProgressBar'
-import { Card, Button, Field, RingGauge } from '../components/ui'
+import { Card, Button, Field, RingGauge, snack } from '../components/ui'
 import { useCountUp } from '../lib/useCountUp'
 import { haptic } from '../lib/haptics'
 
@@ -19,8 +18,8 @@ const DAY_TYPE_LABEL: Record<string, string> = {
   volleyball: 'Volleyball',
 }
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
-const sectionLabel = 'mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[14px] font-medium leading-5 text-fg-muted'
+const sectionLabel = 'mb-2 px-1 text-[16px] font-medium leading-6 text-text'
 
 interface Props {
   day: ComputedDay | undefined
@@ -33,6 +32,26 @@ interface Props {
   onAddBurn: (burn: { kcal: number; note: string }) => void
   onDeleteBurn: (id: number) => void
   onSetAdjustment: (date: string, kcal: number, note: string) => void
+}
+
+
+/** Delete at once, offer undo. Undo re-adds the meal with its own fields; it
+ *  gets a fresh id, which is how any re-added meal is stored. */
+function deleteWithUndo(
+  meals: Meal[],
+  onDeleteMeal: (id: number) => void,
+  onAddMeal: Props['onAddMeal'],
+) {
+  return (id: number) => {
+    const m = meals.find((x) => x.id === id)
+    onDeleteMeal(id)
+    haptic()
+    if (!m) return
+    snack({
+      text: `Ateria poistettu (${m.kcal.toLocaleString('fi-FI')} kcal)`,
+      onAction: () => onAddMeal({ kcal: m.kcal, protein: m.protein, description: m.description, items: m.items }),
+    })
+  }
 }
 
 export function TodayView({
@@ -48,7 +67,7 @@ export function TodayView({
   onSetAdjustment,
 }: Props) {
   const { can } = useTools()
-  const [mealFormKey, setMealFormKey] = useState(0)
+  const [mealOpen, setMealOpen] = useState(false)
   const [showBurnForm, setShowBurnForm] = useState(false)
   const [burnForm, setBurnForm] = useState({ kcal: '', note: '' })
   const [savedFlash, setSavedFlash] = useState(false)
@@ -69,6 +88,7 @@ export function TodayView({
   const proteinRemaining = Math.max(0, proteinTarget - day.protein)
   const pctConsumed = effectiveBudget > 0 ? day.consumed / effectiveBudget : 0
 
+  const deleteMeal = deleteWithUndo(meals, onDeleteMeal, onAddMeal)
   const flashSaved = () => {
     setSavedFlash(true)
     // Kirjaus on se hetki jonka takia koko ruutu on olemassa, joten se
@@ -108,8 +128,8 @@ export function TodayView({
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <div className="font-display text-[24px] font-bold tracking-[-0.03em] text-text">{dayNameCap}</div>
-          <div className="mt-[3px] text-[11px] uppercase tracking-[0.1em] text-muted">{DAY_TYPE_LABEL[day.dayType]}</div>
+          <div className="text-[28px] font-medium leading-9 text-text">{dayNameCap}</div>
+          <div className="mt-0.5 text-[14px] leading-5 text-fg-muted">{DAY_TYPE_LABEL[day.dayType]}</div>
         </div>
         {savedFlash && (
           <div className="save-flash mt-0.5 text-[20px] leading-none text-accent">✓</div>
@@ -117,42 +137,75 @@ export function TodayView({
       </div>
 
       {/* ── Budget card ─────────────────────────────────────────────── */}
-      <Card variant="glass" className="flex flex-col items-center">
-        <div className={`${cardLabel} self-start`}>Budjetti tänään</div>
+      {/* The screen's one expressive moment (design phase 5): the budget sits
+          in a gradient container with the M3 asymmetric corner, everything
+          below it stays on calm surfaces. */}
+      <section
+        aria-label="Budjetti tänään"
+        className="flex flex-col items-center rounded-[40px_40px_40px_12px] border border-cyan/35 p-6 text-white"
+        style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.26))' }}
+      >
 
-        {/* Oura-style gradient ring — fill = % of budget used, centre = kcal left */}
+        {/* Rengas näyttää jäljellä olevan budjetin: täynnä aamulla, tyhjenee
+            syödessä. Ylitys täyttää sen punaisena, jotta tila erottuu myös
+            vilkaisulla eikä vain luvusta. */}
         <RingGauge
-          fraction={isOver ? 1 : pctConsumed}
+          fraction={isOver ? 1 : 1 - pctConsumed}
           gradientId="budgetRing"
-          from={isOver ? '#f87171' : '#7dd3fc'}
+          from={isOver ? '#f87171' : '#22d3ee'}
           to={isOver ? '#fb923c' : '#a78bfa'}
-          glow={isOver ? 'rgba(248,113,113,0.5)' : 'rgba(34,211,238,0.5)'}
-          size={168}
+          glow={isOver ? 'rgba(248,113,113,0.5)' : 'rgba(34,211,238,0.45)'}
+          track="rgba(255,255,255,0.12)"
+          size={248}
         >
           {/* Juokseva luku. `tabular-nums` on tässä ehto eikä tyyli: ilman sitä
               numeroiden leveys vaihtelisi joka framella ja koko luku tärisisi
               renkaan sisällä. */}
           <span
-            className={`font-display text-[40px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isOver ? 'text-danger' : 'text-aurora'}`}
+            className={`text-[56px] leading-none ${isOver ? 'font-light text-danger' : 'num-display'}`}
+            style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {remaining >= 0 ? '+' : ''}{Math.round(shownRemaining).toLocaleString('fi-FI')}
+            {isOver ? '−' : ''}{Math.abs(Math.round(shownRemaining)).toLocaleString('fi-FI').replace(/\s/g, ' ')}
           </span>
-          <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-muted">kcal jäljellä</span>
+          <span className="mt-2 text-[16px] leading-6 text-[#CDE7EC]">{isOver ? 'kcal yli' : 'kcal jäljellä'}</span>
         </RingGauge>
 
         {/* Side stats */}
         <div className="mt-5 flex w-full items-start justify-around gap-2">
           <div className="min-w-0 text-center">
             <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.consumed.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-fg-muted">syöty</div>
+            <div className="mt-0.5 text-[12px] text-[#CDE7EC]">syöty</div>
           </div>
           <div className="min-w-0 text-center">
             <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{effectiveBudget.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-fg-muted">budjetti</div>
+            <div className="mt-0.5 text-[12px] text-[#CDE7EC]">budjetti</div>
           </div>
           <div className="min-w-0 text-center">
-            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-fg-dim">{day.baseTdee.toLocaleString('fi-FI')}</div>
-            <div className="mt-0.5 text-[11px] text-fg-muted">TDEE</div>
+            <div className="text-[19px] font-bold tabular-nums tracking-[-0.02em] text-text">{day.baseTdee.toLocaleString('fi-FI')}</div>
+            <div className="mt-0.5 text-[12px] text-[#CDE7EC]">TDEE</div>
+          </div>
+        </div>
+
+        {/* Protein: the design keeps it inside the hero as one gradient bar, so
+            the screen's two daily targets read as one glance. */}
+        <div className="mt-5 flex w-full flex-col gap-2">
+          <div className="flex justify-between text-[14px] leading-5 text-[#CDE7EC]">
+            <span>Proteiini</span>
+            <span className="tabular-nums">
+              {Math.round(day.protein)} / {proteinTarget} g
+              {proteinRemaining <= 0 && ' · täynnä'}
+            </span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-md bg-white/[0.14]">
+            <div
+              className="h-3 rounded-md"
+              style={{
+                width: `${Math.min(100, proteinTarget > 0 ? (day.protein / proteinTarget) * 100 : 0)}%`,
+                background: 'linear-gradient(90deg, #22d3ee, #a78bfa)',
+                boxShadow: '0 0 12px rgba(34,211,238,0.5)',
+                transition: 'width 600ms cubic-bezier(.34,1.3,.64,1)',
+              }}
+            />
           </div>
         </div>
 
@@ -166,7 +219,7 @@ export function TodayView({
             ].map(({ label, val, cls }) => (
               <div
                 key={label}
-                className={`mt-1 flex justify-between text-[11px] tabular-nums ${cls} ${label === 'Budjetti' ? 'font-semibold' : 'font-normal'}`}
+                className={`mt-1 flex justify-between text-[12px] tabular-nums ${cls} ${label === 'Budjetti' ? 'font-semibold' : 'font-normal'}`}
               >
                 <span>{label}</span>
                 <span>{val}</span>
@@ -176,11 +229,11 @@ export function TodayView({
         )}
 
         {day.note && (
-          <div className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[11px] text-accent">
+          <div className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg border border-accent/15 bg-accent/[0.08] px-2.5 py-[5px] text-[12px] text-accent">
             {day.note}
           </div>
         )}
-      </Card>
+      </section>
 
       {/* ── Spread-the-excess suggestion ────────────────────────────── */}
       {isOver && Math.abs(remaining) >= 50 && (() => {
@@ -199,7 +252,9 @@ export function TodayView({
 
         const apply = (n: number) => {
           const perDay = Math.ceil(excess / n)
-          if (!window.confirm(`Lisää ${perDay} kcal vajetta ${dayPhrase(n)}?`)) return
+          const before = futureDays.slice(0, n).map((t) => ({
+            date: t.date, kcal: t.adjustment?.kcal ?? 0, note: t.adjustment?.note ?? '',
+          }))
           const noteTag = `tasoitus ${day.date.slice(5)}`
           for (let i = 0; i < n; i++) {
             const target = futureDays[i]
@@ -209,12 +264,16 @@ export function TodayView({
             onSetAdjustment(target.date, newKcal, noteParts.join(' · '))
           }
           flashSaved()
+          snack({
+            text: `${perDay} kcal lisävajetta ${dayPhrase(n)}`,
+            onAction: () => before.forEach((b) => onSetAdjustment(b.date, b.kcal, b.note)),
+          })
         }
 
         return (
           <div className="mt-2.5 rounded-card border border-danger/[0.22] bg-danger/[0.05] p-4">
             <div className={`${cardLabel} text-danger`}>Tasoitus</div>
-            <p className="m-0 mb-3 text-[13px] leading-normal text-fg-dim">
+            <p className="m-0 mb-3 text-[14px] leading-normal text-fg-dim">
               Ylitit budjetin <strong className="text-white">{excess.toLocaleString('fi-FI')} kcal</strong>.
               Jaa se tulevien päivien lisävajeeksi pysyäksesi linjalla.
             </p>
@@ -234,11 +293,11 @@ export function TodayView({
                     aria-label={`Lisää ${perDay} kcal vajetta ${dayPhrase(n)}`}
                     className="min-w-0 rounded-lg border border-white/[0.08] bg-black/30 px-1.5 py-2.5 text-center"
                   >
-                    <div className="text-[13px] font-bold tabular-nums text-white">
+                    <div className="text-[14px] font-bold tabular-nums text-white">
                       −{perDay}
                       <span className="font-normal text-fg-faint"> kcal/pv</span>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-fg-faint">
+                    <div className="mt-0.5 text-[12px] text-fg-faint">
                       {n === 1 ? 'huomenna' : `${n} päivälle`}
                     </div>
                   </button>
@@ -249,45 +308,17 @@ export function TodayView({
         )
       })()}
 
-      {/* ── Protein card ────────────────────────────────────────────── */}
-      <Card variant="glass" className="mt-2.5">
-        <div className={cardLabel}>Proteiini</div>
-        <div className="flex items-end justify-between">
-          <div>
-            <span className="font-display text-[28px] font-bold tabular-nums tracking-[-0.02em] text-protein [filter:drop-shadow(0_0_18px_rgba(96,165,250,0.45))]">{Math.round(day.protein)}</span>
-            <span className="text-xs text-muted"> / {proteinTarget} g</span>
-          </div>
-          <div className={`text-[11px] ${proteinRemaining <= 0 ? 'text-[#6ab46a]' : 'text-muted'}`}>
-            {proteinRemaining > 0
-              ? `vielä ${Math.round(proteinRemaining)} g`
-              : '✓ tavoite täynnä'}
-          </div>
-        </div>
-        <ProgressBar value={day.protein / proteinTarget} color="#60a5fa" height={6} />
-      </Card>
-
-      {/* ── Photo capture (kuvauslisä) ───────────────────────────────
-          Näkyy vain kun oikeus on myönnetty. Palvelinfunktio tarkistaa saman
-          oikeuden uudelleen, joten tämä on käytettävyyttä eikä pääsynhallintaa. */}
-      {can('fitness:photo') && (
-        <MealCapture
-          onAccept={(m) =>
-            onAddMeal({ kcal: m.kcal, protein: m.protein, description: m.description, items: m.items })
-          }
-        />
-      )}
-
       {/* ── Meals list ──────────────────────────────────────────────── */}
       <div className="mt-[18px]">
         <div className={sectionLabel}>Ateriat ({meals.length})</div>
         {meals.length === 0 ? (
-          <div className="py-2.5 text-xs text-fg-ghost">
+          <div className="py-2.5 text-[14px] text-fg-muted">
             Ei vielä aterioita.
           </div>
         ) : (
-          <div className="list-stagger">
+          <div className="list-stagger flex flex-col gap-0.5 overflow-hidden rounded-[20px]">
             {meals.map((m) => (
-              <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />
+              <MealRow key={m.id} meal={m} onDelete={deleteMeal} />
             ))}
           </div>
         )}
@@ -305,10 +336,10 @@ export function TodayView({
                   <div className="min-w-0">
                     <div className="text-[15px] font-[650] tabular-nums tracking-[-0.01em] text-protein">
                       −{b.kcal.toLocaleString('fi-FI')}
-                      <span className="ml-1 text-[11px] font-normal text-[#4a6a94]">kcal</span>
+                      <span className="ml-1 text-[12px] font-normal text-[#4a6a94]">kcal</span>
                     </div>
                     {b.note && (
-                      <div className="mt-px truncate text-[11px] text-fg-ghost">{b.note}</div>
+                      <div className="mt-px truncate text-[12px] text-fg-ghost">{b.note}</div>
                     )}
                   </div>
                 </div>
@@ -324,12 +355,17 @@ export function TodayView({
         </div>
       )}
 
-      {/* ── Add meal form ────────────────────────────────────────────── */}
-      {/* Avain vaihtuu kun kulutuslomake avataan, mikä sulkee tämän. */}
-      <AddMealForm
-        key={mealFormKey}
+      {/* ── Meal entry: FAB → sheet ──────────────────────────────────
+          Kuva-arvio näkyy vain kun oikeus on myönnetty. Palvelinfunktio
+          tarkistaa saman oikeuden uudelleen, joten tämä on käytettävyyttä
+          eikä pääsynhallintaa. */}
+      <MealFab onClick={() => { setShowBurnForm(false); setMealOpen(true) }} />
+      <MealSheet
+        open={mealOpen}
+        onClose={() => setMealOpen(false)}
         onAdd={(m) => { onAddMeal(m); flashSaved() }}
-        onOpen={() => setShowBurnForm(false)}
+        remaining={remaining}
+        canPhoto={can('fitness:photo')}
       />
 
       {/* ── Add training burn form ───────────────────────────────────── */}
@@ -359,7 +395,7 @@ export function TodayView({
           <div className="mt-2 flex gap-2">
             <button
               onClick={handleAddBurn}
-              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-protein/30 bg-protein/15 px-4 py-3 text-[13px] font-bold text-protein"
+              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-protein/30 bg-protein/15 px-4 py-3 text-[14px] font-bold text-protein"
             >
               Lisää
             </button>
@@ -368,8 +404,8 @@ export function TodayView({
         </Card>
       ) : (
         <button
-          onClick={() => { setShowBurnForm(true); setMealFormKey((k) => k + 1) }}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-protein/20 bg-transparent px-4 py-[13px] text-[13px] tracking-[0.02em] text-[#5a8ac4]"
+          onClick={() => { setShowBurnForm(true); setMealOpen(false) }}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-protein/20 bg-transparent px-4 py-[13px] text-[14px] text-[#5a8ac4]"
         >
           <Flame size={13} />Lisää treenikulutus
         </button>
@@ -380,23 +416,23 @@ export function TodayView({
         <div className={cardLabel}>Kumulatiivinen vaje</div>
         <div className="flex items-end justify-between">
           <div>
-            <div className="font-display text-[26px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
+            <div className="font-display text-[26px] font-semibold tabular-nums tracking-[-0.025em] text-text">
               <span className="text-aurora">{Math.round(computed.cumulativeDeficit).toLocaleString('fi-FI')}</span>
-              <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
+              <span className="ml-1 text-[14px] font-normal text-muted">kcal</span>
             </div>
-            <div className="mt-0.5 text-[11px] text-fg-ghost">
+            <div className="mt-0.5 text-[12px] text-fg-ghost">
               / {Math.round(computed.totalDeficitTarget).toLocaleString('fi-FI')} kcal tavoite
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[22px] font-extrabold tabular-nums tracking-[-0.025em] text-accent">
+            <div className="text-[22px] font-semibold tabular-nums tracking-[-0.025em] text-accent">
               {(deficitPct * 100).toFixed(1)}
               <span className="text-xs font-normal text-fg-faint">%</span>
             </div>
             {/* Where the straight line to the goal says you should be by now.
                 A percentage on its own answers "how far in", not "am I on
                 track" — those only differ once you know the pace. */}
-            <div className="mt-0.5 text-[11px] tabular-nums text-fg-ghost">
+            <div className="mt-0.5 text-[12px] tabular-nums text-fg-ghost">
               tahti {(expectedPct * 100).toFixed(1)} %
             </div>
           </div>
@@ -409,7 +445,7 @@ export function TodayView({
           height={4}
         />
         {computed.elapsedDays > 0 && (
-          <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px]">
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[12px]">
             <span className="text-fg-ghost">
               Tasaisella vajeella nyt {Math.round(computed.expectedDeficit).toLocaleString('fi-FI')} kcal
               <span className="text-fg-faint"> · {computed.elapsedDays}/{computed.totalDays} pv</span>
@@ -429,8 +465,10 @@ export function TodayView({
 function LogOnlyToday({
   meals, onAddMeal, onDeleteMeal,
 }: Pick<Props, 'meals' | 'onAddMeal' | 'onDeleteMeal'>) {
+  const deleteMeal = deleteWithUndo(meals, onDeleteMeal, onAddMeal)
   const { can } = useTools()
   const [savedFlash, setSavedFlash] = useState(false)
+  const [mealOpen, setMealOpen] = useState(false)
   const kcal = meals.reduce((s, m) => s + Number(m.kcal), 0)
   const protein = meals.reduce((s, m) => s + Number(m.protein), 0)
   const dayName = formatDayOfWeek(toISO(new Date()))
@@ -454,34 +492,35 @@ function LogOnlyToday({
       <Card variant="glass">
         <div className={cardLabel}>Syöty tänään</div>
         <div className="flex items-baseline gap-4">
-          <div className="font-display text-[34px] font-extrabold tabular-nums tracking-[-0.025em] text-text">
+          <div className="font-display text-[34px] font-semibold tabular-nums tracking-[-0.025em] text-text">
             {Math.round(kcal).toLocaleString('fi-FI')}
-            <span className="ml-1 text-[13px] font-normal text-muted">kcal</span>
+            <span className="ml-1 text-[14px] font-normal text-muted">kcal</span>
           </div>
-          <div className="text-[13px] tabular-nums text-muted">
+          <div className="text-[14px] tabular-nums text-muted">
             {Math.round(protein)} g proteiinia
           </div>
         </div>
       </Card>
 
-      {can('fitness:photo') && (
-        <MealCapture
-          onAccept={(m) => add({ kcal: m.kcal, protein: m.protein, description: m.description, items: m.items })}
-        />
-      )}
-
       <div className="mt-[18px]">
         <div className={sectionLabel}>Ateriat ({meals.length})</div>
         {meals.length === 0 ? (
-          <div className="py-2.5 text-xs text-fg-ghost">Ei vielä aterioita.</div>
+          <div className="py-2.5 text-[14px] text-fg-muted">Ei vielä aterioita.</div>
         ) : (
-          <div className="list-stagger">
-            {meals.map((m) => <MealRow key={m.id} meal={m} onDelete={onDeleteMeal} />)}
+          <div className="list-stagger flex flex-col gap-0.5 overflow-hidden rounded-[20px]">
+            {meals.map((m) => <MealRow key={m.id} meal={m} onDelete={deleteMeal} />)}
           </div>
         )}
       </div>
 
-      <AddMealForm onAdd={(m) => add(m)} />
+      <MealFab onClick={() => setMealOpen(true)} />
+      <MealSheet
+        open={mealOpen}
+        onClose={() => setMealOpen(false)}
+        onAdd={add}
+        remaining={null}
+        canPhoto={can('fitness:photo')}
+      />
     </div>
   )
 }
