@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Check, Calendar, Trash2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 import type { Task } from '../../lib/tasks'
 import { celebrate } from '../../lib/flash'
+import { addDays, getWeekdayNum, toISO } from '../../lib/dates'
 
 interface Props {
   task: Task
   /** Aiemmalta päivältä siirtynyt tehtävä: päivä jolle se oli tarkoitettu.
    *  Näkyvissä jotta rästin ikä on luettavissa ilman kuukausinäkymää. */
   carriedFrom?: string
-  onToggle: (id: string, done: boolean) => Promise<void> | void
-  onReschedule: (id: string, dateISO: string) => Promise<void> | void
-  onDelete: (id: string) => Promise<void> | void
+  onToggle: (id: string, done: boolean) => Promise<unknown> | void
+  onReschedule: (task: Task, dateISO: string) => Promise<unknown> | void
+  onDelete: (task: Task) => Promise<unknown> | void
 }
 
 /** "eiliseltä" tai "3 päivää sitten" — ikä sanoina, koska pelkkä päivämäärä
@@ -25,12 +26,24 @@ function carriedLabel(fromISO_: string): string {
   return d.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' }) + ' alkaen'
 }
 
+/** Seuraava maanantai tästä päivästä; maanantaina viikon päästä. */
+function nextMonday(todayISO: string): string {
+  const dow = getWeekdayNum(todayISO) // 0 = su
+  return addDays(todayISO, ((8 - dow) % 7) || 7)
+}
+
+const CHIP =
+  'inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-white/[0.18] bg-transparent px-3.5 text-[14px] font-medium text-text disabled:opacity-50'
+
 export function TaskItem({ task, carriedFrom, onToggle, onReschedule, onDelete }: Props) {
   const [busy, setBusy] = useState(false)
-  const [rescheduling, setRescheduling] = useState(false)
-  const [newDate, setNewDate] = useState(task.scheduledDate)
+  const [moving, setMoving] = useState(false)
 
-  const run = async (fn: () => Promise<void> | void) => {
+  const today = toISO(new Date())
+  const tomorrow = addDays(today, 1)
+  const monday = nextMonday(today)
+
+  const run = async (fn: () => Promise<unknown> | void) => {
     setBusy(true)
     try {
       await fn()
@@ -39,15 +52,19 @@ export function TaskItem({ task, carriedFrom, onToggle, onReschedule, onDelete }
     }
   }
 
+  const moveTo = (iso: string) =>
+    run(async () => {
+      await onReschedule(task, iso)
+      setMoving(false)
+    })
+
   return (
     <li
       data-flash
       style={{ '--flash': '#22d3ee' } as CSSProperties}
-      className={`relative flex flex-col gap-2 rounded-row border p-4 [backdrop-filter:blur(14px)_saturate(150%)] [-webkit-backdrop-filter:blur(14px)_saturate(150%)] ${
-        task.done ? 'border-white/[0.06] bg-[rgba(9,11,20,0.30)]' : 'border-white/10 bg-[rgba(9,11,20,0.45)]'
-      }`}
+      className="relative flex flex-col gap-2 bg-[var(--surface-1)] py-2 pl-3 pr-1"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-h-14 items-center gap-3">
         <button
           type="button"
           onClick={(e) => {
@@ -60,86 +77,68 @@ export function TaskItem({ task, carriedFrom, onToggle, onReschedule, onDelete }
           disabled={busy}
           aria-pressed={task.done}
           aria-label={task.done ? `Merkitse tekemättömäksi: ${task.title}` : `Merkitse tehdyksi: ${task.title}`}
-          className={`mt-0.5 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${
+          className={`flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
             task.done
-              ? 'border-border-hi bg-accent/[0.18] text-accent'
-              : 'border-white/15 bg-black/30 text-transparent'
+              ? 'border-2 border-transparent bg-gradient-to-br from-cyan to-violet text-bg'
+              : 'border-2 border-white/30 bg-transparent text-transparent'
           }`}
         >
-          {task.done ? <Check size={15} strokeWidth={2.5} className="check-pop" /> : <Check size={15} strokeWidth={2.5} />}
+          <Check size={18} strokeWidth={3} className={task.done ? 'check-pop' : undefined} />
         </button>
-        <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span
-            className={`block break-words text-[15px] leading-snug ${
-              task.done ? 'text-fg-ghost line-through' : 'text-text'
+            className={`block break-words text-[16px] leading-6 ${
+              task.done ? 'text-fg-muted line-through' : 'text-text'
             }`}
           >
             {task.title}
           </span>
           {carriedFrom && !task.done && (
-            <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.08em] text-fg-ghost">
-              {carriedLabel(carriedFrom)}
-            </span>
+            <span className="text-[12px] leading-4 text-[#F2D29B]">{carriedLabel(carriedFrom)}</span>
           )}
         </span>
+        {!task.done && (
+          <button
+            type="button"
+            onClick={() => setMoving((m) => !m)}
+            aria-expanded={moving}
+            className="min-h-10 shrink-0 cursor-pointer rounded-full bg-transparent px-3 text-[14px] font-semibold text-cyan"
+          >
+            Siirrä
+          </button>
+        )}
       </div>
 
-      {!task.done && (
-        <div className="flex flex-wrap items-center gap-2 pl-10">
-          {rescheduling ? (
-            <>
-              <input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                aria-label="Uusi päivä"
-                className="rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-1.5 text-[13px] text-text [color-scheme:dark]"
-              />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    await onReschedule(task.id, newDate)
-                    setRescheduling(false)
-                  })
-                }
-                className="cursor-pointer rounded-input border border-border-hi bg-accent/[0.12] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-accent disabled:opacity-50"
-              >
-                Tallenna
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setNewDate(task.scheduledDate)
-                  setRescheduling(false)
-                }}
-                className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.06em] text-fg-ghost"
-              >
-                Peruuta
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setRescheduling(true)}
-                className="flex cursor-pointer items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-ghost"
-              >
-                <Calendar size={12} />
-                Siirrä
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => run(() => onDelete(task.id))}
-                className="flex cursor-pointer items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-ghost disabled:opacity-50"
-              >
-                <Trash2 size={12} />
-                Poista
-              </button>
-            </>
+      {moving && !task.done && (
+        <div className="flex flex-wrap gap-1.5 pb-1 pl-14">
+          {task.scheduledDate !== today && (
+            <button type="button" disabled={busy} onClick={() => moveTo(today)} className={CHIP}>Tänään</button>
           )}
+          {task.scheduledDate !== tomorrow && (
+            <button type="button" disabled={busy} onClick={() => moveTo(tomorrow)} className={CHIP}>Huomenna</button>
+          )}
+          {task.scheduledDate !== monday && (
+            <button type="button" disabled={busy} onClick={() => moveTo(monday)} className={CHIP}>Ensi ma</button>
+          )}
+          {/* Muu päivä: natiivi päivävalitsin chipin näköisenä, jotta
+              mielivaltainen siirto säilyy pikavalintojen rinnalla. */}
+          <label className={`${CHIP} relative`}>
+            Muu päivä
+            <input
+              type="date"
+              aria-label="Siirrä päivälle"
+              onChange={(e) => { if (e.target.value) void moveTo(e.target.value) }}
+              className="absolute inset-0 cursor-pointer opacity-0 [color-scheme:dark]"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => run(() => onDelete(task))}
+            className={`${CHIP} text-[#FFB4AB]`}
+          >
+            Poista
+          </button>
         </div>
       )}
     </li>

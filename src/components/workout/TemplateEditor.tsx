@@ -15,9 +15,9 @@ interface Props {
   onCancel: () => void
 }
 
-const label = 'mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
+const label = 'mb-1 block text-[12px] leading-4 text-fg-muted'
 const numInput =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-center text-sm tabular-nums text-text [color-scheme:dark]'
+  'h-11 w-full min-w-0 rounded-[10px] border border-white/[0.18] bg-[var(--surface-2)] px-1.5 text-center font-mono text-[16px] tabular-nums text-text [color-scheme:dark]'
 
 const DEFAULT_INTERVAL: IntervalConfig = { workSeconds: 10, restSeconds: 5, rounds: 3, perSide: true }
 
@@ -111,34 +111,34 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
   }
 
   return (
-    <div className="px-4 pb-28 pt-4">
+    <div className="px-4 pb-28 pt-2">
       {/* Header */}
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-1">
         <button
           onClick={onCancel}
           aria-label="Takaisin"
-          className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-full p-1.5 text-fg-muted"
+          className="icon-btn flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-text"
         >
           <ChevronLeft size={22} />
         </button>
-        <h1 className="font-display text-[22px] font-bold tracking-[-0.02em] text-text">
+        <h2 className="text-[22px] font-medium leading-7 text-text">
           {initial ? 'Muokkaa pohjaa' : 'Uusi pohja'}
-        </h1>
+        </h2>
       </div>
 
       {/* Name */}
-      <Card variant="glass" className="mb-2.5">
+      <Card variant="panel" className="mb-2.5 !p-4">
         <label className={label}>Pohjan nimi</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="esim. Push A"
           autoFocus
-          className="w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text [color-scheme:dark]"
+          className="w-full min-h-12 rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-[14px] py-[11px] text-[16px] text-text [color-scheme:dark]"
         />
 
         <label className={`${label} mt-3`}>Tyyppi</label>
-        <div className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
+        <div role="radiogroup" aria-label="Tyyppi" className="flex gap-1 rounded-[24px] border border-white/[0.08] bg-[var(--surface-2)] p-1">
           {([
             { id: 'strength' as const, text: 'Voima', Icon: Dumbbell },
             { id: 'mobility' as const, text: 'Liikkuvuus', Icon: Timer },
@@ -146,11 +146,13 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
             <button
               key={k.id}
               onClick={() => switchKind(k.id)}
-              className={`flex min-h-0 items-center justify-center gap-1.5 rounded-[14px] py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
-                kind === k.id ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'text-fg-muted'
+              role="radio"
+              aria-checked={kind === k.id}
+              className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-[20px] text-[14px] font-medium transition-colors ${
+                kind === k.id ? 'bg-cyan/[0.18] text-[#a5f3fc]' : 'text-fg-muted'
               }`}
             >
-              <k.Icon size={13} /> {k.text}
+              <k.Icon size={16} /> {k.text}
             </button>
           ))}
         </div>
@@ -161,7 +163,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
             <select
               value={blockId ?? ''}
               onChange={(e) => setBlockId(e.target.value === '' ? null : e.target.value)}
-              className="w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text [color-scheme:dark]"
+              className="w-full min-h-12 rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-[14px] py-[11px] text-[16px] text-text [color-scheme:dark]"
             >
               <option value="">Aina käytössä</option>
               {blocks.map((b) => (
@@ -170,7 +172,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-[10px] leading-relaxed text-fg-ghost">
+            <p className="mt-1 text-[12px] leading-4 text-fg-muted">
               Blokkiin sidottu pohja on näkyvissä ja muokattavissa heti, mutta tarjolla vasta kun
               se blokki on menossa.
             </p>
@@ -184,7 +186,8 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
               key={c}
               onClick={() => setColor(c)}
               aria-label={`Väri ${c}`}
-              className={`h-8 w-8 !min-h-0 !min-w-0 rounded-full transition-transform ${
+              aria-pressed={color === c}
+              className={`h-11 w-11 rounded-full transition-transform ${
                 color === c ? 'ring-2 ring-white/70 ring-offset-2 ring-offset-transparent' : ''
               }`}
               style={{ backgroundColor: c }}
@@ -194,7 +197,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
       </Card>
 
       {/* Exercises */}
-      <div className="mb-2 mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">
+      <div className="mb-2 mt-4 px-1 text-[16px] font-medium leading-6 text-text">
         Liikkeet ({exercises.length})
       </div>
       <div ref={reorder.containerRef} className="flex flex-col gap-2.5">
@@ -206,7 +209,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
             onMove={(d) => move(e.id, d)}
             tabIndex={0}
             ariaLabel={`Liike ${i + 1}: ${e.name || 'nimetön'}`}
-            className={CARD_CLASSES.panel}
+            className={`${CARD_CLASSES.panel} !p-4`}
           >
             {({ handleProps }) => (
               <>
@@ -215,21 +218,21 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
                     {...handleProps}
                     className="-m-1.5 flex flex-shrink-0 cursor-grab touch-none items-center gap-1 p-1.5 active:cursor-grabbing"
                   >
-                    <GripVertical size={15} className="text-fg-faint" />
-                    <span className="font-mono text-[10px] text-fg-faint">{i + 1}</span>
+                    <GripVertical size={16} className="text-fg-muted" />
+                    <span className="font-mono text-[14px] text-fg-muted">{i + 1}</span>
                   </div>
                   <input
                     value={e.name}
                     onChange={(ev) => patch(e.id, { name: ev.target.value })}
                     placeholder="Liikkeen nimi"
-                    className="min-w-0 flex-1 rounded-input border border-white/10 bg-black/[0.45] px-[11px] py-2 text-sm text-text"
+                    className="h-12 min-w-0 flex-1 rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-3 text-[16px] text-text"
                   />
                   <button
                     onClick={() => setExercises((prev) => prev.filter((x) => x.id !== e.id))}
                     aria-label="Poista liike"
-                    className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
+                    className="icon-btn flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-fg-muted hover:text-danger"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
                 {kind === 'mobility' ? (
@@ -274,13 +277,14 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
                     </div>
                     <button
                       onClick={() => patchInterval(e.id, { perSide: !(e.interval?.perSide ?? true) })}
-                      className={`mt-2 flex min-h-0 w-full items-center justify-center gap-1.5 rounded-input border py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                      aria-pressed={e.interval?.perSide === true}
+                      className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-medium transition-colors ${
                         e.interval?.perSide
-                          ? 'border-cyan/35 bg-cyan/[0.10] text-cyan'
-                          : 'border-white/10 bg-[rgba(9,11,20,0.42)] text-fg-muted'
+                          ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]'
+                          : 'border-white/[0.18] bg-transparent text-text'
                       }`}
                     >
-                      <Check size={12} className={e.interval?.perSide ? '' : 'opacity-30'} />
+                      <Check size={16} className={e.interval?.perSide ? '' : 'opacity-30'} />
                       Molemmille puolille (esim. per puoli tai käsi)
                     </button>
                   </>
@@ -307,7 +311,7 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
                           }
                           className={numInput}
                         />
-                        <span className="text-fg-faint">–</span>
+                        <span className="text-fg-muted">–</span>
                         <input
                           inputMode="numeric"
                           placeholder="–"
@@ -354,13 +358,13 @@ export function TemplateEditor({ initial, blocks = [], onSave, onCancel }: Props
 
       <button
         onClick={() => setExercises((prev) => [...prev, blankExercise(kind)])}
-        className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-row border border-dashed border-white/[0.14] bg-transparent px-4 py-3 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-muted"
+        className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-dashed border-white/[0.18] bg-transparent px-4 text-[14px] font-medium text-text"
       >
-        <Plus size={15} /> Lisää liike
+        <Plus size={18} /> Lisää liike
       </button>
 
       {/* Save bar */}
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] border-t border-white/[0.08] bg-[rgba(5,6,12,0.82)] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 [backdrop-filter:blur(20px)]">
+      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] border-t border-white/[0.08] bg-[#0c0d18] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
         <div className="flex gap-2">
           <Button variant="ghost" onClick={onCancel}>Peru</Button>
           <Button variant="primary" onClick={handleSave} disabled={!canSave}>

@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { MoreHorizontal, Plus, Minus, Check, Pencil, Archive } from 'lucide-react'
+import { Plus, Minus, Check } from 'lucide-react'
 import type { Habit, HabitEntry } from '../types'
 import { addDays, fromISO } from '../lib/dates'
 import { HabitProgressRing } from './HabitProgressRing'
-import { Sheet } from './ui'
+import { Button, Sheet } from './ui'
 
 interface Props {
   habit: Habit
@@ -17,10 +16,8 @@ interface Props {
   onClose: () => void
 }
 
-const counterBtn =
-  'flex h-12 w-12 min-h-0 min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-[rgba(9,11,20,0.50)] p-0 text-text'
-const menuItem =
-  'flex w-full min-h-0 items-center gap-2 rounded-md px-3 py-2.5 text-left text-[13px] text-[#ebebeb]'
+const textBtn =
+  'min-h-10 flex-none cursor-pointer rounded-full px-3 text-[14px] font-semibold'
 
 export function HabitDetailModal({
   habit,
@@ -33,8 +30,6 @@ export function HabitDetailModal({
   onArchive,
   onClose,
 }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false)
-
   const goal = habit.goalValue
   const pct = goal > 0 ? Math.min(1, todayValue / goal) : 0
   const reached = todayValue >= goal && goal > 0
@@ -49,148 +44,103 @@ export function HabitDetailModal({
     days.push({ date, value: v, reached: v >= goal && goal > 0 })
   }
   const dayLetter = (iso: string) =>
-    fromISO(iso).toLocaleDateString('fi-FI', { weekday: 'narrow' }).toUpperCase()
+    fromISO(iso).toLocaleDateString('fi-FI', { weekday: 'short' }).slice(0, 2)
 
   return (
     <Sheet open onClose={onClose}>
-      {/* Title row + overflow menu */}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-[15px] font-bold tracking-[-0.01em] text-text">
-            {habit.name}
-          </div>
-          <div className="mt-0.5 text-[10px] text-fg-faint">
-            {habit.goalPeriod === 'day' ? 'Päivätavoite' : 'Viikkotavoite'}
-          </div>
+      {/* Title row + actions */}
+      <div className="mb-2 flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="truncate text-[24px] font-medium leading-8 text-text">{habit.name}</h2>
+          <span className="text-[12px] leading-4 text-fg-muted">
+            {habit.goalPeriod === 'day' ? 'Päivätavoite' : 'Viikkotavoite'} {goal}
+          </span>
         </div>
-        <div className="relative">
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-text"
-            aria-label="Lisätoiminnot"
-          >
-            <MoreHorizontal size={20} />
-          </button>
-          {menuOpen && (
-            <>
-              <div onClick={() => setMenuOpen(false)} className="fixed inset-0 z-[1]" />
-              <div className="absolute right-0 top-[38px] z-[2] min-w-[160px] rounded-glass border border-white/10 bg-modal p-1 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onEdit()
-                  }}
-                  className={menuItem}
-                >
-                  <Pencil size={13} />
-                  Muokkaa
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onArchive()
-                  }}
-                  className={`${menuItem} text-danger`}
-                >
-                  <Archive size={13} />
-                  Arkistoi
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <button onClick={onEdit} className={textBtn} style={{ color: '#22d3ee' }}>
+          Muokkaa
+        </button>
+        <button onClick={onArchive} className={textBtn} style={{ color: '#FFB4AB' }}>
+          Arkistoi
+        </button>
       </div>
 
       {/* Progress ring */}
-      <div className="flex flex-col items-center px-4 pb-4 pt-2">
+      <div className="flex flex-col items-center gap-3 px-4 pb-2 pt-2">
         <div className="relative h-[200px] w-[200px]">
           <HabitProgressRing value={todayValue} goal={goal} color={habit.color} size={200} strokeWidth={14} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {reached && <Check size={28} color={habit.color} className="mb-1" />}
-            <div className="font-display text-[38px] font-extrabold leading-none tracking-[-0.02em] tabular-nums text-text">
-              {todayValue}
-              <span className="text-[22px] font-semibold text-fg-faint"> / {goal}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+            {reached && <Check size={28} color={habit.color} />}
+            <div className="num-display text-[44px] leading-none">
+              {isBinary ? (reached ? 'Tehty' : `0 / 1`) : `${todayValue} / ${goal}`}
             </div>
-            <div className="mt-2 text-[10px] uppercase tracking-[0.1em] text-fg-faint">
+            <div className="text-[12px] leading-4 tabular-nums text-fg-muted">
               {Math.round(pct * 100)} %
             </div>
           </div>
         </div>
 
         {habit.description && (
-          <p className="mt-3.5 max-w-[320px] text-center text-xs leading-normal text-fg-muted">
+          <p className="max-w-[320px] text-center text-[14px] leading-5 text-fg-muted">
             {habit.description}
           </p>
         )}
       </div>
 
       {/* Counter controls */}
-      <div className="px-4 py-4">
+      <div className="py-4">
         {isBinary ? (
-          <button
+          <Button
+            variant={reached ? 'secondary' : 'primary'}
             onClick={() => onSetBinary(!reached)}
-            className="flex w-full items-center justify-center gap-2 rounded-input p-4 text-sm font-bold tracking-[0.02em]"
-            style={{
-              backgroundColor: reached ? habit.color : 'rgba(255,255,255,0.06)',
-              color: reached ? '#05060c' : '#ebebeb',
-            }}
+            className="w-full"
           >
             {reached ? (
               <>
-                <Check size={16} />
+                <Check size={18} />
                 Tehty
               </>
             ) : (
               'Merkitse tehdyksi'
             )}
-          </button>
+          </Button>
         ) : (
-          <div className="flex items-center justify-center gap-[18px]">
-            <button
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
               onClick={() => onIncrement(-1)}
               disabled={todayValue <= 0}
-              className={`${counterBtn} ${todayValue <= 0 ? 'opacity-30' : ''}`}
               aria-label="Vähennä"
+              className="w-14 px-0"
             >
               <Minus size={20} />
-            </button>
-            <button
-              onClick={() => onIncrement(+1)}
-              className="flex min-h-0 items-center gap-2 rounded-input px-7 py-3.5 text-[13px] font-bold tracking-[0.03em] text-bg"
-              style={{ backgroundColor: habit.color }}
-            >
-              <Plus size={16} />
+            </Button>
+            <Button onClick={() => onIncrement(+1)}>
+              <Plus size={18} />
               Lisää
-            </button>
-            <button onClick={() => onIncrement(+1)} className={counterBtn} aria-label="Kasvata">
-              <Plus size={20} />
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* 7-day strip */}
-      <div className="px-4 pb-2 pt-2">
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-faint">
-          Viimeiset 7 päivää
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
+      <div className="flex flex-col gap-2 pb-2">
+        <span className="text-[12px] leading-4 text-fg-muted">Viimeiset 7 päivää</span>
+        <div className="grid grid-cols-7 gap-1">
           {days.map((d) => (
             <div
               key={d.date}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[10px] border"
+              className="flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl"
               style={{
-                borderColor: d.date === todayISO ? habit.color : 'rgba(255,255,255,0.07)',
-                backgroundColor: d.reached ? `${habit.color}22` : 'rgba(255,255,255,0.03)',
+                background: d.reached ? 'rgba(167,139,250,0.28)' : 'var(--surface-2)',
+                outline: d.date === todayISO ? `2px solid ${habit.color}` : 'none',
+                outlineOffset: '-2px',
               }}
             >
-              <div className="font-mono text-[9px] uppercase text-fg-faint">{dayLetter(d.date)}</div>
+              <span className="text-[12px] leading-4 text-fg-muted">{dayLetter(d.date)}</span>
               {d.reached ? (
-                <Check size={14} color={habit.color} />
+                <Check size={14} color="#DEE3E5" aria-label="tehty" />
               ) : (
-                <div className={`text-[11px] tabular-nums ${d.value > 0 ? 'text-text' : 'text-fg-ghost'}`}>
-                  {d.value}
-                </div>
+                <span className="text-[14px] font-medium leading-5 tabular-nums text-text">{d.value}</span>
               )}
             </div>
           ))}

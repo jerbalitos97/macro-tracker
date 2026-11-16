@@ -21,8 +21,8 @@ const MAX_X = 222
 const MIN_Y = 26
 const MAX_END_Y = 274
 
-const UPPER_COLORS = ['#7ba88a', '#8fbd9a', '#6a9577', '#a4c8aa', '#9bb88c']
-const LOWER_COLORS = ['#d4a857', '#e6c074', '#c79540', '#deb079', '#b9893a']
+const UPPER_COLORS = ['#22d3ee', '#67e8f9', '#06b6d4', '#a5f3fc', '#38bdf8']
+const LOWER_COLORS = ['#a78bfa', '#c4b5fd', '#8b5cf6', '#ddd6fe', '#9f7aea']
 
 function mulberry32(seed: number): () => number {
   return function () {

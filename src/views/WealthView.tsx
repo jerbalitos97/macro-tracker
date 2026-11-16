@@ -4,7 +4,7 @@ import PortfolioChart from '../components/wealth/PortfolioChart'
 import AssetCard from '../components/wealth/AssetCard'
 import AddAssetForm from '../components/wealth/AddAssetForm'
 import ToggleChip from '../components/wealth/ToggleChip'
-import { listAssets, listAllValues, reorderAssets } from '../lib/wealth/assets'
+import { deleteAsset, listAssets, listAllValues, reorderAssets } from '../lib/wealth/assets'
 import { getSettings } from '../lib/wealth/settings'
 import {
   buildChartData,
@@ -13,11 +13,16 @@ import {
 } from '../lib/wealth/projection'
 import { formatMoney, formatPercent } from '../lib/wealth/format'
 import type { Asset, AssetValue, Settings } from '../lib/wealth/types'
-import { Card, DragItem, useDragReorder, moveById, moveByDelta } from '../components/ui'
+import { Button, Card, Chip, DragItem, useDragReorder, moveById, moveByDelta, snack } from '../components/ui'
 
-const tinyLabel = 'text-[10px] font-medium uppercase tracking-[0.12em] text-muted font-mono'
+const label = 'text-[12px] leading-4 text-fg-muted'
 const errorBanner =
-  'rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
+  'rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[14px] text-danger'
+const textBtn =
+  'inline-flex min-h-11 items-center rounded-full bg-transparent px-3 text-[14px] font-semibold text-[#22d3ee]'
+/** How long a deleted asset waits for "Undo" before it is really deleted.
+ *  A little over the snackbar's 5 s so the button never outlives the chance. */
+const DELETE_GRACE_MS = 5200
 
 const ASSET_COLORS = [
   '#22d3ee', '#a78bfa', '#f472b6', '#fb923c',
@@ -48,6 +53,10 @@ export function WealthView({ onOpenSettings }: Props) {
   // What-if scenario: excluded assets are dropped from every portfolio and
   // projection calculation, as if they didn't exist (or produced nothing).
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
+  const [adding, setAdding] = useState(false)
+  // Deleted but still undoable: hidden everywhere on this screen, deleted in
+  // the database only once the undo window has passed.
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(async () => {
     setError(null)
@@ -79,11 +88,42 @@ export function WealthView({ onOpenSettings }: Props) {
     })
   }
 
+  function removeAsset(a: Asset) {
+    const unhide = () =>
+      setPendingDeleteIds((prev) => {
+        const next = new Set(prev)
+        next.delete(a.id)
+        return next
+      })
+    setPendingDeleteIds((prev) => new Set(prev).add(a.id))
+    const timer = window.setTimeout(() => {
+      deleteAsset(a.id)
+        .then(refresh)
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : 'Failed to delete')
+          unhide()
+        })
+    }, DELETE_GRACE_MS)
+    snack({
+      text: `Deleted ${a.name}`,
+      actionLabel: 'Undo',
+      onAction: () => {
+        window.clearTimeout(timer)
+        unhide()
+      },
+    })
+  }
+
+  const shownAssets = useMemo(
+    () => assets.filter((a) => !pendingDeleteIds.has(a.id)),
+    [assets, pendingDeleteIds],
+  )
+
   const assetDrag = useDragReorder((fromId, toId) => applyAssetOrder(moveById(assets, fromId, toId)))
 
   const includedAssets = useMemo(
-    () => assets.filter((a) => !excludedIds.has(a.id)),
-    [assets, excludedIds],
+    () => shownAssets.filter((a) => !excludedIds.has(a.id)),
+    [shownAssets, excludedIds],
   )
 
   const portfolioValue = useMemo(
@@ -143,168 +183,188 @@ export function WealthView({ onOpenSettings }: Props) {
     )
   }
 
+  const goalPct = Math.min(100, Math.max(0, goalProgress ?? 0))
+
   return (
-    <main className="flex flex-col gap-4 px-4 pb-10 pt-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-[22px] font-bold tracking-[-0.01em] text-text">
-            Wealth
-          </h1>
-          <p className="mt-1 text-[11px] text-muted">
-            Portfolio + goals
-          </p>
-        </div>
+    <main className="flex flex-col gap-3 px-4 pb-10 pt-2">
+      {/* Hero: the screen's one big number */}
+      <section
+        className="relative flex flex-col gap-1.5 border border-[rgba(52,211,153,0.35)] p-[22px]"
+        style={{
+          borderRadius: '36px 36px 36px 12px',
+          background: 'linear-gradient(135deg, rgba(52,211,153,0.28), rgba(34,211,238,0.22))',
+        }}
+      >
         <button
           type="button"
           onClick={onOpenSettings}
           aria-label="Wealth settings"
-          className="inline-flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted"
+          className="absolute right-2 top-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-transparent text-[#d1fae5]"
         >
-          <SettingsIcon size={16} />
+          <SettingsIcon size={20} />
         </button>
-      </div>
-
-      {/* Stat cards */}
-      <section className="grid grid-cols-2 gap-2.5">
-        <Card variant="glass">
-          <div className={tinyLabel}>Portfolio total</div>
-          <div className="mt-1 font-display text-[24px] font-bold tabular-nums tracking-[-0.02em] text-text">
-            {formatMoney(portfolioValue, settings.currency)}
-          </div>
-          {assets.length > 0 && (
-            <div className={`mt-1 text-xs ${overallChange >= 0 ? 'text-[#34d399]' : 'text-danger'}`}>
-              {formatPercent(overallChange)} since start
+        <span className="pr-12 text-[14px] leading-5 text-[#d1fae5]">
+          Portfolio total{excludedIds.size > 0 ? ' · scenario' : ''}
+        </span>
+        <span className="num-display text-[52px] leading-[56px]">
+          {formatMoney(portfolioValue, settings.currency)}
+        </span>
+        {shownAssets.length > 0 && (
+          <span className={`text-[15px] ${overallChange >= 0 ? 'text-[#bbf7d0]' : 'text-danger'}`}>
+            {formatPercent(overallChange)} since start
+          </span>
+        )}
+        {settings.wealthGoal !== null ? (
+          <>
+            <div className="mt-2 flex justify-between text-[14px] text-[#d1fae5]">
+              <span>Wealth goal {formatMoney(settings.wealthGoal, settings.currency)}</span>
+              {goalProgress !== null && <span className="font-mono">{goalProgress.toFixed(1)} %</span>}
             </div>
-          )}
-          {excludedIds.size > 0 && (
-            <div className="mt-1 text-[11px] text-[#fbbf24]">
-              What-if: {excludedIds.size} asset{excludedIds.size > 1 ? 's' : ''} excluded
+            <div
+              className="h-2.5 overflow-hidden rounded-[5px] bg-white/[0.14]"
+              role="progressbar"
+              aria-label="Wealth goal progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(goalPct)}
+            >
+              <div
+                className="h-2.5 rounded-[5px] bg-gradient-to-r from-[#34d399] to-[#22d3ee] transition-[width] duration-500 ease-out"
+                style={{ width: `${goalPct}%` }}
+              />
             </div>
-          )}
-        </Card>
-        <Card variant="glass">
-          <div className={`${tinyLabel} flex items-baseline justify-between`}>
-            <span>Wealth goal</span>
-            {goalProgress !== null && <span className="text-goal">{goalProgress.toFixed(1)}%</span>}
-          </div>
-          {settings.wealthGoal !== null ? (
-            <>
-              <div className="mt-1 font-display text-[24px] font-bold tabular-nums tracking-[-0.02em] text-text">
-                {formatMoney(settings.wealthGoal, settings.currency)}
-              </div>
-              <div className="mt-2.5 h-1.5 rounded-[3px] bg-[rgba(9,11,20,0.50)]">
-                <div
-                  className="h-1.5 rounded-[3px] bg-goal transition-[width] duration-[450ms] ease-out"
-                  style={{ width: `${Math.min(100, Math.max(0, goalProgress ?? 0))}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="mt-1.5 text-xs leading-relaxed text-muted">
-              Not set — add one in Settings to see it as a chart threshold.
-            </div>
-          )}
-        </Card>
+          </>
+        ) : (
+          <span className="mt-2 text-[14px] leading-5 text-[#d1fae5]">
+            No wealth goal yet — set one in settings to see progress here and on the chart.
+          </span>
+        )}
       </section>
 
       {error && <p className={errorBanner}>{error}</p>}
 
-      <PortfolioChart
-        data={chartData}
-        assets={assets}
-        visibleAssetIds={visibleAssetIds}
-        showPortfolio={showPortfolio}
-        showProjection={showProjection}
-        wealthGoal={settings.wealthGoal}
-        currency={settings.currency}
-      />
-
-      {/* Toggle chips row */}
-      <section className="flex w-full flex-wrap items-center gap-1.5">
-        <ToggleChip active={showPortfolio} onClick={() => setShowPortfolio((v) => !v)} swatch="#10b981">
-          Portfolio
-        </ToggleChip>
-        {assets.map((a, i) => (
-          <ToggleChip
-            key={a.id}
-            active={visibleAssetIds.has(a.id)}
-            onClick={() => toggleAsset(a.id)}
-            swatch={ASSET_COLORS[i % ASSET_COLORS.length]}
+      <Card className="flex flex-col gap-2.5 !p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[16px] font-medium leading-6 text-text">Portfolio</span>
+          <Chip
+            type="button"
+            active={showProjection}
+            aria-pressed={showProjection}
+            onClick={() => setShowProjection((v) => !v)}
+            className="!min-h-9"
           >
-            {a.name}
-          </ToggleChip>
-        ))}
-        <span className="ml-auto inline-flex items-center gap-1.5">
-          <ToggleChip active={showProjection} onClick={() => setShowProjection((v) => !v)} swatch="#6366f1">
             Projection
-          </ToggleChip>
-          {showProjection && (
-            <select
-              value={projectionYears}
-              onChange={(e) => setProjectionYears(Number(e.target.value))}
-              className="cursor-pointer rounded-full border border-border bg-surface px-2 py-1 text-[11px] text-text [color-scheme:dark]"
-            >
-              {TIMEFRAMES.map((t) => (
-                <option key={t.years} value={t.years}>
+          </Chip>
+        </div>
+        {showProjection && (
+          <div
+            role="radiogroup"
+            aria-label="Projection timeframe"
+            className="grid grid-cols-5 overflow-hidden rounded-[20px] border border-white/[0.18]"
+          >
+            {TIMEFRAMES.map((t, k) => {
+              const on = projectionYears === t.years
+              return (
+                <button
+                  key={t.years}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setProjectionYears(t.years)}
+                  className={`min-h-10 text-[14px] font-medium ${k ? 'border-l border-white/[0.18]' : ''} ${
+                    on ? 'bg-[rgba(52,211,153,0.2)] text-[#bbf7d0]' : 'bg-transparent text-text'
+                  }`}
+                >
                   {t.label}
-                </option>
-              ))}
-            </select>
-          )}
-        </span>
-      </section>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
-      {/* What-if scenario: exclude assets from all calculations */}
-      <section>
-        <div className={`${tinyLabel} mb-1.5`}>What-if · exclude from calculations</div>
-        <div className="flex w-full flex-wrap items-center gap-1.5">
-          {assets.map((a) => (
+        <PortfolioChart
+          data={chartData}
+          assets={shownAssets}
+          visibleAssetIds={visibleAssetIds}
+          showPortfolio={showPortfolio}
+          showProjection={showProjection}
+          wealthGoal={settings.wealthGoal}
+          currency={settings.currency}
+        />
+
+        {/* Which lines the chart draws */}
+        <div className="flex flex-wrap gap-1.5">
+          <ToggleChip active={showPortfolio} onClick={() => setShowPortfolio((v) => !v)} swatch="#10b981">
+            Portfolio
+          </ToggleChip>
+          {shownAssets.map((a, i) => (
             <ToggleChip
               key={a.id}
-              active={excludedIds.has(a.id)}
-              onClick={() => toggleExcluded(a.id)}
-              swatch="#f87171"
+              active={visibleAssetIds.has(a.id)}
+              onClick={() => toggleAsset(a.id)}
+              swatch={ASSET_COLORS[i % ASSET_COLORS.length]}
             >
               {a.name}
             </ToggleChip>
           ))}
-          {excludedIds.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setExcludedIds(new Set())}
-              className="ml-auto rounded-full border border-border bg-transparent px-2.5 py-1 text-[11px] !min-h-0 !min-w-0 text-muted"
-            >
-              Reset
-            </button>
-          )}
         </div>
-        {excludedIds.size > 0 && (
-          <p className="mt-1.5 text-[11px] leading-relaxed text-[#fbbf24]">
-            Scenario active — excluded assets are left out of the portfolio total, chart and projection.
-          </p>
+
+        {/* What-if scenario: exclude assets from all calculations */}
+        {shownAssets.length > 0 && (
+          <>
+            <span className={`${label} mt-1`}>What-if · exclude from calculations</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {shownAssets.map((a) => {
+                const off = excludedIds.has(a.id)
+                return (
+                  <Chip
+                    key={a.id}
+                    type="button"
+                    aria-pressed={off}
+                    onClick={() => toggleExcluded(a.id)}
+                    className={`!min-h-9 ${off ? '!text-[#899294] line-through' : '!text-text'}`}
+                  >
+                    {a.name}
+                  </Chip>
+                )
+              })}
+              {excludedIds.size > 0 && (
+                <button type="button" onClick={() => setExcludedIds(new Set())} className={textBtn}>
+                  Reset
+                </button>
+              )}
+            </div>
+          </>
         )}
-      </section>
+      </Card>
 
       {/* Assets list */}
-      <section className="flex flex-col gap-2.5">
-        <div className={tinyLabel}>Assets</div>
-        <div ref={assetDrag.containerRef} className="flex flex-col gap-2.5">
-          {assets.map((a, i) => {
-            const sortedOwn = values
-              .filter((v) => v.assetId === a.id)
-              .sort((x, y) => x.recordedAt.localeCompare(y.recordedAt))
-            return (
-              <DragItem
-                key={a.id}
-                id={a.id}
-                reorder={assetDrag}
-                longPress
-                onMove={(d) => applyAssetOrder(moveByDelta(assets, a.id, d))}
-                tabIndex={0}
-                ariaLabel={`${a.name} — pidä pohjassa järjestääksesi`}
-                className="rounded-panel"
-              >
+      <div className="flex items-center justify-between px-1 pt-1">
+        <h2 className="text-[16px] font-medium leading-6 text-text">Assets</h2>
+        {!adding && (
+          <Button type="button" variant="action" className="flex-none" onClick={() => setAdding(true)}>
+            + Add asset
+          </Button>
+        )}
+      </div>
+      <AddAssetForm open={adding} onClose={() => setAdding(false)} onAdded={refresh} />
+      <div ref={assetDrag.containerRef} className="flex flex-col gap-3">
+        {shownAssets.map((a, i) => {
+          const sortedOwn = values
+            .filter((v) => v.assetId === a.id)
+            .sort((x, y) => x.recordedAt.localeCompare(y.recordedAt))
+          return (
+            <DragItem
+              key={a.id}
+              id={a.id}
+              reorder={assetDrag}
+              longPress
+              onMove={(d) => applyAssetOrder(moveByDelta(assets, a.id, d))}
+              tabIndex={0}
+              ariaLabel={`${a.name} — pidä pohjassa järjestääksesi`}
+              className="rounded-panel"
+            >
+              <div style={{ opacity: excludedIds.has(a.id) ? 0.5 : 1 }}>
                 <AssetCard
                   asset={a}
                   currentValue={currentAssetValue(a.id, values)}
@@ -314,13 +374,13 @@ export function WealthView({ onOpenSettings }: Props) {
                   currency={settings.currency}
                   onToggle={() => toggleAsset(a.id)}
                   onChange={refresh}
+                  onDelete={() => removeAsset(a)}
                 />
-              </DragItem>
-            )
-          })}
-        </div>
-        <AddAssetForm onAdded={refresh} />
-      </section>
+              </div>
+            </DragItem>
+          )
+        })}
+      </div>
     </main>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Check, Share2, Trash2, ShoppingBasket, Undo2, Tag } from 'lucide-react'
+import { Plus, Check, Share2, Trash2, ShoppingBasket, Tag } from 'lucide-react'
 import { Card, Button, Sheet } from '../components/ui'
 import { celebrate } from '../lib/flash'
 import { useAuth } from '../contexts/AuthContext'
@@ -145,193 +145,235 @@ export function GroceryView() {
     )
   }
 
+  const openCount = todo.length
+  const basketPct = items.length > 0 ? Math.round((done.length / items.length) * 100) : 0
+
   return (
-    <div className="px-4 pb-28 pt-4">
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="font-display text-[22px] font-bold tracking-[-0.02em] text-text">Ostoslista</h1>
+    <div className="flex flex-col gap-3 px-4 pb-28 pt-2">
+      {/* Store switcher + share. The tool title lives in the AppBar. */}
+      <div className="flex items-center gap-2">
+        <div
+          role="tablist"
+          aria-label="Kauppa"
+          className="flex min-w-0 flex-1 gap-1 rounded-[24px] border border-white/[0.08] bg-[var(--surface-1)] p-1"
+        >
+          {STORES.map((s) => {
+            const active = store === s
+            return (
+              <button
+                key={s}
+                role="tab"
+                aria-selected={active}
+                onClick={() => { void setStore(list.id, s); setList({ ...list, store: s }) }}
+                className={`min-h-10 min-w-0 flex-1 cursor-pointer rounded-[20px] text-[14px] font-medium transition-colors ${
+                  active ? 'bg-[rgba(248,113,113,0.2)] text-[#fecaca]' : 'bg-transparent text-fg-muted'
+                }`}
+              >
+                {STORE_LABEL[s]}
+              </button>
+            )
+          })}
+        </div>
         <button
           onClick={share}
-          className="icon-btn flex min-h-0 min-w-0 items-center gap-1.5 rounded-full border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-cyan"
+          className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.18] bg-transparent px-4 text-[14px] font-medium text-text"
         >
-          <Share2 size={13} /> {copied ? 'Kopioitu' : 'Jaa'}
+          <Share2 size={16} /> {copied ? 'Kopioitu' : 'Jaa'}
         </button>
       </div>
 
-      {/* Store switcher */}
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
-        {STORES.map((s) => {
-          const active = store === s
-          return (
-            <button
-              key={s}
-              onClick={() => { void setStore(list.id, s); setList({ ...list, store: s }) }}
-              className={`min-h-0 rounded-[14px] py-2 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors ${
-                active ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'text-fg-muted'
-              }`}
-            >
-              {STORE_LABEL[s]}
-            </button>
-          )
-        })}
-      </div>
+      {/* Hero: the screen's one number — what is still to take. */}
+      <section
+        className="flex flex-col gap-2 rounded-[36px_36px_36px_12px] border border-[rgba(248,113,113,0.38)] p-5"
+        style={{ background: 'linear-gradient(135deg, rgba(248,113,113,0.28), rgba(167,139,250,0.24))' }}
+      >
+        <span className="text-[14px] leading-5 text-[#fde2e2]">{STORE_LABEL[store]}</span>
+        <div className="flex items-baseline gap-2.5">
+          <span className="num-display text-[52px] leading-[56px]">{openCount}</span>
+          <span className="text-[18px] text-[#fde2e2]">{openCount === 1 ? 'tuote jäljellä' : 'tuotetta jäljellä'}</span>
+        </div>
+        <div
+          className="h-2.5 overflow-hidden rounded-[5px] bg-white/[0.14]"
+          role="progressbar"
+          aria-label="Korissa"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={basketPct}
+        >
+          <div
+            className="h-2.5 rounded-[5px] transition-[width] duration-500 ease-[cubic-bezier(.2,0,0,1)]"
+            style={{ width: `${basketPct}%`, background: 'linear-gradient(90deg, #f87171, #a78bfa)' }}
+          />
+        </div>
+        <span className="text-[14px] leading-5 text-[#fde2e2]">
+          Korissa <span className="font-mono">{done.length} / {items.length}</span>
+        </span>
+      </section>
 
       {/* Add bar */}
-      <Card variant="panel" className="mb-4">
-        <input
-          value={itemName}
-          onChange={(e) => setItemName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          placeholder="Lisää tuote…"
-          className="mb-2 w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-sm text-text"
-        />
-        <div className="flex items-center gap-2">
+      <Card variant="panel" className="flex flex-col gap-2.5">
+        <div className="flex gap-2">
+          <input
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            placeholder="Lisää tuote…"
+            aria-label="Tuote"
+            className="h-12 min-w-0 flex-1 rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-3.5 text-base text-text placeholder:text-fg-muted"
+          />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             inputMode="decimal"
             placeholder="Määrä"
-            className="w-20 rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-center text-sm tabular-nums text-text"
+            aria-label="Määrä"
+            className="h-12 w-16 shrink-0 rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-1 text-center font-mono text-base text-text placeholder:font-sans placeholder:text-fg-muted"
           />
-          <div className="flex flex-1 gap-1 rounded-input border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
-            {UNITS.map((u) => (
-              <button
-                key={u}
-                onClick={() => setUnit(u)}
-                className={`flex-1 rounded-[10px] py-1.5 font-mono text-[11px] uppercase transition-colors ${
-                  unit === u ? 'bg-cyan/20 text-cyan' : 'text-fg-muted'
-                }`}
-              >
-                {UNIT_LABEL[u]}
-              </button>
-            ))}
-          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {UNITS.map((u) => (
+            <button
+              key={u}
+              onClick={() => setUnit(u)}
+              aria-pressed={unit === u}
+              className={`min-h-9 cursor-pointer whitespace-nowrap rounded-lg px-3 text-[14px] font-medium transition-colors ${
+                unit === u
+                  ? 'border border-transparent bg-[rgba(248,113,113,0.18)] text-[#fecaca]'
+                  : 'border border-white/[0.18] bg-transparent text-text'
+              }`}
+            >
+              {UNIT_LABEL[u]}
+            </button>
+          ))}
+          <span className="flex-1" />
           <button
             onClick={handleAdd}
             disabled={!itemName.trim()}
             aria-label="Lisää"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg shadow-[0_0_18px_rgba(34,211,238,0.45)] disabled:opacity-40"
+            className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl text-bg disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg, #f87171, #a78bfa)' }}
           >
-            <Plus size={20} strokeWidth={2.4} />
+            <Plus size={22} strokeWidth={2.4} />
           </button>
         </div>
       </Card>
 
       {/* To-take sections */}
       {todo.length === 0 && done.length === 0 && (
-        <p className="rounded-row border border-dashed border-white/[0.12] px-4 py-8 text-center text-[12px] leading-relaxed text-fg-faint">
+        <p className="px-1 py-2 text-[14px] leading-5 text-fg-muted">
           Lista on tyhjä. Lisää ensimmäinen tuote yltä.
         </p>
       )}
 
-      <div className="flex flex-col gap-4">
-        {sections.map(({ cat, items: secItems }) => (
-          <div key={cat}>
-            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">
-              {CATEGORY_LABEL[cat]} <span className="text-fg-faint">· {secItems.length}</span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {secItems.map((it) => (
-                <div
-                  key={it.id}
-                  data-flash
-                  className="relative flex items-center gap-3 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] px-3 py-2.5 [backdrop-filter:blur(14px)]"
+      {sections.map(({ cat, items: secItems }) => (
+        <div key={cat} className="flex flex-col gap-2">
+          <div className="px-1 pt-1 text-[14px] font-medium leading-5 text-fg-muted">
+            {CATEGORY_LABEL[cat]} · {secItems.length}
+          </div>
+          <div className="flex flex-col gap-0.5 overflow-hidden rounded-[20px]">
+            {secItems.map((it) => (
+              <div
+                key={it.id}
+                data-flash
+                className="relative flex min-h-[60px] items-center gap-3 bg-[var(--surface-1)] py-2 pl-3 pr-1"
+              >
+                <button
+                  onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
+                  aria-label={`Merkitse otetuksi: ${it.name}`}
+                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-white/30 bg-transparent text-transparent transition-colors active:border-transparent active:bg-gradient-to-br active:from-[#f87171] active:to-violet active:text-bg"
                 >
-                  <button
-                    onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
-                    aria-label="Merkitse otetuksi"
-                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 border-white/25 text-transparent transition-colors active:border-cyan active:bg-cyan active:text-bg"
-                  >
-                    <Check size={13} strokeWidth={3} />
-                  </button>
-                  <button
-                    onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
-                    className="min-w-0 flex-1 bg-transparent p-0 text-left"
-                  >
-                    <div className="truncate text-[14px] text-text">{it.name}</div>
-                  </button>
+                  <Check size={18} strokeWidth={3} />
+                </button>
+                <button
+                  onClick={(e) => { celebrate(e.currentTarget); void toggle(it, true) }}
+                  className="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
+                >
+                  <span className="truncate text-[16px] leading-6 text-text">{it.name}</span>
                   {amountLabel(it) && (
-                    <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">{amountLabel(it)}</span>
+                    <span className="font-mono text-[12px] leading-4 text-fg-muted">{amountLabel(it)}</span>
                   )}
+                </button>
+                <button
+                  onClick={() => setMenuItem(it)}
+                  aria-label={`Osasto ja poisto: ${it.name}`}
+                  className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent text-fg-muted"
+                >
+                  <Tag size={20} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Done — baskets per person */}
+      {done.length > 0 && (
+        <Card variant="panel" className="mt-1 flex flex-col gap-2.5">
+          <div className="flex items-center">
+            <span className="flex-1 text-[16px] font-medium leading-6 text-text">
+              Korissa · <span className="font-mono">{done.length}</span>
+            </span>
+            <button
+              onClick={() => clearDone(list.id)}
+              className="min-h-10 cursor-pointer rounded-full bg-transparent px-3 text-[14px] font-semibold text-cyan"
+            >
+              Tyhjennä
+            </button>
+          </div>
+          {baskets.map(([who, basketItems]) => (
+            <div key={who} className="flex flex-col">
+              <div className="flex items-center gap-2 text-[12px] leading-4 text-fg-muted">
+                <ShoppingBasket size={14} className="shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{who}</span>
+              </div>
+              {basketItems.map((it) => (
+                <div key={it.id} className="flex min-h-11 items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[15px] text-fg-muted line-through">
+                    {it.name}{amountLabel(it) && <> · <span className="font-mono">{amountLabel(it)}</span></>}
+                  </span>
                   <button
-                    onClick={() => setMenuItem(it)}
-                    aria-label="Lisätoiminnot"
-                    className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1 text-fg-faint"
+                    onClick={() => toggle(it, false)}
+                    aria-label={`Palauta listalle: ${it.name}`}
+                    className="min-h-10 shrink-0 cursor-pointer rounded-full bg-transparent px-3 text-[14px] font-semibold text-cyan"
                   >
-                    <Tag size={14} />
+                    Palauta
                   </button>
                 </div>
               ))}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Done — baskets per person */}
-      {done.length > 0 && (
-        <div className="mt-7">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">
-              Korissa <span className="text-fg-faint">· {done.length}</span>
-            </div>
-            <button onClick={() => clearDone(list.id)} className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint hover:text-danger">
-              Tyhjennä
-            </button>
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {baskets.map(([who, basketItems]) => (
-              <Card key={who} variant="glass">
-                <div className="mb-2 flex items-center gap-2">
-                  <ShoppingBasket size={15} className="flex-shrink-0 text-cyan" />
-                  <div className="min-w-0 flex-1 truncate font-display text-[14px] font-semibold text-text">{who}</div>
-                  <span className="font-mono text-[10px] text-fg-faint">{basketItems.length}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  {basketItems.map((it) => (
-                    <div key={it.id} className="flex items-center gap-2 border-t border-white/[0.05] py-1 first:border-t-0">
-                      <button
-                        onClick={() => toggle(it, false)}
-                        aria-label="Palauta listalle"
-                        className="icon-btn flex min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-md p-1 text-cyan"
-                      >
-                        <Undo2 size={13} />
-                      </button>
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-fg-muted line-through">{it.name}</span>
-                      {amountLabel(it) && (
-                        <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-faint">{amountLabel(it)}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+          ))}
+        </Card>
       )}
 
       {/* Per-item options: recategorise / delete */}
       {menuItem && (
-        <Sheet open onClose={() => setMenuItem(null)} title={<span className="normal-case">{menuItem.name}</span>}>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">Siirrä osastoon</div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {(Object.keys(CATEGORY_LABEL) as CategoryKey[]).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => { void setCategory(menuItem.id, cat); void refresh(); setMenuItem(null) }}
-                className={`rounded-input border px-3 py-2 text-left text-[12px] ${
-                  normalizeCategory(menuItem.category) === cat ? 'border-cyan/40 bg-cyan/[0.1] text-cyan' : 'border-white/10 bg-[rgba(9,11,20,0.45)] text-fg-muted'
-                }`}
-              >
-                {CATEGORY_LABEL[cat]}
-              </button>
-            ))}
+        <Sheet open onClose={() => setMenuItem(null)} title={menuItem.name}>
+          <div className="mb-2 text-[12px] leading-4 text-fg-muted">Siirrä osastoon</div>
+          <div className="flex flex-wrap gap-1.5">
+            {(Object.keys(CATEGORY_LABEL) as CategoryKey[]).map((cat) => {
+              const on = normalizeCategory(menuItem.category) === cat
+              return (
+                <button
+                  key={cat}
+                  aria-pressed={on}
+                  onClick={() => { void setCategory(menuItem.id, cat); void refresh(); setMenuItem(null) }}
+                  className={`min-h-9 cursor-pointer whitespace-nowrap rounded-lg px-3 text-[14px] font-medium ${
+                    on
+                      ? 'border border-transparent bg-[rgba(248,113,113,0.18)] text-[#fecaca]'
+                      : 'border border-white/[0.18] bg-transparent text-text'
+                  }`}
+                >
+                  {CATEGORY_LABEL[cat]}
+                </button>
+              )
+            })}
           </div>
           <button
             onClick={() => { void deleteItem(menuItem.id); void refresh(); setMenuItem(null) }}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-input border border-danger/30 bg-danger/[0.08] py-3 font-mono text-[12px] text-danger"
+            className="mt-4 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.18] bg-transparent px-4 text-[14px] font-medium text-[#FFB4AB]"
           >
-            <Trash2 size={14} /> Poista tuote
+            <Trash2 size={16} /> Poista tuote
           </button>
         </Sheet>
       )}
@@ -339,7 +381,7 @@ export function GroceryView() {
       {/* Name prompt (for the "who took what" baskets) */}
       {needName && (
         <Sheet open onClose={() => setNeedName(false)} title="Kuka olet?">
-          <p className="mb-3 text-[12px] leading-relaxed text-fg-muted">
+          <p className="mb-3 text-[14px] leading-5 text-fg-muted">
             Nimi näytetään korissa, jotta näette kuka otti mitäkin.
           </p>
           <input
@@ -347,8 +389,9 @@ export function GroceryView() {
             onChange={(e) => setNameInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && saveName()}
             placeholder="Nimesi"
+            aria-label="Nimesi"
             autoFocus
-            className="mb-3 w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text"
+            className="mb-3 h-12 w-full rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-3.5 text-base text-text placeholder:text-fg-muted"
           />
           <Button variant="primary" onClick={saveName} disabled={!nameInput.trim()} className="w-full">
             <Check size={16} /> Valmis

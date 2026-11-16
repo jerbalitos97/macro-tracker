@@ -39,7 +39,7 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
     <div>
       <div className="mb-[3px] grid grid-cols-7 gap-0.5">
         {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
-          <div key={d} className="py-1 text-center text-[9px] uppercase tracking-[0.1em] text-fg-ghost">{d}</div>
+          <div key={d} className="py-1 text-center text-[12px]   text-fg-ghost">{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (

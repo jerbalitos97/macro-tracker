@@ -9,7 +9,7 @@ type Props = {
 
 export default function ToggleChip({ active, onClick, children, swatch }: Props) {
   return (
-    <Chip type="button" active={active} onClick={onClick}>
+    <Chip type="button" active={active} aria-pressed={active} onClick={onClick} className="!min-h-9">
       {swatch ? (
         <span
           aria-hidden

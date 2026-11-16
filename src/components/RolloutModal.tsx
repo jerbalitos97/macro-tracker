@@ -88,17 +88,17 @@ export function RolloutModal({
         }}
       />
       {start === earliestStart && (
-        <p className="-mt-1 mb-3 text-[10px] leading-tight text-fg-ghost">
+        <p className="-mt-1 mb-3 text-[12px] leading-tight text-fg-ghost">
           Tänään on jo osittain syöty — säätö osuu loppupäivään.
         </p>
       )}
       {skipWeekends && (
-        <p className="-mt-1 mb-3 text-[10px] leading-tight text-fg-ghost">
+        <p className="-mt-1 mb-3 text-[12px] leading-tight text-fg-ghost">
           Jaksolla on viikonloppuylläpito, joten säätö osuu vain arkipäiviin.
         </p>
       )}
 
-      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
+      <div className="mb-1.5 text-[12px] font-medium   text-muted">
         Kuinka suuri osa
       </div>
       <div className="mb-3.5 grid grid-cols-3 gap-1.5">
@@ -114,7 +114,7 @@ export function RolloutModal({
         ))}
       </div>
 
-      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
+      <div className="mb-1.5 text-[12px] font-medium   text-muted">
         Miten pitkälle jaetaan
       </div>
       <div className="mb-3.5 grid grid-cols-3 gap-1.5">
@@ -126,7 +126,7 @@ export function RolloutModal({
             className="flex-col justify-center gap-0 py-1.5 text-center leading-tight"
           >
             <span>{s.label}</span>
-            {s.hint && <span className="text-[9px] text-fg-ghost">{s.hint}</span>}
+            {s.hint && <span className="text-[12px] text-fg-ghost">{s.hint}</span>}
           </Chip>
         ))}
       </div>
@@ -146,13 +146,13 @@ export function RolloutModal({
               {perDay > 0 ? '+' : ''}{perDay} kcal
             </span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between text-[11px] text-fg-faint">
+          <div className="mt-1 flex items-baseline justify-between text-[12px] text-fg-faint">
             <span>{plan.length} {skipWeekends ? 'arkipäivää' : 'päivää'}</span>
             <span>
               {formatDateShort(plan[0].date)} – {formatDateShort(plan[plan.length - 1].date)}
             </span>
           </div>
-          <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 text-[11px] text-fg-faint">
+          <div className="mt-1.5 border-t border-white/[0.06] pt-1.5 text-[12px] text-fg-faint">
             Yhteensä {applied > 0 ? '+' : ''}{applied.toLocaleString('fi-FI')} kcal
             {share < 1 && (
               <span className="text-fg-ghost">
@@ -161,7 +161,7 @@ export function RolloutModal({
             )}
           </div>
           {truncated && (
-            <div className="mt-1.5 text-[11px] text-danger">
+            <div className="mt-1.5 text-[12px] text-danger">
               Jakso päättyy {formatDateShort(lastDate)} ennen kuin {wantedDays}{' '}
               {skipWeekends ? 'arkipäivää' : 'päivää'} täyttyy — säätö mahtuu {plan.length}{' '}
               {skipWeekends ? 'arkipäivälle' : 'päivälle'}.

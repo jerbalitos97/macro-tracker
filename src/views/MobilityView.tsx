@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Check } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { toISO, formatDateShort } from '../lib/dates'
 import { countLeaves, deleteMobilityLog, listMobilityLogs, logMobility, type MobilityLog } from '../lib/mobility'
 import { Tree } from '../components/mobility/Tree'
+import { Card, snack } from '../components/ui'
 
 type Choice = 'upper' | 'lower' | 'both'
 
@@ -11,10 +12,12 @@ type Choice = 'upper' | 'lower' | 'both'
 // näyttää puun heti eikä "Ladataan…", ja taustahaku korjaa hiljaa perässä.
 const logsCache = new Map<string, MobilityLog[]>()
 
-const CHOICES: Array<{ id: Choice; label: string; dot: string }> = [
-  { id: 'upper', label: 'Yläkroppa', dot: '#7ba88a' },
-  { id: 'lower', label: 'Alakroppa', dot: '#d4a857' },
-  { id: 'both',  label: 'Molemmat',  dot: '#4a7c59' },
+// Kirjausnapit kuten mockupissa: ylä syaani, ala violetti, molemmat liukuväri.
+// Samat värit ovat puun lehdissä ja selitteessä.
+const CHOICES: Array<{ id: Choice; label: string; style: CSSProperties }> = [
+  { id: 'upper', label: 'Yläkroppa', style: { background: 'rgba(34,211,238,0.18)', color: '#a5f3fc' } },
+  { id: 'lower', label: 'Alakroppa', style: { background: 'rgba(167,139,250,0.22)', color: '#ddd6fe' } },
+  { id: 'both',  label: 'Molemmat',  style: { background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: '#05060c' } },
 ]
 
 export function MobilityView() {
@@ -23,7 +26,6 @@ export function MobilityView() {
   const [loading, setLoading] = useState(() => !(user && logsCache.has(user.id)))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [flash, setFlash] = useState(false)
   const [tick, setTick] = useState(0)
 
   const reload = useCallback(() => setTick((n) => n + 1), [])
@@ -52,8 +54,7 @@ export function MobilityView() {
     setError(null)
     try {
       await logMobility(user.id, toISO(new Date()), c === 'upper' || c === 'both', c === 'lower' || c === 'both')
-      setFlash(true)
-      window.setTimeout(() => setFlash(false), 1800)
+      snack('Kirjattu — puu kasvoi')
       reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kirjaus ei onnistunut')
@@ -62,12 +63,21 @@ export function MobilityView() {
     }
   }
 
-  const remove = async (id: string) => {
+  // Poisto heti, Kumoa kirjaa saman päivän ja kehon osat uudelleen.
+  const remove = async (l: MobilityLog) => {
     if (!user) return
     setError(null)
     try {
-      await deleteMobilityLog(user.id, id)
+      await deleteMobilityLog(user.id, l.id)
       reload()
+      snack({
+        text: 'Kirjaus poistettu',
+        onAction: () => {
+          logMobility(user.id, l.logDate, l.upperBody, l.lowerBody)
+            .then(reload)
+            .catch((e) => setError(e instanceof Error ? e.message : 'Palautus ei onnistunut'))
+        },
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Poisto ei onnistunut')
     }
@@ -77,46 +87,40 @@ export function MobilityView() {
   const recent = useMemo(() => [...logs].reverse().slice(0, 12), [logs])
 
   return (
-    <div className="flex min-h-dvh flex-col gap-4 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-7">
-      <div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">LiikkuvuusPuu</div>
-        <h2 className="mt-1.5 font-display text-[22px] font-semibold tracking-[-0.015em] text-text">
+    <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+104px)] pt-2">
+      <div className="flex flex-col gap-1 px-1">
+        <h2 className="text-[26px] font-medium leading-8 text-text">
           {counts.total === 0 ? 'Puu odottaa ensimmäistä oksaa' : `${logs.length} oksaa, ${counts.total} lehteä`}
         </h2>
-        <p className="mt-1 text-[13px] text-fg-muted">
-          Jokainen liikkuvuushetki kasvattaa puuta. Ei tavoitteita, ei sarjoja — pelkkä merkki siitä että teit sen.
+        <p className="text-[14px] leading-5 text-fg-muted">
+          Jokainen liikkuvuushetki kasvattaa puuta. Ei tavoitteita, ei sarjoja.
         </p>
       </div>
 
-      <div className="card-enter rounded-panel border border-white/10 bg-[rgba(9,11,20,0.5)] p-4 [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
+      <Card variant="panel" className="card-enter flex flex-col items-center px-2 pb-3 pt-2">
         {loading ? (
-          <p className="py-16 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>
+          <p className="py-16 text-center text-[14px] text-fg-muted">Ladataan…</p>
         ) : (
-          <Tree logs={logs} />
+          <div className="w-full">
+            <Tree logs={logs} />
+          </div>
         )}
-        <div className="mt-2 flex justify-center gap-5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-ghost">
+        <div className="mt-2 flex justify-center gap-4 text-[14px] leading-5 text-fg-muted">
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: '#7ba88a' }} />
+            <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: '#22d3ee' }} />
             Ylä {counts.upper}
           </span>
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: '#d4a857' }} />
+            <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: '#a78bfa' }} />
             Ala {counts.lower}
           </span>
         </div>
-      </div>
+      </Card>
 
       {error && (
-        <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
-          <AlertCircle size={14} className="shrink-0" />
+        <p role="status" className="card-enter flex items-center gap-2 rounded-[20px] bg-[var(--surface-1)] px-4 py-3 text-[14px] leading-5 text-[#FFB4AB]">
+          <AlertCircle size={16} className="shrink-0" />
           {error}
-        </p>
-      )}
-
-      {flash && (
-        <p role="status" className="card-enter flex items-center justify-center gap-2 rounded-row border border-border-hi bg-accent/[0.10] px-4 py-3 text-[13px] text-accent">
-          <Check size={14} />
-          Kirjattu — puu kasvoi
         </p>
       )}
 
@@ -127,40 +131,37 @@ export function MobilityView() {
             type="button"
             disabled={busy || !user}
             onClick={() => void log(c.id)}
-            className="flex cursor-pointer flex-col items-start gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-3.5 text-left text-[13px] text-text transition-colors disabled:cursor-not-allowed disabled:opacity-50 [backdrop-filter:blur(14px)]"
+            className="flex min-h-16 cursor-pointer items-center justify-center rounded-[20px] px-2 text-[15px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            style={c.style}
           >
-            <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: c.dot, boxShadow: `0 0 10px ${c.dot}80` }} />
             {c.label}
           </button>
         ))}
       </div>
 
       {recent.length > 0 && (
-        <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">Viimeisimmät</div>
-          <ul className="list-stagger flex flex-col gap-1.5">
+        <>
+          <h3 className="px-1 pt-2 text-[16px] font-medium leading-6 text-text">Viimeisimmät</h3>
+          <ul className="list-stagger flex flex-col gap-[2px] overflow-hidden rounded-[20px]">
             {recent.map((l) => (
               <li
                 key={l.id}
-                className="flex items-center justify-between rounded-row border border-white/[0.07] bg-[rgba(9,11,20,0.35)] px-4 py-2.5 text-[13px]"
+                className="flex min-h-14 items-center gap-3 bg-[var(--surface-1)] py-2 pl-4 pr-1"
               >
-                <span className="text-fg-muted">
-                  {formatDateShort(l.logDate)}
-                  <span className="ml-2 text-fg-ghost">
-                    {l.upperBody && l.lowerBody ? 'ylä + ala' : l.upperBody ? 'ylä' : 'ala'}
-                  </span>
+                <span className="flex-1 text-[15px] leading-6 text-text">
+                  {formatDateShort(l.logDate)} · {l.upperBody && l.lowerBody ? 'ylä + ala' : l.upperBody ? 'ylä' : 'ala'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => void remove(l.id)}
-                  className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost"
+                  onClick={() => void remove(l)}
+                  className="min-h-11 cursor-pointer rounded-full px-3 text-[14px] font-semibold text-[#FFB4AB]"
                 >
                   Poista
                 </button>
               </li>
             ))}
           </ul>
-        </div>
+        </>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Activity, ListChecks, Wallet, Dumbbell, ShoppingBasket, Sparkles, Download, Check, AlertCircle, CalendarRange, CheckSquare, Sprout, ShieldCheck, FlaskConical } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { View } from '../components/NavBar'
@@ -19,32 +20,50 @@ interface ToolDef {
   id: Tool
   label: string
   Icon: LucideIcon
-  color: string
+  /** Tile tone. Material 3 tonal roles in Aurora colours: one hero (the
+   *  gradient), two tinted containers, and the rest on the neutral surface so
+   *  colour marks importance instead of decorating every tile. */
+  tone?: 'hero' | 'violet' | 'amber'
+  /** Spans both grid columns (the hero and the planning row). */
+  wide?: boolean
   target: View | null     // null = coming soon
-  short?: string
+  sub?: string
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'habits',   label: 'Habit Tracking',   Icon: ListChecks,     color: '#a78bfa', target: 'habits' },
-  { id: 'fitness',  label: 'Fitness Tracking', Icon: Activity,       color: '#22d3ee', target: 'today' },  // kohde ratkaistaan ajossa, ks. targetFor
-  { id: 'wealth',   label: 'Wealth',           Icon: Wallet,         color: '#34d399', target: 'wealth' },
-  { id: 'workout',  label: 'Workout',          Icon: Dumbbell,       color: '#60a5fa', target: 'workout' },
-  { id: 'grocery',  label: 'Grocery',          Icon: ShoppingBasket, color: '#f87171', target: 'grocery' },
-  { id: 'plan',     label: 'Suunnittelu',      Icon: CalendarRange,  color: '#e8b85a', target: 'planning' },
-  { id: 'tasks',    label: 'Tehtävät',         Icon: CheckSquare,    color: '#e8b85a', target: 'tasks' },
-  { id: 'mobility', label: 'LiikkuvuusPuu',    Icon: Sprout,         color: '#7ba88a', target: 'mobility', short: 'Liikkuvuus' },
-  { id: 'testi',    label: 'Testi',            Icon: FlaskConical,   color: '#f0abfc', target: 'testi' },
-  { id: 'friday',   label: 'Talk to Friday',   Icon: Sparkles,       color: '#a78bfa', target: null, short: 'Friday' },
-  { id: 'admin',    label: 'Käyttäjät',        Icon: ShieldCheck,    color: '#9ea2b0', target: 'admin' },
+  { id: 'fitness',  label: 'Fitness',      Icon: Activity,       tone: 'hero', wide: true, target: 'today' },  // kohde ratkaistaan ajossa, ks. targetFor
+  { id: 'habits',   label: 'Tavat',        Icon: ListChecks,     tone: 'violet', target: 'habits' },
+  { id: 'workout',  label: 'Treeni',       Icon: Dumbbell,       target: 'workout' },
+  { id: 'tasks',    label: 'Tehtävät',     Icon: CheckSquare,    target: 'tasks' },
+  { id: 'grocery',  label: 'Ostokset',     Icon: ShoppingBasket, target: 'grocery' },
+  { id: 'mobility', label: 'Liikkuvuus',   Icon: Sprout,         target: 'mobility' },
+  { id: 'wealth',   label: 'Talous',       Icon: Wallet,         target: 'wealth' },
+  { id: 'plan',     label: 'Suunnittelu ja asetukset', Icon: CalendarRange, tone: 'amber', wide: true, target: 'planning', sub: 'Blokit, ravintojaksot, perusarvot' },
+  { id: 'testi',    label: 'Testi',        Icon: FlaskConical,   target: 'testi' },
+  { id: 'friday',   label: 'Talk to Friday', Icon: Sparkles,     target: null },
+  { id: 'admin',    label: 'Käyttäjät',    Icon: ShieldCheck,    target: 'admin' },
 ]
+
+const WEEKDAYS = ['Sunnuntai', 'Maanantai', 'Tiistai', 'Keskiviikko', 'Torstai', 'Perjantai', 'Lauantai']
+
+function greeting(now: Date): string {
+  const h = now.getHours()
+  if (h < 5) return 'Hyvää yötä'
+  if (h < 11) return 'Huomenta'
+  if (h < 17) return 'Päivää'
+  return 'Hyvää iltaa'
+}
 
 interface Props {
   setView: (v: View) => void
   /** Viimeisin työkalunäkymä — palautteen kontekstiksi. */
   lastView?: View
+  /** Tämän päivän jäljellä oleva budjetti Fitness-ruutuun; undefined kun
+   *  päivällä ei ole tavoitejaksoa (pelkkä kirjaus). */
+  fitnessRemaining?: number
 }
 
-export function HomeView({ setView, lastView }: Props) {
+export function HomeView({ setView, lastView, fitnessRemaining }: Props) {
   const { user } = useAuth()
   const { tools: granted, loading: toolsLoading, can } = useTools()
   const [order, setOrder] = useState<string[] | undefined>(() => getPrefs().homeToolOrder)
@@ -92,31 +111,37 @@ export function HomeView({ setView, lastView }: Props) {
     if (user) syncPrefsCloud(user.id, prefs)
   }
 
+  const now = new Date()
   const reorder = useDragReorder((fromId, toId) => persist(moveById(tools, fromId, toId)))
 
   return (
-    <div className="flex min-h-dvh flex-col gap-8 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+36px)]">
-      {/* Header — app mark + name */}
-      <div className="flex items-center gap-3.5">
-        <AppMark size={44} />
-        <div>
-          <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-fg-muted">FRIDAY</div>
-          <h1 className="font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">Työkalut</h1>
+    <div className="flex min-h-dvh flex-col gap-6 px-4 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+56px)]">
+      {/* Päivä ja tervehdys: M3 display-otsikko, ei logoa eikä isoja kirjaimia. */}
+      <div className="flex items-center gap-4 px-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="text-[16px] leading-6 text-fg-muted">
+            {WEEKDAYS[now.getDay()]} {now.getDate()}.{now.getMonth() + 1}.
+          </p>
+          <h1 className="text-[36px] font-medium leading-[44px] text-text">{greeting(now)}</h1>
         </div>
+        <AppMark size={44} />
       </div>
 
       {/* Tool grid */}
       {toolsLoading && tools.length === 0 && (
-        <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">
+        <p className="py-6 text-center text-[14px] text-fg-muted">
           Ladataan työkaluja…
         </p>
       )}
-      <div ref={reorder.containerRef} className="list-stagger grid grid-cols-2 gap-4">
+      <div ref={reorder.containerRef} className="list-stagger grid grid-flow-row-dense grid-cols-2 gap-3">
         {tools.map((tool) => (
           <ToolTile
             key={tool.id}
             tool={tool}
             resolvedTarget={targetFor(tool)}
+            detail={tool.id === 'fitness' && fitnessRemaining !== undefined
+              ? `${Math.round(fitnessRemaining).toLocaleString('fi-FI')} kcal ${fitnessRemaining < 0 ? 'yli' : 'jäljellä'}`
+              : undefined}
             reorder={reorder}
             onOpen={() => {
               const t = targetFor(tool)
@@ -139,7 +164,7 @@ export function HomeView({ setView, lastView }: Props) {
       <FeedbackButton lastView={lastView} />
 
       {/* Footer */}
-      <div className="mt-auto text-center font-mono text-[11px] tracking-[0.02em] text-fg-ghost">
+      <div className="mt-auto text-center text-[12px] leading-4 text-fg-muted">
         Pidä pohjassa ja vedä järjestääksesi · asennettavissa PWA:na
       </div>
     </div>
@@ -174,7 +199,7 @@ function ExportButton({ userId }: { userId?: string }) {
       <button
         onClick={run}
         disabled={busy}
-        className="flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-3.5 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-dim [backdrop-filter:blur(14px)] disabled:opacity-60"
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-white/[0.18] text-[14px] font-semibold text-text disabled:opacity-60"
       >
         <Download size={15} />
         {busy ? 'Kootaan…' : 'Vie kaikki tiedot (JSON)'}
@@ -182,7 +207,7 @@ function ExportButton({ userId }: { userId?: string }) {
       {outcome && (
         <p
           role="status"
-          className={`view-enter mt-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] ${
+          className={`view-enter mt-1.5 flex items-center justify-center gap-1.5 text-center text-[12px] ${
             bad ? 'text-danger' : 'text-fg-muted'
           }`}
         >
@@ -198,13 +223,29 @@ interface TileProps {
   tool: ToolDef
   /** Ratkaistu kohde — Fitnessillä se riippuu myönnetystä puolesta. */
   resolvedTarget: View | null
+  /** Toissijainen tieto ruudun alareunaan (Fitnessillä päivän budjetti). */
+  detail?: string
   reorder: ReturnType<typeof useDragReorder>
   onOpen: () => void
   onMove: (delta: -1 | 1) => void
 }
 
-function ToolTile({ tool, resolvedTarget, reorder, onOpen, onMove }: TileProps) {
+// Tonal containers from the design: the hero carries the Aurora gradient, two
+// tools get a tinted container, everything else sits on surface-2.
+const TONE: Record<NonNullable<ToolDef['tone']> | 'neutral', { className: string; style?: CSSProperties }> = {
+  hero: {
+    className: 'rounded-[28px] border border-cyan/35 text-white',
+    style: { background: 'linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.26))' },
+  },
+  violet: { className: 'rounded-[24px] bg-violet/[0.24] text-[#ede9fe]' },
+  amber: { className: 'rounded-[24px] bg-[rgba(232,184,90,0.18)] text-[#f5e6c4]' },
+  neutral: { className: 'rounded-[24px] bg-[var(--surface-2)] text-text' },
+}
+
+function ToolTile({ tool, resolvedTarget, detail, reorder, onOpen, onMove }: TileProps) {
   const enabled = resolvedTarget !== null
+  const tone = TONE[tool.tone ?? 'neutral']
+  const row = tool.wide && tool.tone !== 'hero'
 
   return (
     <DragItem
@@ -218,36 +259,35 @@ function ToolTile({ tool, resolvedTarget, reorder, onOpen, onMove }: TileProps) 
       tabIndex={0}
       ariaLabel={enabled ? tool.label : `${tool.label} — tulossa`}
       ariaDisabled={!enabled}
-      className={`relative flex aspect-[1/1.08] min-h-0 min-w-0 flex-col items-start justify-between overflow-hidden rounded-tile border p-5 [backdrop-filter:blur(16px)_saturate(160%)] [-webkit-backdrop-filter:blur(16px)_saturate(160%)] ${
-        enabled ? 'cursor-pointer' : 'cursor-not-allowed'
-      }`}
-      style={{
-        backgroundColor: enabled ? `${tool.color}14` : 'rgba(255,255,255,0.03)',
-        borderColor: enabled ? `${tool.color}38` : 'rgba(255,255,255,0.08)',
-        boxShadow: enabled
-          ? '0 18px 50px -28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.10)'
-          : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-      }}
+      className={`relative flex min-w-0 overflow-hidden ${tone.className} ${
+        tool.wide ? 'col-span-2' : ''
+      } ${
+        row
+          ? 'min-h-20 flex-row items-center gap-3.5 p-4'
+          : tool.tone === 'hero'
+            ? 'min-h-[132px] flex-col justify-between p-5'
+            : 'min-h-[112px] flex-col justify-between p-4'
+      } ${enabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}`}
+      style={tone.style}
     >
-      <div
-        className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px]"
-        style={{
-          background: enabled
-            ? `linear-gradient(135deg, ${tool.color}66, ${tool.color}1f)`
-            : 'rgba(255,255,255,0.04)',
-          color: enabled ? tool.color : '#5a5c6a',
-          boxShadow: enabled ? `0 0 20px ${tool.color}40` : 'none',
-        }}
-      >
-        <tool.Icon size={26} strokeWidth={2} />
-      </div>
-      <div className={`font-display text-[17px] font-semibold tracking-[-0.01em] ${enabled ? 'text-white' : 'text-fg-ghost'}`}>
-        {tool.label}
-      </div>
+      <tool.Icon size={tool.tone === 'hero' ? 28 : 24} strokeWidth={2} aria-hidden />
+      {row ? (
+        <span className="flex min-w-0 flex-col">
+          <span className="text-[16px] font-medium leading-6">{tool.label}</span>
+          {tool.sub && <span className="text-[12px] leading-4 text-[#e7dcc3]">{tool.sub}</span>}
+        </span>
+      ) : (
+        <span className="flex w-full items-baseline justify-between gap-2">
+          <span className={tool.tone === 'hero' ? 'text-[22px] font-medium leading-7' : 'text-[16px] font-medium leading-6'}>
+            {tool.label}
+          </span>
+          {detail && <span className="text-[16px] leading-6 tabular-nums">{detail}</span>}
+        </span>
+      )}
       {!enabled && (
-        <div className="absolute right-4 top-4 rounded-lg bg-[rgba(9,11,20,0.50)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">
+        <span className="absolute right-3 top-3 rounded-lg bg-[var(--surface-3)] px-2 py-1 text-[12px] leading-4 text-fg-muted">
           Tulossa
-        </div>
+        </span>
       )}
     </DragItem>
   )

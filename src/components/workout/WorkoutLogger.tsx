@@ -65,11 +65,11 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
       tabIndex={0}
       ariaLabel={`${ex.name}, ${blockSummary(ex)}`}
       flashTint={accent}
-      className="relative flex min-h-[104px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-tile border p-4 text-left [backdrop-filter:blur(14px)]"
-      style={{
-        backgroundColor: done ? `${accent}1A` : 'rgba(255,255,255,0.05)',
-        borderColor: done ? `${accent}4D` : 'rgba(255,255,255,0.10)',
-      }}
+      className={`relative flex min-h-[116px] min-w-0 cursor-pointer flex-col justify-between overflow-hidden rounded-[24px] border p-[14px] text-left ${
+        done
+          ? 'border-[rgba(34,211,238,0.35)] bg-[linear-gradient(135deg,rgba(34,211,238,0.26),rgba(167,139,250,0.24))]'
+          : 'border-white/[0.08] bg-[var(--surface-1)]'
+      }`}
     >
       {({ handleProps }) => (
         <>
@@ -88,23 +88,22 @@ function ExerciseTile({ exercise: ex, accent, reorder, onOpen, onToggleDone, onM
               if (!done) celebrate(e.currentTarget, accent)
             }}
             aria-label={done ? 'Merkitse tekemättömäksi' : 'Merkitse tehdyksi'}
-            className={`hit-44 absolute right-2.5 top-2.5 flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
-              done ? 'text-bg' : 'border border-white/20 text-fg-faint'
+            className={`hit-44 absolute bottom-3 right-3 flex h-10 w-10 !min-h-0 !min-w-0 items-center justify-center rounded-full transition-colors ${
+              done ? 'bg-gradient-to-br from-cyan to-violet text-bg' : 'border-2 border-white/30 text-fg-muted'
             }`}
-            style={done ? { backgroundColor: accent } : undefined}
           >
-            <Check size={13} strokeWidth={3} />
+            <Check size={18} strokeWidth={3} />
           </button>
 
-          <div className="pr-7">
+          <div className="pr-11">
             <div
-              className={`line-clamp-2 font-display text-[14px] font-semibold leading-tight ${
+              className={`line-clamp-2 text-[16px] font-medium leading-5 ${
                 ex.resolution?.unavailable ? 'text-fg-ghost line-through' : 'text-text'
               }`}
             >
               {ex.name}
             </div>
-            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+            <div className="mt-1 text-[12px] leading-4 text-fg-muted">
               {ex.resolution?.unavailable === 'env'
                 ? 'ei mahdollinen täällä'
                 : ex.resolution?.unavailable === 'gate'
@@ -234,13 +233,13 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
   const moveDown = openIndex >= 0 && openIndex < workout.exercises.length - 1 ? () => moveExercise(open!.id, 1) : null
 
   return (
-    <div className="px-4 pb-28 pt-4">
+    <div className="px-4 pb-28 pt-2">
       {/* Header */}
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-1">
         <button
           onClick={onExit}
           aria-label="Takaisin"
-          className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-full p-1.5 text-fg-muted"
+          className="icon-btn flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-text"
         >
           <ChevronLeft size={22} />
         </button>
@@ -248,20 +247,21 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
           <input
             value={workout.name}
             onChange={(e) => onChange({ ...workout, name: e.target.value })}
-            className="w-full truncate bg-transparent font-display text-[22px] font-bold tracking-[-0.02em] text-text outline-none"
+            aria-label="Treenin nimi"
+            className="h-11 w-full truncate border-b border-white/[0.18] bg-transparent px-1 text-[22px] font-medium text-text outline-none"
           />
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-faint">
+          <div className="px-1 pt-1 text-[12px] leading-4 text-fg-muted">
             Tallennetaan automaattisesti
           </div>
         </div>
       </div>
 
       {escalated && (
-        <div className="mb-3 flex items-start gap-2.5 rounded-row border border-danger/30 bg-danger/[0.08] px-4 py-3">
-          <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-danger" />
+        <div className="mb-3 flex items-start gap-2.5 rounded-[16px] bg-[#452826] px-3.5 py-3">
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-[#FFB4AB]" />
           <div>
-            <p className="m-0 text-[13px] font-bold text-danger">Varaa aika ammattilaiselle</p>
-            <p className="m-0 mt-0.5 text-[11px] leading-relaxed text-fg-muted">
+            <p className="m-0 text-[14px] font-semibold text-[#FFB4AB]">Varaa aika ammattilaiselle</p>
+            <p className="m-0 mt-0.5 text-[14px] leading-5 text-[#FFB4AB]">
               Alueen kuormittavat liikkeet on jätetty pois tästä sessiosta.
             </p>
           </div>
@@ -279,20 +279,20 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             : onChange({ ...workout, warmupDone: !workout.warmupDone, updatedAt: new Date().toISOString() })
         }
         aria-pressed={workout.warmupDone === true}
-        className={`mb-3 flex w-full items-center gap-2.5 rounded-row border px-4 py-3 text-left transition-colors ${
+        className={`mb-3 flex min-h-16 w-full items-center gap-3 rounded-[20px] border px-4 py-2.5 text-left transition-colors ${
           workout.warmupDone
-            ? 'border-[rgba(100,200,120,0.30)] bg-[rgba(100,200,120,0.08)] text-[#7fd694]'
-            : 'border-dashed border-white/[0.16] bg-transparent text-fg-muted'
+            ? 'border-[rgba(100,200,120,0.30)] bg-[rgba(100,200,120,0.10)] text-[#7fd694]'
+            : 'border-white/[0.08] bg-[var(--surface-1)] text-text'
         }`}
       >
         {workout.warmupDone ? <Check size={16} /> : <Flame size={16} />}
-        <span className="flex-1 text-[13px]">
+        <span className="flex-1 text-[15px] font-semibold">
           {warmupItems.length > 0
             ? `${warmup?.name ?? 'Lämmittely'}${workout.warmupDone ? ' · tehty' : ''}`
             : workout.warmupDone ? 'Lämmittely tehty' : 'Merkitse lämmittely tehdyksi'}
         </span>
         {warmupItems.length > 0 && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+          <span className="text-[12px] opacity-85">
             {warmupItems.length} liikettä
           </span>
         )}
@@ -312,7 +312,7 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
       )}
 
       {/* Exercise blocks */}
-      <div ref={reorder.containerRef} className="grid grid-cols-2 gap-3">
+      <div ref={reorder.containerRef} className="grid grid-cols-2 gap-2.5">
         {workout.exercises.map((ex) => (
           <ExerciseTile
             key={ex.id}
@@ -329,15 +329,15 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
         <m.button
           layout
           onClick={() => { setNewName(''); setAdding(true) }}
-          className="active:scale-[0.97] flex min-h-[104px] min-w-0 flex-col items-center justify-center gap-2 rounded-tile border border-dashed border-white/[0.16] bg-transparent p-4 text-fg-muted transition-transform duration-150"
+          className="flex min-h-[116px] min-w-0 flex-col items-center justify-center gap-2 rounded-[24px] border border-dashed border-white/[0.18] bg-[var(--surface-1)] p-[14px] text-cyan"
         >
           <Plus size={22} />
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em]">Lisää liike</span>
+          <span className="text-[15px] font-medium">Lisää liike</span>
         </m.button>
       </div>
 
       {/* Finish bar */}
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] border-t border-white/[0.08] bg-[rgba(5,6,12,0.82)] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 [backdrop-filter:blur(20px)]">
+      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] border-t border-white/[0.08] bg-[#0c0d18] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
         <Button variant="primary" onClick={onFinish} disabled={workout.exercises.length === 0} className="w-full">
           <Check size={18} /> Päätä treeni
         </Button>
@@ -410,7 +410,7 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
             placeholder="Hae tai kirjoita uusi"
             autoFocus
-            className="mb-3 w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-sm text-text"
+            className="mb-3 w-full min-h-12 rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-[14px] py-[11px] text-[16px] text-text"
           />
 
           <div className="max-h-[46vh] overflow-y-auto overscroll-contain">
@@ -420,16 +420,16 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
                 <button
                   key={c.name}
                   onClick={() => addExercise(c.name)}
-                  className="flex w-full items-center gap-2.5 rounded-row px-3.5 py-2.5 text-left"
+                  className="mb-[2px] flex min-h-14 w-full items-center gap-3 rounded-[14px] bg-[var(--surface-2)] px-3 py-2 text-left"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] text-text">{c.name}</span>
-                    <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-fg-faint">
+                    <span className="block truncate text-[16px] leading-6 text-text">{c.name}</span>
+                    <span className="block text-[14px] leading-5 text-fg-muted">
                       {c.lastUsed ? `viimeksi ${dayMonth(c.lastUsed)}` : c.inTemplate ? 'pohjissa' : 'ei vielä tehty'}
                       {already && ' · jo listalla'}
                     </span>
                   </span>
-                  <Plus size={15} className="flex-shrink-0 text-fg-faint" />
+                  <Plus size={18} className="flex-shrink-0 text-cyan" />
                 </button>
               )
             })}
@@ -442,14 +442,14 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             {canCreate && (
               <button
                 onClick={() => addExercise(newName)}
-                className={`flex w-full items-center gap-2.5 rounded-row border border-dashed border-accent/40 bg-accent/[0.07] px-3.5 py-3 text-left ${
+                className={`flex w-full items-center gap-2.5 min-h-14 rounded-[14px] border border-dashed border-cyan/40 bg-cyan/[0.08] px-3 py-2 text-left ${
                   matches.length > 0 ? 'mt-2' : ''
                 }`}
               >
-                <Plus size={16} className="flex-shrink-0 text-accent" />
+                <Plus size={18} className="flex-shrink-0 text-cyan" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-semibold text-text">{newName.trim()}</span>
-                  <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-accent">
+                  <span className="block truncate text-[16px] font-medium text-text">{newName.trim()}</span>
+                  <span className="block text-[14px] text-cyan">
                     Uusi liike
                   </span>
                 </span>
@@ -457,7 +457,7 @@ export function WorkoutLogger({ workout, template, onChange, onFinish, onExit, o
             )}
 
             {matches.length === 0 && !canCreate && (
-              <p className="m-0 px-1 py-6 text-center text-[12px] text-fg-faint">
+              <p className="m-0 px-1 py-6 text-center text-[14px] leading-5 text-fg-muted">
                 Ei vielä yhtään liikettä. Kirjoita nimi niin se syntyy tähän.
               </p>
             )}

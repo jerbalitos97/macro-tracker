@@ -1,5 +1,6 @@
-import { Home, LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange, CheckSquare, Sprout, ShieldCheck, FlaskConical } from 'lucide-react'
+import { LayoutGrid, CalendarDays, ListChecks, TrendingDown, BarChart2, SlidersHorizontal, Wallet, Dumbbell, ShoppingBasket, CalendarRange, CheckSquare, Sprout, ShieldCheck, FlaskConical, Sun } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTools } from '../contexts/ToolsContext'
 import { VIEW_TOOL } from '../lib/viewAccess'
 
@@ -28,84 +29,63 @@ interface Tab {
   Icon: LucideIcon
 }
 
-// Two tab sets — the navbar selects the right one based on the current view,
-// so Habit tracking and Fitness tracking each get their own self-contained
-// tool navigation rooted at the launcher (Koti).
+// Material 3 navigation bar, at the bottom where the thumb is. Koti is no
+// longer a tab in every set: it was the first tab of all nine sets, so every
+// tool spent a fifth of its bar on "leave this tool". The launcher now hangs
+// off the app bar's grid button (AppBar below), and a tool with a single
+// screen gets no bar at all.
 const FITNESS_TABS: Tab[] = [
-  { id: 'home',     label: 'Koti',      Icon: LayoutGrid },
-  { id: 'today',    label: 'Tänään',    Icon: Home },
+  { id: 'today',    label: 'Tänään',    Icon: Sun },
   { id: 'calendar', label: 'Kalenteri', Icon: CalendarDays },
   { id: 'weight',   label: 'Paino',     Icon: TrendingDown },
-  // Trendit and Tavoite were the same question asked twice — one tab now.
   { id: 'analysis', label: 'Analyysi',  Icon: BarChart2 },
 ]
 
-const HABIT_TABS: Tab[] = [
-  { id: 'home',   label: 'Koti',  Icon: LayoutGrid },
-  { id: 'habits', label: 'Tavat', Icon: ListChecks },
-]
-
 const WEALTH_TABS: Tab[] = [
-  { id: 'home',            label: 'Koti',      Icon: LayoutGrid },
   { id: 'wealth',          label: 'Wealth',    Icon: Wallet },
   { id: 'wealth-settings', label: 'Asetukset', Icon: SlidersHorizontal },
 ]
 
-const WORKOUT_TABS: Tab[] = [
-  { id: 'home',    label: 'Koti',    Icon: LayoutGrid },
-  { id: 'workout', label: 'Workout', Icon: Dumbbell },
-]
-
 // Planning spans both Fitness and Workout, so it hangs off the launcher rather
-// than living inside either tool's tab set.
+// than living inside either tool's tab set. App-level settings sit next to it
+// because that is where someone goes to configure rather than to log.
 const PLANNING_TABS: Tab[] = [
-  { id: 'home',     label: 'Koti',         Icon: LayoutGrid },
-  { id: 'planning', label: 'Suunnittelu',  Icon: CalendarRange },
-  // App-level settings — backup, storage, account. They are not part of any
-  // one tool, and they sit next to the planner because that is where someone
-  // goes to configure rather than to log.
-  { id: 'settings', label: 'Asetukset',    Icon: SlidersHorizontal },
-]
-
-const GROCERY_TABS: Tab[] = [
-  { id: 'home',    label: 'Koti',    Icon: LayoutGrid },
-  { id: 'grocery', label: 'Grocery', Icon: ShoppingBasket },
+  { id: 'planning', label: 'Suunnittelu', Icon: CalendarRange },
+  { id: 'settings', label: 'Asetukset',   Icon: SlidersHorizontal },
 ]
 
 // Tehtävillä on oma kalenteri eikä Fridayn CalendarView. Sama ruudukko näyttäisi
 // päivän kaloribudjetin ja tehtävälistan yhtä aikaa, ja ne ovat eri kysymys.
 const TASKS_TABS: Tab[] = [
-  { id: 'home',            label: 'Koti',      Icon: LayoutGrid },
-  { id: 'tasks',           label: 'Tehtävät',  Icon: CheckSquare },
-  { id: 'tasks-calendar',  label: 'Kalenteri', Icon: CalendarDays },
+  { id: 'tasks',          label: 'Tehtävät',  Icon: CheckSquare },
+  { id: 'tasks-calendar', label: 'Kalenteri', Icon: CalendarDays },
 ]
 
-const MOBILITY_TABS: Tab[] = [
-  { id: 'home',     label: 'Koti',       Icon: LayoutGrid },
-  { id: 'mobility', label: 'Liikkuvuus', Icon: Sprout },
-]
-
-const TESTI_TABS: Tab[] = [
-  { id: 'home',  label: 'Koti',  Icon: LayoutGrid },
-  { id: 'testi', label: 'Testi', Icon: FlaskConical },
-]
-
-const ADMIN_TABS: Tab[] = [
-  { id: 'home',  label: 'Koti',       Icon: LayoutGrid },
-  { id: 'admin', label: 'Käyttäjät',  Icon: ShieldCheck },
-]
+const SINGLE: Partial<Record<View, Tab>> = {
+  habits:   { id: 'habits',   label: 'Tavat',      Icon: ListChecks },
+  workout:  { id: 'workout',  label: 'Workout',    Icon: Dumbbell },
+  grocery:  { id: 'grocery',  label: 'Ostoslista', Icon: ShoppingBasket },
+  mobility: { id: 'mobility', label: 'Liikkuvuus', Icon: Sprout },
+  testi:    { id: 'testi',    label: 'Testi',      Icon: FlaskConical },
+  admin:    { id: 'admin',    label: 'Käyttäjät',  Icon: ShieldCheck },
+}
 
 function tabsForView(v: View): Tab[] {
-  if (v === 'habits') return HABIT_TABS
   if (v === 'wealth' || v === 'wealth-settings') return WEALTH_TABS
-  if (v === 'workout') return WORKOUT_TABS
-  if (v === 'grocery') return GROCERY_TABS
   if (v === 'planning' || v === 'settings') return PLANNING_TABS
   if (v === 'tasks' || v === 'tasks-calendar') return TASKS_TABS
-  if (v === 'mobility') return MOBILITY_TABS
-  if (v === 'testi') return TESTI_TABS
-  if (v === 'admin') return ADMIN_TABS
+  const single = SINGLE[v]
+  if (single) return [single]
   return FITNESS_TABS
+}
+
+/** The tool a view belongs to, as the app bar names it. */
+export function toolTitle(v: View): string {
+  if (v === 'today' || v === 'calendar' || v === 'weight' || v === 'analysis') return 'Fitness'
+  if (v === 'wealth' || v === 'wealth-settings') return 'Wealth'
+  if (v === 'planning' || v === 'settings') return 'Suunnittelu'
+  if (v === 'tasks' || v === 'tasks-calendar') return 'Tehtävät'
+  return SINGLE[v]?.label ?? ''
 }
 
 export type { View }
@@ -120,38 +100,21 @@ interface Props {
 
 export function NavBar({ view, setView, hidden }: Props) {
   const { tools } = useTools()
-  // Sama suodatus kuin ruudukossa. PLANNING_TABS niputtaa Suunnittelun ja
-  // Asetukset, joten pelkkä "tämän työkalun tabit" ei riitä — jokainen tab
-  // tarkistetaan erikseen.
+  // Jokainen tab tarkistetaan erikseen: PLANNING_TABS niputtaa Suunnittelun ja
+  // Asetukset, joten pelkkä "tämän työkalun tabit" ei riitä.
   const tabs = tabsForView(view).filter((t) => {
     if (hidden?.includes(t.id)) return false
     const needed = VIEW_TOOL[t.id]
     return needed === null || tools.includes(needed)
   })
-  const activeIdx = tabs.findIndex((t) => t.id === view)
+  if (tabs.length < 2) return null
 
   return (
     <nav
       role="tablist"
-      className="sticky top-0 z-10 flex border-b border-white/[0.06] bg-[rgba(5,6,12,0.82)] pt-[env(safe-area-inset-top)] [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+      aria-label={toolTitle(view)}
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-[480px] border-t border-white/[0.06] bg-[rgba(5,6,12,0.82)] pb-[env(safe-area-inset-bottom)]"
     >
-      {/* Sliding indicator bar */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          width: `${100 / tabs.length}%`,
-          height: 2,
-          background: 'linear-gradient(90deg, transparent 6%, #22d3ee 35%, #a78bfa 65%, transparent 94%)',
-          boxShadow: '0 0 12px rgba(34,211,238,0.6)',
-          transform: `translateX(${activeIdx * 100}%)`,
-          transition: 'transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
-          pointerEvents: 'none',
-        }}
-      />
-
       {tabs.map((tab) => {
         const active = view === tab.id
         return (
@@ -159,35 +122,41 @@ export function NavBar({ view, setView, hidden }: Props) {
             key={tab.id}
             role="tab"
             aria-selected={active}
-            aria-label={tab.label}
-            className={`nav-btn flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent px-0.5 pb-[11px] pt-[9px] transition-colors duration-200 ${
-              active ? 'text-accent' : 'text-fg-muted'
+            className={`nav-btn flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent pb-4 pt-3 text-[12px] leading-4 ${
+              active ? 'font-semibold text-accent' : 'font-medium text-fg-muted'
             }`}
             onClick={() => setView(tab.id)}
           >
-            {/* Valittu ikoni nousee jousella. Skaalaus ei muuta asettelua,
-                koska riviä hallitsee tekstin korkeus — ikoni kasvaa omassa
-                laatikossaan eikä työnnä naapureita. Ylitys tulee käyrästä:
-                1.12:een asti ja takaisin 1.10:een. */}
-            <tab.Icon
-              size={18}
-              strokeWidth={active ? 2.0 : 1.4}
-              style={{
-                transform: active ? 'scale(1.10)' : 'scale(1)',
-                transition: 'transform 0.42s var(--spring), stroke-width 0.2s ease',
-                filter: active ? 'drop-shadow(0 0 10px rgba(34,211,238,0.55))' : 'none',
-              }}
-            />
             <span
-              className={`max-w-full truncate font-mono text-[8px] uppercase leading-none tracking-[0.03em] ${
-                active ? 'font-bold' : 'font-normal'
+              className={`flex h-8 w-16 items-center justify-center rounded-full transition-[background-color,box-shadow] duration-200 ${
+                active ? 'bg-cyan/[0.16] text-[#cde7ec] shadow-[0_0_18px_rgba(34,211,238,0.35)]' : ''
               }`}
             >
-              {tab.label}
+              <tab.Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
             </span>
+            <span className="max-w-full truncate">{tab.label}</span>
           </button>
         )
       })}
     </nav>
+  )
+}
+
+/** Top app bar: the launcher button, the tool's name, and a trailing slot
+ *  (the sync badge). Sticky, and padded under the Dynamic Island. */
+export function AppBar({ view, onHome, trailing }: { view: View; onHome: () => void; trailing?: ReactNode }) {
+  return (
+    <header className="sticky top-0 z-20 flex items-center gap-1 bg-[rgba(5,6,12,0.82)] px-1 pt-[env(safe-area-inset-top)]">
+      <button
+        type="button"
+        onClick={onHome}
+        aria-label="Vaihda työkalua"
+        className="icon-btn flex h-12 w-12 items-center justify-center rounded-full text-text"
+      >
+        <LayoutGrid size={22} />
+      </button>
+      <h1 className="m-0 min-w-0 flex-1 truncate text-[22px] font-medium leading-[64px] text-text">{toolTitle(view)}</h1>
+      {trailing && <div className="pr-3">{trailing}</div>}
+    </header>
   )
 }

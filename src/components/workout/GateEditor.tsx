@@ -14,9 +14,9 @@ import type { Capability } from '../../lib/locations'
 // power costs nothing to anyone not using it — which is the only reason it is
 // safe to put this much machinery on an exercise row.
 
-const label = 'mb-1 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
+const label = 'mb-1 block text-[12px] text-fg-dim'
 const field =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-2.5 py-2 text-base text-text [color-scheme:dark]'
+  'h-11 w-full rounded-[10px] border border-white/[0.18] bg-[var(--surface-2)] px-2.5 text-[16px] text-text [color-scheme:dark]'
 const num = `${field} text-center tabular-nums`
 
 const toInt = (v: string): number | undefined => {
@@ -158,7 +158,7 @@ export function EnvFields({
   }
 
   return (
-    <div className="rounded-[8px] border border-white/[0.08] bg-black/25 p-2.5">
+    <div className="rounded-[16px] bg-[var(--surface-2)] p-3">
       <div className={label}>{title}</div>
       <div className="mb-2 flex flex-wrap gap-1">
         {CAPABILITIES.map((cap) => {
@@ -168,8 +168,8 @@ export function EnvFields({
               key={cap}
               onClick={() => toggle(cap)}
               aria-pressed={on}
-              className={`rounded-full border px-2.5 py-1 text-[10px] !min-h-0 !min-w-0 ${
-                on ? 'border-accent/45 bg-accent/[0.12] text-text' : 'border-white/10 text-fg-muted'
+              className={`min-h-9 rounded-[8px] border px-3 text-[14px] ${
+                on ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]' : 'border-white/[0.18] text-text'
               }`}
             >
               {CAPABILITY_LABEL[cap]}
@@ -189,10 +189,10 @@ export function EnvFields({
                   fallback: value?.fallback === null ? emptyPrescription(seedName) : null,
                 })
               }
-              className={`rounded-full border px-2.5 py-1 text-[10px] !min-h-0 !min-w-0 ${
+              className={`min-h-9 rounded-[8px] border px-3 text-[14px] ${
                 value?.fallback === null
-                  ? 'border-danger/45 bg-danger/[0.10] text-danger'
-                  : 'border-white/10 text-fg-muted'
+                  ? 'border-transparent bg-[#452826] text-[#FFB4AB]'
+                  : 'border-white/[0.18] text-text'
               }`}
             >
               <Ban size={10} className="mr-1 inline" />
@@ -200,7 +200,7 @@ export function EnvFields({
             </button>
           </div>
           {value?.fallback === null ? (
-            <p className="m-0 text-[10px] leading-snug text-fg-faint">
+            <p className="m-0 text-[12px] leading-snug text-fg-faint">
               Liike jää pois tässä paikassa. Rivi näkyy silti treenissä yliviivattuna.
             </p>
           ) : (
@@ -209,7 +209,7 @@ export function EnvFields({
                 value={value?.fallback ?? emptyPrescription(seedName)}
                 onChange={(p) => onChange({ requires, fallback: p })}
               />
-              <p className="m-0 mb-1.5 text-[10px] leading-snug text-fg-ghost">
+              <p className="m-0 mb-1.5 text-[12px] leading-snug text-fg-ghost">
                 Säilytä teho vaikeammalla vipuvarrella tai hitaammalla tempolla — ei lisäämällä
                 toistoja.
               </p>
@@ -275,14 +275,14 @@ export function GateEditor({
     <div className="mt-2">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 rounded-[8px] border border-white/[0.08] px-2.5 py-2 text-left !min-h-0"
+        className="flex min-h-11 w-full items-center gap-1.5 rounded-[12px] border border-white/[0.18] px-3 text-left"
       >
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        <span className="flex-1 font-mono text-[9px] uppercase tracking-[0.12em] text-fg-dim">
+        <span className="flex-1 text-[12px] text-fg-dim">
           Portti ja paikka
         </span>
         {active && (
-          <span className="font-mono text-[9px] text-accent">
+          <span className="font-mono text-[12px] text-accent">
             {[gate && REGION_LABEL[gate.bodyRegion].toLowerCase(), env && 'paikka']
               .filter(Boolean)
               .join(' · ')}
@@ -299,14 +299,14 @@ export function GateEditor({
             seedName={exerciseName}
           />
 
-          <div className="rounded-[8px] border border-white/[0.08] bg-black/25 p-2.5">
+          <div className="rounded-[16px] bg-[var(--surface-2)] p-3">
             <div className={label}>Päiväarvio ohjaa tätä liikettä</div>
             <div className="mb-2 flex flex-wrap gap-1">
               <button
                 onClick={() => setRegion(null)}
                 aria-pressed={!gate}
-                className={`rounded-full border px-2.5 py-1 text-[10px] !min-h-0 !min-w-0 ${
-                  !gate ? 'border-accent/45 bg-accent/[0.12] text-text' : 'border-white/10 text-fg-muted'
+                className={`min-h-9 rounded-[8px] border px-3 text-[14px] ${
+                  !gate ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]' : 'border-white/[0.18] text-text'
                 }`}
               >
                 Ei porttia
@@ -316,10 +316,10 @@ export function GateEditor({
                   key={r}
                   onClick={() => setRegion(r)}
                   aria-pressed={gate?.bodyRegion === r}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] !min-h-0 !min-w-0 ${
+                  className={`min-h-9 rounded-[8px] border px-3 text-[14px] ${
                     gate?.bodyRegion === r
-                      ? 'border-accent/45 bg-accent/[0.12] text-text'
-                      : 'border-white/10 text-fg-muted'
+                      ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]'
+                      : 'border-white/[0.18] text-text'
                   }`}
                 >
                   {REGION_LABEL[r]}
@@ -335,7 +335,7 @@ export function GateEditor({
                 return (
                   <div key={key} className="mb-2 rounded-[6px] border border-white/[0.06] p-2">
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-text">
+                      <span className="text-[12px] text-text">
                         {GATE_LABEL[key]}
                       </span>
                       <div className="flex gap-1">
@@ -344,17 +344,17 @@ export function GateEditor({
                             <button
                               onClick={() => setVariant(key, droppedOut ? emptyPrescription(exerciseName) : null)}
                               aria-pressed={droppedOut}
-                              className={`rounded-full border px-2 py-0.5 text-[9px] !min-h-0 !min-w-0 ${
+                              className={`min-h-9 rounded-[8px] border px-3 text-[14px] ${
                                 droppedOut
-                                  ? 'border-danger/45 bg-danger/[0.10] text-danger'
-                                  : 'border-white/10 text-fg-muted'
+                                  ? 'border-transparent bg-[#452826] text-[#FFB4AB]'
+                                  : 'border-white/[0.18] text-text'
                               }`}
                             >
                               Pois tässä tilassa
                             </button>
                             <button
                               onClick={() => setVariant(key, defined ? undefined : emptyPrescription(exerciseName))}
-                              className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] text-fg-muted !min-h-0 !min-w-0"
+                              className="min-h-9 rounded-[8px] border border-white/[0.18] px-3 text-[14px] text-text"
                             >
                               {defined ? 'Tyhjennä' : 'Määrittele'}
                             </button>
@@ -364,11 +364,11 @@ export function GateEditor({
                     </div>
 
                     {!defined ? (
-                      <p className="m-0 text-[10px] leading-snug text-fg-ghost">
+                      <p className="m-0 text-[12px] leading-snug text-fg-ghost">
                         Ei määritelty — käytetään lähintä määriteltyä tilaa. {VARIANT_HINT[key]}
                       </p>
                     ) : droppedOut ? (
-                      <p className="m-0 flex items-center gap-1 text-[10px] text-fg-faint">
+                      <p className="m-0 flex items-center gap-1 text-[12px] text-fg-faint">
                         <Ban size={10} /> Liike jätetään pois tässä tilassa.
                       </p>
                     ) : (
@@ -390,7 +390,7 @@ export function GateEditor({
               })}
 
             {gate && (
-              <p className="m-0 flex items-start gap-1 text-[10px] leading-snug text-fg-ghost">
+              <p className="m-0 flex items-start gap-1 text-[12px] leading-snug text-fg-ghost">
                 <Check size={10} className="mt-0.5 flex-shrink-0" />
                 Paikka ratkaistaan ensin, sitten portti. Määrittelemätön tila putoaa lähimpään
                 määriteltyyn.

@@ -26,7 +26,7 @@ export function FeedbackButton({ lastView }: { lastView?: string }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[rgba(9,11,20,0.48)] py-3.5 font-mono text-[12px] uppercase tracking-[0.08em] text-fg-dim [backdrop-filter:blur(14px)]"
+        className="flex w-full items-center justify-center gap-2 rounded-row border border-white/10 bg-[var(--surface-1)] py-3.5 font-mono text-[12px]   text-fg-dim"
       >
         <MessageSquarePlus size={15} />
         Palaute ja toiveet
@@ -68,7 +68,7 @@ function FeedbackSheet({
   return (
     <Sheet open={open} onClose={onClose} title="Palaute">
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] leading-relaxed text-fg-muted">
+        <p className="text-[14px] leading-relaxed text-fg-muted">
           Kerro mikä ei toimi tai mitä haluaisit muuttaa. Palautteet käsitellään iltaisin:
           pienet korjaukset julkaistaan suoraan, isommat odottavat hyväksyntää.
         </p>
@@ -78,13 +78,13 @@ function FeedbackSheet({
           rows={4}
           maxLength={4000}
           placeholder={lastView ? `Esim. ${lastView}-näkymässä…` : 'Mitä pitäisi muuttaa?'}
-          className="w-full resize-none rounded-row border border-white/10 bg-[rgba(9,11,20,0.6)] p-3 text-[15px] text-white placeholder:text-fg-ghost focus:border-accent focus:outline-none"
+          className="w-full resize-none rounded-row border border-white/10 bg-[var(--surface-1)] p-3 text-[15px] text-white placeholder:text-fg-ghost focus:border-accent focus:outline-none"
         />
         {error && <p role="alert" className="text-[12px] text-danger">{error}</p>}
         <button
           onClick={send}
           disabled={busy || body.trim().length < 3}
-          className="rounded-row bg-accent py-3 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-black disabled:opacity-40"
+          className="rounded-row bg-accent py-3 font-mono text-[12px] font-bold   text-black disabled:opacity-40"
         >
           {busy ? 'Lähetetään…' : 'Lähetä'}
         </button>
@@ -93,11 +93,11 @@ function FeedbackSheet({
           <ul className="flex flex-col gap-2 pt-2">
             {items.map((f) => (
               <li key={f.id} className="rounded-row border border-white/[0.06] bg-white/[0.02] p-3">
-                <div className="flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.08em]">
+                <div className="flex items-center justify-between gap-2 font-mono text-[12px]  ">
                   <span className={STATUS_TONE[f.status]}>{STATUS_LABEL[f.status]}</span>
                   <span className="text-fg-ghost">{f.createdAt.slice(0, 10)}</span>
                 </div>
-                <p className="mt-1.5 whitespace-pre-wrap text-[13px] text-fg-dim">{f.body}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-[14px] text-fg-dim">{f.body}</p>
                 {(f.resolution || f.plan) && (
                   <p className="mt-1.5 text-[12px] text-fg-muted">{f.resolution ?? f.plan}</p>
                 )}

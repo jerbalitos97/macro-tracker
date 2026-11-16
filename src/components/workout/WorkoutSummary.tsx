@@ -37,19 +37,19 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0)
 
   return (
-    <div className="px-4 pb-10 pt-4">
+    <div className="flex flex-col gap-3 px-4 pb-10 pt-2">
       {/* Header */}
-      <div className="mb-4 flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
           onClick={onClose}
           aria-label="Takaisin"
-          className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-full p-1.5 text-fg-muted"
+          className="icon-btn flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-text"
         >
           <ChevronLeft size={22} />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-[22px] font-bold tracking-[-0.02em] text-text">{workout.name}</h1>
-          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-faint">
+          <h2 className="truncate text-[22px] font-medium leading-7 text-text">{workout.name}</h2>
+          <div className="text-[14px] leading-5 text-fg-muted">
             {dateLabel(workout.date)}
           </div>
         </div>
@@ -57,56 +57,56 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
           <button
             onClick={onEdit}
             aria-label="Muokkaa treeniä"
-            className="flex h-9 w-9 !min-h-0 !min-w-0 items-center justify-center rounded-full border border-white/15 bg-[rgba(9,11,20,0.50)] text-fg-muted"
+            className="icon-btn flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-text"
           >
-            <Pencil size={15} />
+            <Pencil size={20} />
           </button>
         )}
         {onDelete && (
           <button
-            onClick={() => { if (window.confirm('Poistetaanko tämä treeni?')) { onDelete(workout.id); onClose() } }}
+            onClick={() => { onDelete(workout.id); onClose() }}
             aria-label="Poista treeni"
-            className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-faint hover:text-danger"
+            className="icon-btn flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[#FFB4AB]"
           >
-            <Trash2 size={16} />
+            <Trash2 size={20} />
           </button>
         )}
       </div>
 
       {/* Quick stats */}
-      <div className="mb-3 grid grid-cols-2 gap-2.5">
-        <Card variant="panel">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Liikkeet</div>
-          <div className="mt-0.5 font-display text-[24px] font-bold tabular-nums text-text">{workout.exercises.length}</div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Card variant="panel" className="!p-4">
+          <div className="text-[12px] leading-4 text-fg-muted">Liikkeet</div>
+          <div className="mt-0.5 font-mono text-[32px] font-light tabular-nums text-text">{workout.exercises.length}</div>
         </Card>
-        <Card variant="panel">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">Sarjat</div>
-          <div className="mt-0.5 font-display text-[24px] font-bold tabular-nums text-text">{totalSets}</div>
+        <Card variant="panel" className="!p-4">
+          <div className="text-[12px] leading-4 text-fg-muted">Sarjat</div>
+          <div className="mt-0.5 font-mono text-[32px] font-light tabular-nums text-text">{totalSets}</div>
         </Card>
       </div>
 
       {/* Estimated cost of the session */}
       {burn && burn.countedSets > 0 && (
-        <Card variant="glass" className="mb-3">
+        <Card variant="panel" className="!p-4">
           <div className="mb-2 flex items-center gap-2">
             <Flame size={14} className="flex-shrink-0 text-protein" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-fg-dim">
+            <span className="text-[12px] leading-4 text-fg-muted">
               Arvioitu kulutus
             </span>
           </div>
 
           <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-[28px] font-bold tabular-nums tracking-[-0.02em] text-text">
+            <span className="font-mono text-[32px] font-light tabular-nums text-text">
               {burn.sessionKcal}
             </span>
-            <span className="text-[12px] text-muted">kcal netto</span>
+            <span className="text-[14px] text-fg-muted">kcal netto</span>
           </div>
-          <div className="mt-0.5 text-[11px] text-fg-faint">
+          <div className="mt-0.5 text-[14px] leading-5 text-fg-muted">
             {burn.countedSets} kuitattua sarjaa · {burn.workMinutes} min
             {!burn.precise && ' · lisää pituus ja syntymävuosi Perusarvoihin tarkempaa arviota varten'}
           </div>
 
-          <div className="mt-3 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
+          <div className="mt-3 rounded-[16px] bg-[var(--surface-2)] px-3 py-2">
             <BurnRow k="Päivän treenit yhteensä" v={`${burn.dayTotalKcal} kcal`} />
             {burn.assumedKcal > 0 && (
               <BurnRow k="Päivätyyppi kattaa jo" v={`−${burn.assumedKcal} kcal`} />
@@ -114,8 +114,8 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
             {burn.alreadyLoggedKcal > 0 && (
               <BurnRow k="Jo kirjattu" v={`−${burn.alreadyLoggedKcal} kcal`} />
             )}
-            <div className="mt-1 flex items-baseline justify-between border-t border-white/[0.07] pt-1.5 text-[12px]">
-              <span className="text-muted">Kirjattavaa</span>
+            <div className="mt-1 flex items-baseline justify-between border-t border-white/[0.08] pt-1.5 text-[15px] font-semibold">
+              <span className="text-text">Kirjattavaa</span>
               <span className="tabular-nums font-semibold text-accent">{burn.loggableKcal} kcal</span>
             </div>
           </div>
@@ -131,8 +131,8 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
               </Button>
             )
           ) : (
-            <div className="mt-2.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-fg-faint">
-              <Check size={12} className="mt-0.5 flex-shrink-0 text-[#7fd694]" />
+            <div className="mt-2.5 flex items-start gap-1.5 text-[14px] leading-5 text-fg-muted">
+              <Check size={14} className="mt-0.5 flex-shrink-0 text-[#7fd694]" />
               <div>
                 {burn.alreadyLoggedKcal > 0 ? (
                   <p className="m-0">
@@ -147,7 +147,7 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
                   </p>
                 )}
                 {burn.alreadyLoggedKcal === 0 && burn.assumedKcal > burn.dayTotalKcal * 1.4 && (
-                  <p className="m-0 mt-1 text-fg-ghost">
+                  <p className="m-0 mt-1 text-fg-muted">
                     Jos näin toistuu, päivätyyppien TDEE voi olla asetettu turhan korkeaksi.
                     Analyysin kulutusarvion tarkistus sanoo saman asian painodatasta.
                   </p>
@@ -157,10 +157,10 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
           )}
 
           <details className="mt-2">
-            <summary className="flex cursor-pointer select-none items-center gap-1 text-[10px] text-fg-ghost [list-style:none]">
+            <summary className="flex min-h-10 cursor-pointer select-none items-center gap-1 text-[14px] font-semibold text-cyan [list-style:none]">
               ▸ Miten arvio lasketaan
             </summary>
-            <div className="mt-1.5 text-[10px] leading-[1.65] text-fg-faint">
+            <div className="mt-1.5 text-[14px] leading-5 text-fg-muted">
               <p className="m-0 mb-1">
                 Vain kuitatut sarjat lasketaan. Kunkin sarjan kesto arvioidaan toistoista
                 (3 s / toisto, väh. 20 s) tai kirjatusta ajasta, ja jokaiseen kuormitettuun
@@ -186,16 +186,16 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
       {/* Exercises */}
       <div className="flex flex-col gap-2.5">
         {workout.exercises.map((ex) => (
-          <Card key={ex.id} variant="glass">
+          <Card key={ex.id} variant="panel" className="!p-4">
             <div className="mb-2 flex items-center gap-2">
               <Dumbbell size={15} className="flex-shrink-0 text-cyan" />
-              <div className="min-w-0 truncate font-display text-[15px] font-semibold text-text">{ex.name}</div>
+              <div className="min-w-0 truncate text-[16px] font-medium leading-6 text-text">{ex.name}</div>
             </div>
             <div className="flex flex-col gap-1">
               {ex.sets.map((s, i) => (
-                <div key={i} className="flex items-baseline justify-between border-t border-white/[0.05] py-1 text-[13px] first:border-t-0">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-faint">Sarja {i + 1}</span>
-                  <span className="tabular-nums text-text">{fmtSet(s)}</span>
+                <div key={i} className="flex items-baseline justify-between border-t border-white/[0.05] py-1 text-[14px] first:border-t-0">
+                  <span className="text-[14px] text-fg-muted">Sarja {i + 1}</span>
+                  <span className="font-mono tabular-nums text-text">{fmtSet(s)}</span>
                 </div>
               ))}
             </div>
@@ -208,8 +208,8 @@ export function WorkoutSummary({ workout, onClose, onDelete, onEdit, burn, onLog
 
 function BurnRow({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">
-      <span className="text-muted">{k}</span>
+    <div className="flex items-baseline justify-between gap-2 py-[3px] text-[14px]">
+      <span className="text-fg-muted">{k}</span>
       <span className="tabular-nums text-text">{v}</span>
     </div>
   )

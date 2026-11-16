@@ -28,7 +28,7 @@ export function SyncBadge({ status }: Props) {
 
   return (
     <div
-      className="flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] font-mono text-[10px] uppercase tracking-[0.08em] transition-all duration-300"
+      className="flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] font-mono text-[12px]   transition-all duration-300"
       style={{ borderColor: color, color }}
     >
       {status === 'syncing' && (

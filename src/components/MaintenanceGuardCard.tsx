@@ -19,7 +19,7 @@ import { Card, Button } from './ui'
 // voi muokata on käsky.
 
 const DAY_LABEL = ['su', 'ma', 'ti', 'ke', 'to', 'pe', 'la']
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[12px] font-medium   text-muted'
 
 interface Props {
   settings: Settings
@@ -133,7 +133,7 @@ export function MaintenanceGuardCard({
         <div className={`${cardLabel} flex items-center gap-1.5 text-danger`}>
           <ShieldAlert size={13} /> Ylläpidon vahti
         </div>
-        <p className="m-0 text-[13px] leading-relaxed text-fg-dim">{verdict.reason}</p>
+        <p className="m-0 text-[14px] leading-relaxed text-fg-dim">{verdict.reason}</p>
 
         <div className="mt-3 rounded-row border border-white/[0.08] bg-black/20 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -155,7 +155,7 @@ export function MaintenanceGuardCard({
                     key={d}
                     onClick={() => setDays(on ? days.filter((x) => x !== d) : [...days, d])}
                     aria-pressed={on}
-                    className={`flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-lg font-mono text-[10px] uppercase ${
+                    className={`flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-lg font-mono text-[12px]  ${
                       on ? 'bg-accent/25 text-accent' : 'border border-white/10 text-fg-faint'
                     }`}
                   >
@@ -165,7 +165,7 @@ export function MaintenanceGuardCard({
               })}
             </div>
           </div>
-          <p className="mt-2.5 text-[11px] leading-relaxed text-fg-faint">
+          <p className="mt-2.5 text-[12px] leading-relaxed text-fg-faint">
             Paluu kestää noin <strong className="text-text">{weeks.toFixed(1)} viikkoa</strong> tällä
             {s.direction === 'up' ? ' lisällä' : ' vajeella'} ({s.excessKg.toFixed(1)} kg × 7700 × {g.fatFraction}). Viikonloput pysyvät
             koskemattomina ellet lisää niitä itse.
@@ -189,7 +189,7 @@ export function MaintenanceGuardCard({
         <div className={`${cardLabel} flex items-center gap-1.5 text-[#7fd694]`}>
           <ShieldCheck size={13} /> Ylläpidon vahti
         </div>
-        <p className="m-0 text-[13px] leading-relaxed text-fg-dim">{verdict.reason}</p>
+        <p className="m-0 text-[14px] leading-relaxed text-fg-dim">{verdict.reason}</p>
         <div className="mt-3">
           <Button variant="primary" onClick={removeDeficit}>
             Poista {activeNoun.toLowerCase()} ({activeGuardAdjustments.length} pv)
@@ -211,7 +211,7 @@ export function MaintenanceGuardCard({
       {verdict.weeks.length > 0 && (
         <div className="mt-2.5 flex flex-col gap-1">
           {verdict.weeks.slice(-4).map((w) => (
-            <div key={w.start} className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
+            <div key={w.start} className="flex items-baseline justify-between gap-2 font-mono text-[12px]">
               <span className="text-fg-ghost">{w.start.slice(8, 10)}.{w.start.slice(5, 7)}.</span>
               <span className={w.valid ? 'tabular-nums text-fg-muted' : 'text-fg-ghost'}>
                 {w.valid ? `${w.avgKg?.toFixed(1)} kg` : `riittämätön data (${w.weighIns})`}

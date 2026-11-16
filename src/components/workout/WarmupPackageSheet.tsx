@@ -28,7 +28,7 @@ export function WarmupPackageSheet({ items, name, note, done, onToggleDone, onCl
   return (
     <Sheet open onClose={onClose} title={<><Flame size={14} />{name}</>}>
       {anyEscalated && (
-        <div className="mb-3 rounded-row border border-accent/30 bg-accent/[0.08] px-3.5 py-2.5">
+        <div className="mb-3 rounded-[16px] bg-[rgba(242,210,155,0.12)] px-3.5 py-2.5">
           <p className="m-0 text-[12px] leading-relaxed text-fg-muted">
             Ranneportti on hoitavalla, joten ranneliikkeet on korotettu kuntoutusannokseksi.
             Lämmittelyä ei jätetä väliin — se on tänään se hoito.
@@ -45,18 +45,18 @@ export function WarmupPackageSheet({ items, name, note, done, onToggleDone, onCl
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] leading-snug text-text">{it.name}</span>
+              <span className="text-[14px] leading-snug text-text">{it.name}</span>
               {it.dose && (
-                <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-fg-muted">
+                <span className="flex-shrink-0 font-mono text-[12px] tabular-nums text-fg-muted">
                   {it.dose}
                 </span>
               )}
             </div>
             {it.note && (
-              <p className="m-0 mt-0.5 text-[11px] leading-relaxed text-fg-faint">{it.note}</p>
+              <p className="m-0 mt-0.5 text-[12px] leading-relaxed text-fg-faint">{it.note}</p>
             )}
             {(it.escalated || it.progressive) && (
-              <div className="mt-1 flex flex-wrap gap-2 font-mono text-[9px] uppercase tracking-[0.1em] text-accent">
+              <div className="mt-1 flex flex-wrap gap-2 text-[12px] text-accent">
                 {it.escalated && <span className="flex items-center gap-1"><Activity size={10} />hoitava annos</span>}
                 {it.progressive && <span className="flex items-center gap-1"><TrendingUp size={10} />progressiivinen tällä viikolla</span>}
               </div>
@@ -65,7 +65,7 @@ export function WarmupPackageSheet({ items, name, note, done, onToggleDone, onCl
         ))}
       </div>
 
-      {note && <p className="m-0 mb-3 text-[11px] leading-relaxed text-fg-ghost">{note}</p>}
+      {note && <p className="m-0 mb-3 text-[12px] leading-relaxed text-fg-ghost">{note}</p>}
 
       <Button variant={done ? 'action' : 'primary'} className="w-full" onClick={() => { onToggleDone(); onClose() }}>
         <Check size={16} /> {done ? 'Merkitse tekemättömäksi' : 'Lämmittely tehty'}

@@ -68,7 +68,7 @@ export function DayBreakdown({ day }: Props) {
           first, in words, against the budget this day actually had. */}
       {(day.consumed > 0 || day.burnKcal > 0) && (
         <>
-          <div className="mb-1 mt-3.5 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
+          <div className="mb-1 mt-3.5 text-[12px] font-medium   text-fg-faint">
             Toteutuma
           </div>
           {(() => {
@@ -106,7 +106,7 @@ export function DayBreakdown({ day }: Props) {
                     adjustment, so say so rather than leaving the reader to
                     wonder whether their session counted. */}
                 {(day.burnKcal > 0 || (day.adjustment && day.adjustment.kcal !== 0)) && (
-                  <p className="m-0 mt-1 text-[10px] leading-snug text-fg-ghost">
+                  <p className="m-0 mt-1 text-[12px] leading-snug text-fg-ghost">
                     Budjetissa mukana
                     {day.burnKcal > 0 && ` treenikulutus +${day.burnKcal.toLocaleString('fi-FI')}`}
                     {day.burnKcal > 0 && day.adjustment && day.adjustment.kcal !== 0 && ' ja'}

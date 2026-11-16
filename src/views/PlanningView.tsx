@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarRange, Plus, AlertTriangle, Check, Wand2, Trash2, CheckCircle2, Layers, ChevronRight } from 'lucide-react'
+import { CalendarRange, Plus, AlertTriangle, Check, Wand2, Trash2, CheckCircle2, ChevronRight } from 'lucide-react'
 import type { DayType, GoalPeriod, Settings, WeightEntry } from '../types'
 import type { TrainingBlock } from '../lib/blocks'
 import {
@@ -19,7 +19,7 @@ import type { Clash } from '../lib/planning'
 import { toISO, formatDateShort, daysBetween, addDays, getWeekdayNum } from '../lib/dates'
 import { GoalPeriodModal } from '../components/GoalPeriodModal'
 import { useAuth } from '../contexts/AuthContext'
-import { Card, Button } from '../components/ui'
+import { Card, Button, snack } from '../components/ui'
 import { guardSettings } from '../lib/maintenanceGuard'
 
 // Training and nutrition are planned here, against each other.
@@ -28,9 +28,18 @@ import { guardSettings } from '../lib/maintenanceGuard'
 // so this screen's job is to put them on one axis, name the conflicts, and
 // make the fix a button rather than a note to self.
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const cardLabel = 'mb-2.5 text-[16px] font-medium leading-6 text-text'
+const sectionTitle = 'm-0 text-[18px] font-medium leading-6 text-text'
+const sectionHead = 'flex min-h-11 items-center justify-between gap-2 px-1 pt-2'
+// Tonal button in the Planning tint (amber), as in the mockup's section heads.
+const tonalBtn =
+  'inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full bg-[rgba(232,184,90,0.18)] px-4 text-[14px] font-medium text-[#f5e6c4]'
+const textBtn =
+  'inline-flex min-h-11 items-center gap-1.5 rounded-full bg-transparent px-3 text-[14px] font-semibold text-[#22d3ee]'
+const listGroup = 'flex flex-col gap-0.5 overflow-hidden rounded-[24px]'
+const listRow = 'bg-[var(--surface-1)] px-4 py-2.5'
 const inputCls =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-base text-text [color-scheme:dark]'
+  'h-11 w-full rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-3 text-base text-text [color-scheme:dark]'
 
 const PERIOD_TYPE_LABEL: Record<string, string> = {
   cut: 'Cut',
@@ -76,6 +85,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
   >(null)
   const [blockEdit, setBlockEdit] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
   const [tab, setTab] = useState<'season' | 'basics'>('season')
+  // Undo runs seconds later, after other edits may have landed; it has to
+  // patch the settings as they are then, not as they were when the snack
+  // was raised.
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
 
   const saveBlock = (b: TrainingBlock) => {
     setBlocks(saveBlockLocal(b))
@@ -142,6 +156,37 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
     if (c.suggestedTargetWeight === null) return
     setSettings(updatePeriod(settings, c.period.id, { targetWeight: c.suggestedTargetWeight }))
   }
+  const deletePeriod = (p: GoalPeriod) => {
+    setSettings(removePeriod(settings, p.id))
+    snack({
+      text: 'Jakso poistettu',
+      onAction: () => {
+        const cur = settingsRef.current
+        if ((cur.goalPeriods ?? []).some((x) => x.id === p.id)) return
+        setSettings({ ...cur, goalPeriods: [...(cur.goalPeriods ?? []), p] })
+      },
+    })
+  }
+  const endCurrent = () => {
+    const before = settings.goalPeriods
+    const next = endActivePeriod(settings, todayISO, 'achieved')
+    if (next === settings) return
+    // The one period endActivePeriod changed, as it was before.
+    const prev = (before ?? []).find((b) => {
+      const n = next.goalPeriods?.find((x) => x.id === b.id)
+      return n && (n.status !== b.status || n.endDate !== b.endDate)
+    })
+    setSettings(next)
+    snack({
+      text: 'Tavoite päätetty',
+      onAction: () => {
+        const cur = settingsRef.current
+        if (prev) setSettings(updatePeriod(cur, prev.id, { status: prev.status, endDate: prev.endDate }))
+        // Legacy goal: ending it was what turned it into a stored period.
+        else if ((before ?? []).length === 0) setSettings({ ...cur, goalPeriods: before })
+      },
+    })
+  }
   const toMaintenance = (c: Clash) => {
     setSettings(
       updatePeriod(settings, c.period.id, {
@@ -152,26 +197,19 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col gap-5 px-4 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-[calc(env(safe-area-inset-top)+28px)]">
-      <div>
-        <div className="mb-1 font-mono text-[10px] tracking-[0.32em] text-fg-muted">FRIDAY</div>
-        <h1 className="m-0 font-display text-[22px] font-extrabold tracking-[-0.015em] text-white">
-          Suunnittelu
-        </h1>
-      </div>
-
+    <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-2">
       {/* One long scroll mixed "what is in force today" with settings touched
           twice a year. Two tabs separate them; the data and the mechanisms
           behind them are unchanged. */}
-      <div role="tablist" className="grid grid-cols-2 gap-1 rounded-row border border-white/10 bg-[rgba(9,11,20,0.45)] p-1">
+      <div role="tablist" className="flex gap-1 rounded-[24px] bg-[var(--surface-2)] p-1">
         {([['season', 'Kausi'], ['basics', 'Perusarvot']] as const).map(([id, label]) => (
           <button
             key={id}
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`rounded-[10px] py-2 font-mono text-[11px] uppercase tracking-[0.08em] !min-h-0 ${
-              tab === id ? 'bg-white/[0.10] text-text' : 'text-fg-muted'
+            className={`min-h-10 flex-1 rounded-[20px] text-[14px] font-medium ${
+              tab === id ? 'bg-[rgba(34,211,238,0.18)] text-[#a5f3fc]' : 'bg-transparent text-fg-muted'
             }`}
           >
             {label}
@@ -185,22 +223,42 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           Block, nutrition phase and the day's asks in one place. Everything
           here is derived, so it moves the moment any input does: change the
           block, log a weigh-in, edit the period — this card is the proof. */}
-      <Card variant="glass">
-        <div className={cardLabel}>Voimassa tänään</div>
-        <div className="flex flex-col gap-2">
-          <NowRow
-            k="Treeniblokki"
-            v={todayBlock ? (todayBlock.name || INTENTS[intentOf(todayBlock)].label) : 'ei blokkia'}
-            sub={todayBlock ? INTENTS[intentOf(todayBlock)].label : undefined}
-            color={todayBlock?.color}
-          />
-          <NowRow
+      <section
+        className="flex flex-col gap-3.5 border border-[rgba(232,184,90,0.35)] p-5"
+        style={{
+          borderRadius: '32px 32px 32px 12px',
+          background: 'linear-gradient(135deg, rgba(232,184,90,0.24), rgba(167,139,250,0.22))',
+        }}
+      >
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[14px] leading-5 text-[#f5e6c4]">
+            Voimassa tänään · {formatDateShort(todayISO)}
+          </span>
+          <span className="flex items-center gap-2.5 text-[26px] font-medium leading-8 text-text">
+            {todayBlock && (
+              <span
+                aria-hidden
+                className="h-6 w-1.5 flex-shrink-0 rounded-full"
+                style={{ backgroundColor: todayBlock.color }}
+              />
+            )}
+            <span className="min-w-0 truncate">
+              {todayBlock ? (todayBlock.name || INTENTS[intentOf(todayBlock)].label) : 'Ei treeniblokkia'}
+            </span>
+          </span>
+          {todayBlock && (
+            <span className="self-start rounded-lg bg-[rgba(5,6,12,0.4)] px-2.5 py-1 text-[12px] font-semibold text-text">
+              {INTENTS[intentOf(todayBlock)].label}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Tile
             k="Ravintovaihe"
-            v={`${PERIOD_TYPE_LABEL[goal.type]} · ${goal.startWeight.toFixed(1)} → ${goal.targetWeight.toFixed(1)} kg`}
+            v={`${PERIOD_TYPE_LABEL[goal.type]} · ${goal.startWeight.toFixed(1)} → ${goal.targetWeight.toFixed(1)}`}
             sub={`${formatDateShort(goal.startDate)} – ${formatDateShort(goal.endDate)} · päivä ${goal.elapsedDays}/${goal.totalDays}`}
-            color={PERIOD_COLOR[goal.type]}
           />
-          <NowRow
+          <Tile
             k="Tahti"
             v={goal.weeklyRateKg > 0 ? `−${goal.weeklyRateKg.toFixed(2)} kg/vko` : 'ylläpito'}
             sub={
@@ -211,41 +269,41 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                 : undefined
             }
           />
-          <NowRow
+          <Tile
             k="Proteiini"
             v={`${settings.proteinTarget} g/pv`}
             sub={
               settings.proteinTarget === protein.grams
-                ? `suositus ${protein.grams} g (${protein.gramsPerKg} g/kg)`
+                ? `suositus ${protein.grams} g · ${protein.gramsPerKg} g/kg`
                 : `suositus ${protein.grams} g — omasi ${settings.proteinTarget > protein.grams ? '+' : '−'}${Math.abs(settings.proteinTarget - protein.grams)} g`
             }
           />
-          <NowRow k="Paino laskennassa" v={`${bodyWeight.toFixed(1)} kg`} sub="7 pv liukuva keskiarvo" />
+          <Tile k="Paino laskennassa" v={`${bodyWeight.toFixed(1)} kg`} sub="7 pv liukuva ka." />
         </div>
         {clashes.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-1.5 rounded-[8px] border border-danger/25 bg-danger/[0.06] px-3 py-2 text-[11px] text-danger">
-            <AlertTriangle size={12} className="flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-xl bg-[#452826] px-3 py-2 text-[14px] text-[#FFDAD6]">
+            <AlertTriangle size={16} className="flex-shrink-0 text-[#FFB4AB]" />
             {clashes.length} ristiriita{clashes.length === 1 ? '' : 'a'} alla
           </div>
         )}
-      </Card>
+      </section>
 
       <Timeline periods={periods} blocks={blocks} todayISO={todayISO} />
 
       {/* ── Conflicts ─────────────────────────────────────────── */}
-      <div>
-        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
-          Ristiriidat
-        </h2>
+      <div className="flex flex-col gap-2">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Ristiriidat</h2>
+        </div>
         {clashes.length === 0 ? (
-          <Card variant="glass" className="flex items-center gap-2.5 px-4 py-3.5">
-            <Check size={15} className="flex-shrink-0 text-[#7fd694]" />
-            <p className="m-0 text-[12px] leading-relaxed text-fg-muted">
+          <div className="flex items-center gap-2.5 rounded-[20px] bg-[rgba(52,211,153,0.14)] px-4 py-3.5 text-[#bbf7d0]">
+            <Check size={20} className="flex-shrink-0" />
+            <p className="m-0 text-[14px] leading-5">
               {blocks.length === 0
                 ? 'Ei treeniblokkeja vielä. Lisää blokkeja Workout-työkalussa, niin ne ilmestyvät tähän.'
                 : 'Ravintojaksot ja treeniblokit ovat linjassa keskenään.'}
             </p>
-          </Card>
+          </div>
         ) : (
           <div className="flex flex-col gap-2.5">
             {clashes.map((c) => (
@@ -262,76 +320,12 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
       </div>
 
       {/* ── Per block ─────────────────────────────────────────── */}
-      <div>
-        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
-          Blokit
-        </h2>
-        <div className="flex flex-col gap-2.5">
-          {plans.length === 0 && (
-            <Card variant="glass" className="px-4 py-3.5">
-              <p className="m-0 text-[12px] text-fg-muted">
-                Ei blokkeja vielä. Luo ensimmäinen alta — ne näkyvät sen jälkeen väreinä Workout-kalenterissa.
-              </p>
-            </Card>
-          )}
-          <div className="flex flex-col gap-2.5">
-            {plans.map((p) => {
-              const days = daysBetween(p.block.startDate, p.block.endDate) + 1
-              const past = p.block.endDate < todayISO
-              return (
-                <Card key={p.block.id} variant="glass" className={past ? 'opacity-55' : ''}>
-                  <button
-                    onClick={() => setBlockEdit({ block: p.block, isNew: false })}
-                    className="flex w-full items-start gap-2.5 text-left !min-h-0 !min-w-0"
-                  >
-                    <div
-                      className="mt-0.5 h-8 w-1 flex-shrink-0 rounded-sm"
-                      style={{ backgroundColor: p.block.color }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold text-text">
-                        {p.block.name || p.spec.label}
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-fg-faint">
-                        {p.spec.label} · {formatDateShort(p.block.startDate)} – {formatDateShort(p.block.endDate)} · {days} pv
-                      </div>
-                    </div>
-                    <ChevronRight size={15} className="mt-1 flex-shrink-0 text-fg-faint" />
-                  </button>
-
-                  <div className="mt-2.5 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
-                    <Row
-                      k="Vaje enintään"
-                      v={p.allowedKg === null ? 'ei vajetta' : `${p.allowedKg.toFixed(2)} kg/vko`}
-                    />
-                    <Row k="Proteiini väh." v={`${p.proteinTargetG} g/pv`} />
-                    <Row
-                      k="Ravintojakso"
-                      v={
-                        p.periods.length === 0
-                          ? '—'
-                          : p.periods.map((x) => `${x.type} ${plannedWeeklyLossKg(x) > 0 ? `−${plannedWeeklyLossKg(x).toFixed(2)}` : '±0.00'} kg/vko`).join(', ')
-                      }
-                    />
-                  </div>
-
-                  {p.periods.length === 0 && !past && (
-                    <Button
-                      variant="action"
-                      className="mt-2.5 w-full"
-                      onClick={() => setModal({ mode: 'create-for-block', block: p.block })}
-                    >
-                      <Plus size={13} />
-                      Aseta ravintojakso tälle blokille
-                    </Button>
-                  )}
-                </Card>
-              )
-            })}
-          </div>
-          <Button
-            variant="action"
-            className="w-full"
+      <div className="flex flex-col gap-2">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Treeniblokit</h2>
+          <button
+            type="button"
+            className={tonalBtn}
             onClick={() =>
               setBlockEdit({
                 block: newBlock(
@@ -343,114 +337,157 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
               })
             }
           >
-            <Layers size={13} />
+            <Plus size={16} />
             Uusi blokki
-          </Button>
+          </button>
         </div>
-      </div>
-
-      {/* ── Nutrition periods ─────────────────────────────────── */}
-      <div>
-        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
-          Ravintojaksot
-        </h2>
-        <Card variant="glass">
-          <div className="flex items-baseline justify-between">
-            <div className={cardLabel}>Historia</div>
-            <div className="text-[10px] text-fg-ghost">
-              {periods.length} jakso{periods.length === 1 ? '' : 'a'}
-            </div>
-          </div>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {periods.map((p) => {
-              // Voimassa, ei pelkkä 'active': etukäteen kirjattu jakso ohjaa
-              // budjettia omana päivänään ilman tilan kääntämistä, ja silloin
-              // sen kuuluu näyttää siltä. Merkintä on myös se joka piilottaa
-              // roskakorin — menossa olevaa jaksoa ei poisteta vahingossa.
-              const isActive = isPeriodLive(p, todayISO)
-              const color = PERIOD_COLOR[p.type] ?? '#22d3ee'
+        {plans.length === 0 ? (
+          <Card className="!p-4">
+            <p className="m-0 text-[14px] leading-5 text-fg-muted">
+              Ei blokkeja vielä. Luo ensimmäinen yltä — ne näkyvät sen jälkeen väreinä Workout-kalenterissa.
+            </p>
+          </Card>
+        ) : (
+          <div className={listGroup}>
+            {plans.map((p) => {
+              const days = daysBetween(p.block.startDate, p.block.endDate) + 1
+              const past = p.block.endDate < todayISO
               return (
-                <div
-                  key={p.id}
-                  onClick={() => setModal({ mode: 'edit', initial: p })}
-                  role="button"
-                  className="flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-3 py-2.5"
-                  style={{
-                    backgroundColor: isActive ? `${color}14` : 'rgba(255,255,255,0.03)',
-                    borderColor: isActive ? `${color}55` : 'rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <div
-                    className="h-7 w-1 flex-shrink-0 rounded-sm"
-                    style={{ backgroundColor: color, opacity: isActive ? 1 : 0.4 }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-1.5 text-[12px] font-semibold text-text">
-                      <span>{PERIOD_TYPE_LABEL[p.type]}</span>
-                      <span className="font-normal text-fg-muted">
-                        {p.startWeight.toFixed(1)} → {p.targetWeight.toFixed(1)} kg
-                      </span>
-                    </div>
-                    <div className="mt-0.5 truncate text-[10px] text-fg-faint">
-                      {formatDateShort(p.startDate)} – {formatDateShort(p.endDate)}
-                    </div>
-                    {p.label && (
-                      <div className="mt-0.5 truncate text-[10px] text-fg-ghost">{p.label}</div>
-                    )}
-                  </div>
-                  <div
-                    className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-fg-faint"
-                    style={{ color: isActive ? color : undefined }}
+                <div key={p.block.id} className={`${listRow} ${past ? 'opacity-55' : ''}`}>
+                  <button
+                    onClick={() => setBlockEdit({ block: p.block, isNew: false })}
+                    className="flex min-h-12 w-full items-center gap-3.5 bg-transparent text-left"
                   >
-                    {isActive
-                      ? 'Voimassa'
-                      : p.status === 'planned'
-                        ? 'Suunniteltu'
-                        : p.status === 'achieved'
-                          ? 'Saavutettu'
-                          : 'Päätetty'}
-                  </div>
-                  {!isActive && (
+                    <span
+                      aria-hidden
+                      className="h-10 w-3 flex-shrink-0 rounded-md"
+                      style={{ backgroundColor: p.block.color }}
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[16px] leading-6 text-text">
+                        {p.block.name || p.spec.label}
+                      </span>
+                      <span className="text-[14px] leading-5 text-fg-muted">
+                        {p.spec.label} · {formatDateShort(p.block.startDate)} – {formatDateShort(p.block.endDate)} · {days} pv
+                      </span>
+                      <span className="text-[14px] leading-5 text-fg-muted">
+                        Vaje enintään {p.allowedKg === null ? 'ei vajetta' : `${p.allowedKg.toFixed(2)} kg/vko`} · proteiini väh. {p.proteinTargetG} g/pv
+                      </span>
+                      <span className="text-[14px] leading-5 text-fg-muted">
+                        Ravintojakso:{' '}
+                        {p.periods.length === 0
+                          ? '—'
+                          : p.periods.map((x) => `${x.type} ${plannedWeeklyLossKg(x) > 0 ? `−${plannedWeeklyLossKg(x).toFixed(2)}` : '±0.00'} kg/vko`).join(', ')}
+                      </span>
+                    </span>
+                    <ChevronRight size={20} className="flex-shrink-0 text-fg-muted" />
+                  </button>
+
+                  {p.periods.length === 0 && !past && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (window.confirm('Poistetaanko tämä tavoitejakso historiasta?')) {
-                          setSettings(removePeriod(settings, p.id))
-                        }
-                      }}
-                      className="icon-btn flex min-h-0 min-w-0 items-center justify-center rounded-md p-1.5 text-fg-ghost"
-                      aria-label="Poista jakso"
+                      type="button"
+                      className={`${textBtn} -ml-3 mt-1`}
+                      onClick={() => setModal({ mode: 'create-for-block', block: p.block })}
                     >
-                      <Trash2 size={12} />
+                      <Plus size={16} />
+                      Aseta ravintojakso tälle blokille
                     </button>
                   )}
                 </div>
               )
             })}
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <Button
-              variant="action"
-              onClick={() => {
-                if (!window.confirm('Päätetään nykyinen tavoite? Voit avata uuden jakson sen jälkeen.')) return
-                setSettings(endActivePeriod(settings, todayISO, 'achieved'))
-              }}
-            >
-              <CheckCircle2 size={13} />
-              Päätä nykyinen
-            </Button>
-            <Button variant="action" className="text-accent" onClick={() => setModal({ mode: 'create' })}>
-              <Plus size={13} />
-              Aseta uusi
-            </Button>
-          </div>
-        </Card>
+        )}
+      </div>
 
+      {/* ── Nutrition periods ─────────────────────────────────── */}
+      <div className="flex flex-col gap-2">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Ravintojaksot</h2>
+          <button type="button" className={tonalBtn} onClick={() => setModal({ mode: 'create' })}>
+            <Plus size={16} />
+            Uusi jakso
+          </button>
+        </div>
+        <div className={listGroup}>
+          {periods.map((p) => {
+            // Voimassa, ei pelkkä 'active': etukäteen kirjattu jakso ohjaa
+            // budjettia omana päivänään ilman tilan kääntämistä, ja silloin
+            // sen kuuluu näyttää siltä. Merkintä on myös se joka piilottaa
+            // roskakorin — menossa olevaa jaksoa ei poisteta vahingossa.
+            const isActive = isPeriodLive(p, todayISO)
+            const color = PERIOD_COLOR[p.type] ?? '#22d3ee'
+            return (
+              <div
+                key={p.id}
+                onClick={() => setModal({ mode: 'edit', initial: p })}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') setModal({ mode: 'edit', initial: p }) }}
+                className={`${listRow} flex min-h-16 cursor-pointer items-center gap-3`}
+              >
+                <span
+                  aria-hidden
+                  className="h-10 w-1.5 flex-shrink-0 rounded-full"
+                  style={{ backgroundColor: color, opacity: isActive ? 1 : 0.4 }}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-baseline gap-1.5 text-[16px] leading-6 text-text">
+                    <span>{PERIOD_TYPE_LABEL[p.type]}</span>
+                    <span className="font-mono text-[14px] text-fg-muted">
+                      {p.startWeight.toFixed(1)} → {p.targetWeight.toFixed(1)} kg
+                    </span>
+                  </div>
+                  <div className="truncate text-[14px] leading-5 text-fg-muted">
+                    {formatDateShort(p.startDate)} – {formatDateShort(p.endDate)}
+                    {p.label ? ` · ${p.label}` : ''}
+                  </div>
+                </div>
+                <span
+                  className="flex-shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-semibold"
+                  style={{
+                    backgroundColor: isActive ? `${color}29` : 'rgba(255,255,255,0.08)',
+                    color: isActive ? color : '#BFC8CA',
+                  }}
+                >
+                  {isActive
+                    ? 'Voimassa'
+                    : p.status === 'planned'
+                      ? 'Suunniteltu'
+                      : p.status === 'achieved'
+                        ? 'Saavutettu'
+                        : 'Päätetty'}
+                </span>
+                {!isActive && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deletePeriod(p)
+                    }}
+                    className="-mr-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-transparent text-fg-muted"
+                    aria-label="Poista jakso"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <button type="button" className={`${textBtn} self-start`} onClick={endCurrent}>
+          <CheckCircle2 size={16} />
+          Päätä nykyinen tavoite
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
         {/* The identity of the active period is already in "Voimassa tänään"
             at the top; what is left here is the arithmetic it implies. */}
-        <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Mitä aktiivinen jakso vaatii</div>
-          <div className="rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Mitä aktiivinen jakso vaatii</h2>
+        </div>
+        <Card className="!p-4">
+          <div>
             <Row k="Muutos" v={`${goal.kgToChange.toFixed(1)} kg`} />
             {goalPlansDeficit ? (
               <>
@@ -466,7 +503,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             <Row k="Tempo" v={`${goal.weeklyRateKg.toFixed(2)} kg / vko`} />
           </div>
           {goal.weekendMaintenance && (
-            <p className="m-0 mt-1.5 text-[11px] text-fg-faint">
+            <p className="m-0 mt-2 text-[14px] leading-5 text-fg-muted">
               Viikonloput ylläpidolla — koko vaje on jalkautettu arkipäiville.
             </p>
           )}
@@ -482,13 +519,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           TDEE, the weekly rhythm and the protein target decide every daily
           budget, so they belong with the planning rather than in an
           app-settings drawer. */}
-      <div>
-        <h2 className="mb-2 font-display text-[15px] font-bold tracking-[-0.02em] text-text">
-          Perusarvot
-        </h2>
-
-        <Card variant="glass">
-          <div className={cardLabel}>TDEE per päivätyyppi</div>
+      <div className="flex flex-col gap-2">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Kulutus päivätyypeittäin</h2>
+        </div>
+        <Card className="!p-4">
           {(['rest', 'single', 'double', 'volleyball'] as const).map((key) => (
             <NumField
               key={key}
@@ -508,14 +543,16 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             täällä suunnitellaan, muualla raportoidaan. */}
         <GuardCard settings={settings} setSettings={setSettings} />
 
-        <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Viikkorytmi</div>
-          <div className="mb-2 text-[11px] text-muted">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Viikkorytmi</h2>
+        </div>
+        <Card className="!p-4">
+          <div className="mb-1 text-[14px] leading-5 text-fg-muted">
             Mitä päivätyyppiä kukin viikonpäivä oletusarvoisesti on
           </div>
           {([1, 2, 3, 4, 5, 6, 0] as number[]).map((dow) => (
             <div key={dow} className="mt-1.5 flex items-center justify-between gap-3">
-              <label className="text-[12px] text-muted">{DOW_NAMES[dow]}</label>
+              <label className="text-[16px] leading-6 text-text">{DOW_NAMES[dow]}</label>
               <select
                 value={settings.weeklyPattern[dow]}
                 onChange={(e) =>
@@ -524,8 +561,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                     weeklyPattern: { ...settings.weeklyPattern, [dow]: e.target.value as DayType },
                   })
                 }
-                className={`${inputCls} w-[140px]`}
-                style={{ marginTop: 0, marginBottom: 0 }}
+                className={`${inputCls} !w-[140px]`}
               >
                 <option value="rest">Lepo</option>
                 <option value="single">1 treeni</option>
@@ -539,9 +575,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         {/* Height, birth year and sex are here for one reason: they let the
             workout burn estimate use your own resting rate instead of the
             generic 1 kcal/kg/h constant, which runs high for most people. */}
-        <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Kehon mitat</div>
-          <div className="mb-2 text-[11px] leading-relaxed text-muted">
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Kehon mitat</h2>
+        </div>
+        <Card className="!p-4">
+          <div className="mb-1 text-[14px] leading-5 text-fg-muted">
             Käytetään treenin kulutusarvioon. Ilman pituutta ja ikää arvio putoaa
             karkeampaan vakiokaavaan.
           </div>
@@ -564,7 +602,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             onCommit={(n) => setSettings({ ...settings, birthYear: n })}
           />
           <div className="mt-2 flex items-center justify-between gap-3">
-            <label className="text-[12px] text-muted" htmlFor="sex">Perusaineenvaihdunnan kaava</label>
+            <label className="text-[16px] leading-6 text-text" htmlFor="sex">Perusaineenvaihdunnan kaava</label>
             <select
               id="sex"
               value={settings.sex ?? ''}
@@ -574,8 +612,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
                   sex: e.target.value === '' ? undefined : (e.target.value as 'male' | 'female'),
                 })
               }
-              className={`${inputCls} w-[110px]`}
-              style={{ marginTop: 0, marginBottom: 0 }}
+              className={`${inputCls} !w-[130px]`}
             >
               <option value="">Ei asetettu</option>
               <option value="male">Mies</option>
@@ -584,8 +621,10 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </div>
         </Card>
 
-        <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Proteiinitavoite</div>
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>Proteiinitavoite</h2>
+        </div>
+        <Card className="!p-4">
           <NumField
             id="protein-target"
             label="Tavoite (g/pv)"
@@ -595,17 +634,17 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             onCommit={(n) => n != null && setSettings({ ...settings, proteinTarget: n })}
           />
 
-          <div className="mt-2 rounded-[8px] border border-white/[0.07] bg-black/30 p-2.5">
-            <div className="flex items-baseline justify-between text-[12px]">
-              <span className="text-muted">Suositus</span>
-              <span className="tabular-nums font-semibold text-accent">
+          <div className="mt-3 rounded-2xl bg-[var(--surface-2)] p-3">
+            <div className="flex items-baseline justify-between text-[16px]">
+              <span className="text-text">Suositus</span>
+              <span className="font-mono font-medium text-[#f5e6c4]">
                 {protein.grams} g/pv
-                <span className="ml-1 font-normal text-fg-faint">({protein.gramsPerKg} g/kg)</span>
+                <span className="ml-1 text-[14px] font-normal text-fg-muted">({protein.gramsPerKg} g/kg)</span>
               </span>
             </div>
             <div className="mt-1.5 flex flex-col gap-0.5">
               {protein.reasons.map((r) => (
-                <div key={r} className="text-[10px] leading-snug text-fg-faint">· {r}</div>
+                <div key={r} className="text-[14px] leading-5 text-fg-muted">· {r}</div>
               ))}
             </div>
             {settings.proteinTarget !== protein.grams && (
@@ -620,14 +659,14 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </div>
 
           {settings.proteinTarget > protein.grams && (
-            <p className="m-0 mt-2 text-[11px] leading-relaxed text-fg-faint">
+            <p className="m-0 mt-2 text-[14px] leading-5 text-fg-muted">
               Tavoitteesi on {settings.proteinTarget - protein.grams} g suosituksen yli. Jos se on
               tarkoituksellinen puskuri niitä päiviä varten jolloin proteiini jää vajaaksi, se
               toimii — keskiarvo on se mikä ratkaisee, ei yksittäinen päivä.
             </p>
           )}
           {settings.proteinTarget < protein.grams && (
-            <p className="m-0 mt-2 text-[11px] leading-relaxed text-fg-faint">
+            <p className="m-0 mt-2 text-[14px] leading-5 text-fg-muted">
               Tavoitteesi on {protein.grams - settings.proteinTarget} g suosituksen alle. Vajeella
               proteiini on se mikä estää kehoa ottamasta energiavajetta lihaksesta.
             </p>
@@ -636,10 +675,10 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
       </div>
 
       <details>
-        <summary className="flex cursor-pointer select-none items-center gap-1 text-[11px] text-fg-ghost [list-style:none]">
+        <summary className="flex min-h-11 cursor-pointer select-none items-center gap-1 px-1 text-[14px] font-medium text-[#22d3ee] [list-style:none]">
           ▸ Mistä rajat tulevat
         </summary>
-        <div className="mt-2 px-0.5 text-[11px] leading-[1.7] text-fg-faint">
+        <div className="mt-1 px-1 text-[14px] leading-5 text-fg-muted">
           <p className="m-0 mb-1.5">
             Jokainen blokin tarkoitus kantaa ylärajan sille, kuinka nopeaa painonpudotusta se
             kestää, prosentteina kehonpainosta viikossa. Raja kerrotaan nykyisellä trendipainollasi
@@ -731,9 +770,9 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 py-[3px] text-[12px]">
-      <span className="flex-shrink-0 text-muted">{k}</span>
-      <span className="truncate text-right tabular-nums text-text">{v}</span>
+    <div className="flex min-h-10 items-baseline justify-between gap-3 py-1.5 text-[16px] leading-6">
+      <span className="flex-shrink-0 text-text">{k}</span>
+      <span className="truncate text-right font-mono font-medium text-text">{v}</span>
     </div>
   )
 }
@@ -768,7 +807,7 @@ function Timeline({
   const x = (d: string) => daysBetween(from, d) * PX_PER_DAY
   const w = (s: string, e: string) => Math.max(6, (daysBetween(s, e) + 1) * PX_PER_DAY)
 
-  const bar = 'absolute flex items-center overflow-hidden rounded-[5px] px-1.5 text-[9px] font-semibold'
+  const bar = 'absolute flex items-center overflow-hidden rounded-[5px] px-1.5 text-[12px] font-semibold'
 
   // A season is months long and the phone is 390px wide, so the axis scrolls.
   // Open it where the user is, not at the start of history.
@@ -780,16 +819,16 @@ function Timeline({
   }, [from, todayISO])
 
   return (
-    <Card variant="glass" className="p-3">
-      <div className={cardLabel}>Aikajana</div>
+    <Card className="!p-4">
+      <h2 className={cardLabel}>Aikajana</h2>
       <div ref={scroller} className="overflow-x-auto">
         <div className="relative" style={{ width, minWidth: '100%' }}>
           {/* today marker — its label sits in a lane of its own above the
               bars, so it never lands on top of one */}
-          <div className="relative h-[13px]">
+          <div className="relative h-4">
             {todayISO >= from && todayISO <= to && (
               <span
-                className="absolute top-0 font-mono text-[8px] uppercase text-white/60"
+                className="absolute top-0 text-[12px] leading-4 text-text"
                 style={{ left: x(todayISO) + 3 }}
               >
                 tänään
@@ -798,7 +837,7 @@ function Timeline({
           </div>
           {todayISO >= from && todayISO <= to && (
             <div
-              className="absolute top-[13px] z-10 h-[60px] w-px bg-white/45"
+              className="absolute top-4 z-10 h-[60px] w-0.5 bg-white"
               style={{ left: x(todayISO) }}
             />
           )}
@@ -845,11 +884,11 @@ function Timeline({
       </div>
       {/* Outside the scroller: inside it the right-hand date sat at the far end
           of the scrollable width and got clipped by the viewport. */}
-      <div className="mt-1 flex justify-between font-mono text-[8px] text-fg-ghost">
+      <div className="mt-1 flex justify-between text-[12px] leading-4 text-fg-muted">
         <span>{formatDateShort(from)}</span>
         <span>{formatDateShort(to)}</span>
       </div>
-      <div className="mt-2 flex gap-3 border-t border-white/[0.06] pt-2 font-mono text-[9px] uppercase tracking-[0.06em] text-fg-ghost">
+      <div className="mt-2 flex gap-3 border-t border-white/[0.06] pt-2 text-[12px] leading-4 text-fg-muted">
         <span>ylä: ravinto</span>
         <span>ala: treeni</span>
       </div>
@@ -872,40 +911,41 @@ function ClashCard({
   const spec = INTENTS[clash.intent]
   return (
     <div
-      className="rounded-card border px-4 py-3.5"
+      role="alert"
+      className="flex flex-col gap-2.5 rounded-[24px] p-4"
       style={{
-        backgroundColor: hard ? 'rgba(248,113,113,0.06)' : 'rgba(232,184,90,0.06)',
-        borderColor: hard ? 'rgba(248,113,113,0.22)' : 'rgba(232,184,90,0.22)',
+        backgroundColor: hard ? '#452826' : 'rgba(232,184,90,0.16)',
+        color: hard ? '#FFDAD6' : '#f5e6c4',
       }}
     >
-      <div className="flex items-start gap-2.5">
-        <AlertTriangle size={15} className={`mt-0.5 flex-shrink-0 ${hard ? 'text-danger' : 'text-accent'}`} />
-        <div className="min-w-0">
-          <p className="m-0 text-[13px] font-bold text-text">
+      <div className="flex items-start gap-3">
+        <AlertTriangle size={24} className="flex-shrink-0" style={{ color: hard ? '#FFB4AB' : '#e8b85a' }} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="m-0 text-[16px] font-semibold leading-6">
             {spec.label} vs. {clash.period.label || clash.period.type}
           </p>
-          <p className="m-0 mt-1 text-[12px] leading-normal text-fg-muted">{clash.message}</p>
-          <p className="m-0 mt-1.5 text-[12px] leading-normal text-fg-faint">{spec.advice}</p>
+          <p className="m-0 text-[14px] leading-5">{clash.message}</p>
+          <p className="m-0 text-[14px] leading-5 opacity-80">{spec.advice}</p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap justify-end gap-1">
         {clash.allowedKg !== null && clash.suggestedTargetWeight !== null && (
-          <Button variant="action" onClick={onRelax} className="flex-1">
-            <Wand2 size={13} />
+          <button type="button" onClick={onRelax} className={`${textBtn} !text-current`}>
+            <Wand2 size={16} />
             Loivenna → {clash.suggestedTargetWeight.toFixed(1)} kg
-          </Button>
+          </button>
         )}
         {clash.allowedKg === null && (
-          <Button variant="action" onClick={onMaintenance} className="flex-1">
-            <Wand2 size={13} />
+          <button type="button" onClick={onMaintenance} className={`${textBtn} !text-current`}>
+            <Wand2 size={16} />
             Vaihda ylläpidoksi
-          </Button>
+          </button>
         )}
-        <Button variant="action" onClick={onEdit}>
-          <CalendarRange size={13} />
+        <button type="button" onClick={onEdit} className={`${textBtn} !text-current`}>
+          <CalendarRange size={16} />
           Muokkaa
-        </Button>
+        </button>
       </div>
     </div>
   )
@@ -954,7 +994,7 @@ function NumField({
 
   return (
     <div className="mt-2 flex items-center justify-between gap-3">
-      <label className="text-[12px] text-muted" htmlFor={id}>{label}</label>
+      <label className="text-[16px] leading-6 text-text" htmlFor={id}>{label}</label>
       <input
         id={id}
         type="text"
@@ -964,34 +1004,19 @@ function NumField({
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-        className="w-[110px] rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[11px] text-base text-text [color-scheme:dark]"
+        className="h-11 w-[96px] rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-3 text-right font-mono text-base text-text [color-scheme:dark]"
       />
     </div>
   )
 }
 
-function NowRow({
-  k,
-  v,
-  sub,
-  color,
-}: {
-  k: string
-  v: string
-  sub?: string
-  color?: string
-}) {
+/** One figure in the hero's 2×2 grid. */
+function Tile({ k, v, sub }: { k: string; v: string; sub?: string }) {
   return (
-    <div className="flex items-start gap-2.5">
-      <div
-        className="mt-[3px] h-7 w-1 flex-shrink-0 rounded-sm"
-        style={{ backgroundColor: color ?? 'rgba(255,255,255,0.14)' }}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-fg-ghost">{k}</div>
-        <div className="truncate text-[13px] font-semibold text-text">{v}</div>
-        {sub && <div className="truncate text-[10px] text-fg-faint">{sub}</div>}
-      </div>
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-[18px] bg-[rgba(5,6,12,0.42)] p-3">
+      <span className="text-[12px] leading-4 text-[#e7e2f3]">{k}</span>
+      <span className="font-mono text-[18px] font-medium leading-6 text-text">{v}</span>
+      {sub && <span className="text-[12px] leading-4 text-[#e7e2f3]">{sub}</span>}
     </div>
   )
 }
@@ -1017,36 +1042,47 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
   ) => (
     <div className="mt-1.5 flex items-center justify-between gap-3">
       <label className="min-w-0 flex-1">
-        <span className="block text-[12px] text-muted">{label}</span>
-        {hint && <span className="block text-[10px] leading-snug text-fg-ghost">{hint}</span>}
+        <span className="block text-[16px] leading-6 text-text">{label}</span>
+        {hint && <span className="block text-[14px] leading-5 text-fg-muted">{hint}</span>}
       </label>
       <input
         type="number"
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`${inputCls} w-[110px] text-center`}
-        style={{ marginTop: 0, marginBottom: 0 }}
+        className={`${inputCls} !w-[96px] text-right font-mono`}
       />
     </div>
   )
 
   return (
-    <Card variant="glass" className="mt-2.5">
-      <div className={`${cardLabel} flex items-center justify-between`}>
-        <span>Ylläpidon vahti</span>
+    <>
+    <div className={sectionHead}>
+      <h2 className={sectionTitle}>Ylläpidon vahti</h2>
+    </div>
+    <Card className="!p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[16px] leading-6 text-text">Vahti päällä</span>
         <button
           role="switch"
           aria-checked={g.enabled}
+          aria-label="Ylläpidon vahti"
           onClick={() => save({ enabled: !g.enabled })}
-          className={`!min-h-0 rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${
-            g.enabled ? 'bg-accent/25 text-accent' : 'border border-white/10 text-fg-faint'
+          className={`relative h-8 w-[52px] flex-none rounded-full p-0 transition-colors ${
+            g.enabled
+              ? 'bg-gradient-to-br from-[#e8b85a] to-[#a78bfa]'
+              : 'border-2 border-[#899294] bg-[var(--surface-2)]'
           }`}
         >
-          {g.enabled ? 'Päällä' : 'Pois'}
+          <span
+            aria-hidden
+            className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-[left] duration-200 ${
+              g.enabled ? 'left-[26px] bg-[#05060c]' : 'left-[4px] bg-[#899294]'
+            }`}
+          />
         </button>
       </div>
-      <p className="m-0 mb-2 text-[11px] leading-relaxed text-fg-faint">
+      <p className="m-0 mb-2 mt-1 text-[14px] leading-5 text-fg-muted">
         Vertaa viikkokeskiarvoa ankkuriin ja ehdottaa vajetta, jos paino on rajan yli kaksi
         kelvollista viikkoa peräkkäin, tai lisää jos se on alarajan alla. Ehdottaa aina, ei koskaan sovella itse.
       </p>
@@ -1055,8 +1091,8 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
         <>
           <div className="mt-1.5 flex items-center justify-between gap-3">
             <label className="min-w-0 flex-1">
-              <span className="block text-[12px] text-muted">Ankkuriviikko alkaa</span>
-              <span className="block text-[10px] leading-snug text-fg-ghost">
+              <span className="block text-[16px] leading-6 text-text">Ankkuriviikko alkaa</span>
+              <span className="block text-[14px] leading-5 text-fg-muted">
                 ensimmäinen täysi maanantai–sunnuntai cutin jälkeen
               </span>
             </label>
@@ -1064,15 +1100,14 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
               type="date"
               value={g.anchorWeekStart}
               onChange={(e) => save({ anchorWeekStart: e.target.value })}
-              className={`${inputCls} w-[150px]`}
-              style={{ marginTop: 0, marginBottom: 0 }}
+              className={`${inputCls} !w-[150px]`}
             />
           </div>
 
           <div className="mt-1.5 flex items-center justify-between gap-3">
             <label className="min-w-0 flex-1">
-              <span className="block text-[12px] text-muted">Ankkuri (kg)</span>
-              <span className="block text-[10px] leading-snug text-fg-ghost">
+              <span className="block text-[16px] leading-6 text-text">Ankkuri (kg)</span>
+              <span className="block text-[14px] leading-5 text-fg-muted">
                 tyhjä = laske ankkuriviikon keskiarvosta
               </span>
             </label>
@@ -1082,8 +1117,7 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
               value={g.anchorKg ?? ''}
               placeholder="auto"
               onChange={(e) => save({ anchorKg: e.target.value === '' ? null : Number(e.target.value) })}
-              className={`${inputCls} w-[110px] text-center`}
-              style={{ marginTop: 0, marginBottom: 0 }}
+              className={`${inputCls} !w-[96px] text-right font-mono`}
             />
           </div>
 
@@ -1098,9 +1132,9 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
             '1,0 antaa pisimmän arvion — liian lyhyt lupaus on pahempi')}
           {num('Paluun toleranssi (kg)', g.exitToleranceKg, (n) => save({ exitToleranceKg: n }), '0.1')}
 
-          <div className="mt-2.5 flex items-center justify-between gap-2">
-            <span className="text-[12px] text-muted">Vajepäivät</span>
-            <div className="flex gap-1">
+          <div className="mt-3 flex flex-col gap-2">
+            <span className="text-[16px] leading-6 text-text">Vajepäivät</span>
+            <div className="flex flex-wrap gap-1">
               {([1, 2, 3, 4, 5, 6, 0] as number[]).map((d) => {
                 const on = g.suggestDays.includes(d)
                 return (
@@ -1110,8 +1144,8 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
                       suggestDays: on ? g.suggestDays.filter((x) => x !== d) : [...g.suggestDays, d].sort(),
                     })}
                     aria-pressed={on}
-                    className={`flex h-8 w-8 !min-h-0 !min-w-0 items-center justify-center rounded-lg font-mono text-[10px] uppercase ${
-                      on ? 'bg-accent/25 text-accent' : 'border border-white/10 text-fg-faint'
+                    className={`flex h-11 w-11 items-center justify-center rounded-lg text-[14px] font-medium ${
+                      on ? 'bg-[rgba(232,184,90,0.2)] text-[#f5e6c4]' : 'border border-white/[0.18] text-text'
                     }`}
                   >
                     {DOW_NAMES[d].slice(0, 2)}
@@ -1123,12 +1157,12 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
 
           {(g.log?.length ?? 0) > 0 && (
             <div className="mt-3 border-t border-white/[0.06] pt-2.5">
-              <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-fg-dim">
+              <div className="mb-1.5 text-[14px] font-medium text-text">
                 Tapahtumat
               </div>
               {(g.log ?? []).slice(0, 5).map((e) => (
-                <div key={e.at} className="mt-1 text-[10px] leading-snug text-fg-faint">
-                  <span className="text-fg-ghost">{e.at.slice(0, 10)}</span> · {e.note}
+                <div key={e.at} className="mt-1 text-[14px] leading-5 text-fg-muted">
+                  <span className="font-mono">{e.at.slice(0, 10)}</span> · {e.note}
                 </div>
               ))}
             </div>
@@ -1136,5 +1170,6 @@ function GuardCard({ settings, setSettings }: { settings: Settings; setSettings:
         </>
       )}
     </Card>
+    </>
   )
 }

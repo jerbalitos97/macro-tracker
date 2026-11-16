@@ -75,8 +75,8 @@ export function LockScreen({
         <div className="mb-3.5 flex justify-center">
           <AppMark size={56} />
         </div>
-        <h1 className="font-display m-0 text-[20px] font-bold uppercase tracking-[0.18em] text-text">Friday</h1>
-        <p className="mt-1 text-[13px] text-fg-faint">Sovellus on lukittu</p>
+        <h1 className="font-display m-0 text-[20px] font-bold   text-text">Friday</h1>
+        <p className="mt-1 text-[14px] text-fg-faint">Sovellus on lukittu</p>
       </div>
 
       <div className="flex w-full max-w-[280px] flex-col gap-3">
@@ -102,7 +102,7 @@ export function LockScreen({
               setPinValue(v)
               if (v.length === 4) void submitPin(v)
             }}
-            className="w-full rounded-input border border-white/10 bg-black/[0.45] px-4 py-3 text-center font-mono text-[24px] tracking-[0.6em] text-text [color-scheme:dark]"
+            className="w-full rounded-input border border-white/10 bg-black/[0.45] px-4 py-3 text-center font-mono text-[24px]  text-text [color-scheme:dark]"
           />
         )}
         {error && <p role="alert" className="text-center text-[12px] text-danger">{error}</p>}
@@ -155,13 +155,13 @@ export function LockSetup({ userId, label, onDone }: { userId: string; label: st
       aria-label={label}
       placeholder={label}
       onChange={(e) => set(e.target.value.replace(/\D/g, '').slice(0, 4))}
-      className="w-full rounded-input border border-white/10 bg-black/[0.45] px-4 py-3 text-center font-mono text-[18px] tracking-[0.4em] text-text placeholder:tracking-normal placeholder:text-[13px] placeholder:text-fg-ghost [color-scheme:dark]"
+      className="w-full rounded-input border border-white/10 bg-black/[0.45] px-4 py-3 text-center font-mono text-[18px]  text-text placeholder:tracking-normal placeholder:text-[14px] placeholder:text-fg-ghost [color-scheme:dark]"
     />
   )
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[13px] leading-relaxed text-fg-muted">
+      <p className="text-[14px] leading-relaxed text-fg-muted">
         Lukko kysytään aina kun avaat sovelluksen, ja kun se on ollut taustalla yli viisi minuuttia.
         Se koskee vain tätä laitetta. Varalla on PIN-koodi; viiden väärän jälkeen kirjaudut ulos.
       </p>
@@ -177,7 +177,7 @@ export function LockSetup({ userId, label, onDone }: { userId: string; label: st
       )}
 
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">PIN-koodi (4 numeroa)</span>
+        <span className="font-mono text-[12px]   text-fg-dim">PIN-koodi (4 numeroa)</span>
         {pinInput(pin, setPinValue, 'PIN')}
         {pinInput(pin2, setPin2, 'PIN uudelleen')}
       </div>

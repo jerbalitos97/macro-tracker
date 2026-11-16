@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
@@ -13,14 +13,14 @@ import {
   syncEvent, deleteEvent as syncDeleteEvent,
   syncExtra, deleteExtra as syncDeleteExtra,
   syncAdjustment, deleteAdjustment as syncDeleteAdjustment,
-  pushAllData, pullAllData,
+  pushAllData, pullAllData, pullSettingsIfNewer,
 } from './lib/sync'
 import {
   listHabits, syncHabit, archiveHabit as archiveHabitRemote, reorderHabits,
   listEntries as listHabitEntries, syncEntry as syncHabitEntry,
 } from './lib/habits'
 import { useAuth } from './contexts/AuthContext'
-import { NavBar } from './components/NavBar'
+import { NavBar, AppBar } from './components/NavBar'
 import type { View } from './components/NavBar'
 import { SyncBadge } from './components/SyncBadge'
 import type { SyncStatus } from './components/SyncBadge'
@@ -34,6 +34,7 @@ import { recoveryTokenFromUrl } from './lib/passwordReset'
 import { LockScreen, LockOfferSheet, useAppLock } from './components/AppLock'
 import { getLock, takeLockOffer } from './lib/appLock'
 import { HomeView } from './views/HomeView'
+import { SnackbarHost } from './components/ui/Snackbar'
 import { WealthView } from './views/WealthView'
 import { WealthSettingsView } from './views/WealthSettingsView'
 import { WorkoutView } from './views/WorkoutView'
@@ -52,7 +53,7 @@ import { TestiView } from './views/TestiView'
 import { AdminView } from './views/AdminView'
 import { useTools } from './contexts/ToolsContext'
 import { isViewAllowed } from './lib/viewAccess'
-import { LazyMotion, domMax, m, AnimatePresence, useReducedMotion } from 'motion/react'
+import { LazyMotion, domMax, m, useReducedMotion } from 'motion/react'
 
 // Cross-fade between views. `mode="wait"` runs exit before enter, so a slow
 // exit reads as a blank flash — keep it short and let the enter carry the
@@ -128,6 +129,8 @@ export default function App() {
     if (!isViewAllowed(view, grantedTools)) setView('home')
   }, [view, grantedTools, toolsLoading])
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS)
+  /** `updated_at` of the settings row this device last saw or wrote. */
+  const settingsStamp = useRef<string | null>(null)
   const [events, setEvents] = useState<SpecialEvent[]>([])
   const [extras, setExtras] = useState<ExtraWorkout[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
@@ -195,6 +198,11 @@ export default function App() {
         setAdjustments(cloudData.adjustments ?? [])
         setSyncStatus('synced')
         setShowMigration(false)
+        // Remember which version of the settings row this is, so a later
+        // foreground check can tell a newer one apart from our own.
+        pullSettingsIfNewer(user.id, null).then((r) => {
+          if (r) settingsStamp.current = r.updatedAt
+        })
       } else {
         // Cloud is empty — check if there's local data to migrate
         const localData = loadData()
@@ -223,6 +231,24 @@ export default function App() {
 
     pull()
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loaded])
+
+  // ── Settings: pick up changes made elsewhere ──────────────────
+  // The MCP can write goal periods into the settings row while the app sits
+  // open in the background. Without this the app would keep showing the old
+  // plan and its next settings save would overwrite the new one.
+  useEffect(() => {
+    if (!user || !loaded) return
+    const check = () => {
+      if (document.visibilityState !== 'visible') return
+      pullSettingsIfNewer(user.id, settingsStamp.current).then((r) => {
+        if (!r) return
+        settingsStamp.current = r.updatedAt
+        setSettingsState(r.settings)
+      })
+    }
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
   }, [user, loaded])
 
   // ── Habits: pull from cloud on login ──────────────────────────
@@ -263,7 +289,7 @@ export default function App() {
   const setSettings = useCallback(
     (s: Settings) => {
       setSettingsState(s)
-      if (user) syncSettings(user.id, s)
+      if (user) settingsStamp.current = syncSettings(user.id, s)
     },
     [user],
   )
@@ -314,6 +340,14 @@ export default function App() {
   // Kalenteri näyttävät pelkät kirjaukset, ja Analyysi piilotetaan — sillä ei
   // ole mitään mitä verrata.
   const logOnly = !computed.days.some((d) => d.date === todayISO)
+  // Kodin Fitness-ruutu näyttää saman luvun kuin Tänään-näkymän rengas:
+  // budjetti + päivän kulutukset − syöty (TodayView laskee samoin).
+  const fitnessRemaining = useMemo(() => {
+    const day = computed.days.find((d) => d.date === todayISO)
+    if (!day) return undefined
+    const burned = burns.filter((b) => b.date === todayISO).reduce((s, b) => s + b.kcal, 0)
+    return day.budget + burned - day.consumed
+  }, [computed, burns, todayISO])
   // The surplus can only be spread inside the goal that is actually running.
   const goalEndDate = getActiveGoal(settings, todayISO).endDate
 
@@ -413,7 +447,7 @@ export default function App() {
             <div key={i} className="pulse-dot h-2 w-2 rounded-full bg-accent" />
           ))}
         </div>
-        <div className="text-[11px] uppercase tracking-[0.12em] text-fg-ghost">Ladataan</div>
+        <div className="text-[12px]   text-fg-ghost">Ladataan</div>
       </div>
     )
   }
@@ -508,46 +542,40 @@ export default function App() {
           yläreuna kuuluu sticky-navbarille. Työkalulinssi, ei datalinssi:
           kyselyt kulkevat yhä omalla sessiolla ja RLS näyttää vain omat rivit. */}
       {viewAs && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-violet/40 bg-[rgba(20,14,40,0.92)] px-4 py-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] [backdrop-filter:blur(18px)_saturate(160%)] [-webkit-backdrop-filter:blur(18px)_saturate(160%)]">
-          <span className="min-w-0 truncate font-mono text-[11px] uppercase tracking-[0.08em] text-violet">
+        <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3 border-t border-violet/40 bg-[rgba(20,14,40,0.96)] px-4 py-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]">
+          <span className="min-w-0 truncate font-mono text-[12px]   text-violet">
             Katsot: {viewAs.name}
           </span>
           <button
             type="button"
             onClick={stopViewAs}
-            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-violet"
+            className="shrink-0 cursor-pointer rounded-input border border-violet/50 bg-violet/[0.14] px-3 py-1.5 font-mono text-[12px]   text-violet"
           >
             Palaa omaan näkymään
           </button>
         </div>
       )}
 
-      {/* Nav with sync badge — hidden on the launcher (home) view. The bar is
-          sticky, so unmounting it outright yanks the content up; collapse its
-          height instead so entering/leaving home stays smooth. */}
-      <AnimatePresence initial={false}>
-        {view !== 'home' && (
-          <m.div
-            key="navbar"
-            className="relative overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={reduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <NavBar view={view} setView={setView} hidden={logOnly ? ['analysis'] : undefined} />
-            {user && syncStatus !== 'idle' && (
-              <div className="absolute right-2.5 top-[calc(env(safe-area-inset-top)+6px)] z-20">
-                <SyncBadge status={syncStatus} />
-              </div>
-            )}
-          </m.div>
-        )}
-      </AnimatePresence>
+      {/* App bar on top (launcher button + tool name + sync badge), navigation
+          bar at the bottom under the thumb. Both are absent on the launcher.
+          The app bar must be a direct child of this column: inside a wrapper
+          of its own height, `sticky` would have nothing to stick within. */}
+      {view !== 'home' && (
+        <>
+          <AppBar
+            view={view}
+            onHome={() => setView('home')}
+            trailing={user && syncStatus !== 'idle' ? <SyncBadge status={syncStatus} /> : undefined}
+          />
+          <NavBar view={view} setView={setView} hidden={logOnly ? ['analysis'] : undefined} />
+        </>
+      )}
+
+      <SnackbarHost aboveNav={view !== 'home'} />
 
       {view === 'home' && (
         <m.div key={view} {...viewMotion}>
-          <HomeView setView={setView} lastView={lastToolView} />
+          <HomeView setView={setView} lastView={lastToolView} fitnessRemaining={fitnessRemaining} />
         </m.div>
       )}
 

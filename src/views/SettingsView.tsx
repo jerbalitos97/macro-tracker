@@ -2,7 +2,8 @@ import { useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Settings } from '../types'
 import { useAuth } from '../contexts/AuthContext'
-import { Card, Button, Sheet } from '../components/ui'
+import { Sheet } from '../components/ui'
+import { ChevronRight, Download, Lock, LogOut, Upload, UserRound, Vibrate } from 'lucide-react'
 import { LockSetup } from '../components/AppLock'
 import { clearLock, getLock } from '../lib/appLock'
 import { getPrefs, savePrefsLocal, syncPrefsCloud, hapticsOn } from '../lib/uiPrefs'
@@ -23,7 +24,29 @@ interface Props {
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024
 
-const cardLabel = 'mb-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const sectionHead = 'flex min-h-11 items-center px-1 pt-2'
+const sectionTitle = 'm-0 text-[18px] font-medium leading-6 text-text'
+const listGroup = 'flex flex-col gap-0.5 overflow-hidden rounded-[24px]'
+const listRow =
+  'flex min-h-16 w-full items-center gap-3.5 bg-[var(--surface-1)] px-4 py-2.5 text-left text-text'
+const rowTitle = 'block text-[16px] leading-6'
+const rowMeta = 'block text-[14px] leading-5 text-fg-muted'
+const textBtn =
+  'inline-flex min-h-11 items-center rounded-full bg-transparent px-3 text-[14px] font-semibold text-[#22d3ee]'
+
+/** 40px tonal icon disc at the start of a list row. */
+function RowIcon({ children, danger = false }: { children: React.ReactNode; danger?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`flex h-10 w-10 flex-none items-center justify-center rounded-full ${
+        danger ? 'bg-[rgba(255,180,171,0.14)] text-[#FFB4AB]' : 'bg-[rgba(232,184,90,0.16)] text-[#f5e6c4]'
+      }`}
+    >
+      {children}
+    </span>
+  )
+}
 
 export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
   const { signOut, enabled: authEnabled } = useAuth()
@@ -32,7 +55,7 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
   const usedKB = (usedBytes / 1024).toFixed(1)
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100)
   const storageColorClass = usedPct > 80 ? 'bg-danger' : usedPct > 50 ? 'bg-accent' : 'bg-protein'
-  const storageTextClass  = usedPct > 80 ? 'text-danger' : usedPct > 50 ? 'text-accent' : 'text-protein'
+  const storageTextClass  = usedPct > 80 ? 'text-danger' : usedPct > 50 ? 'text-accent' : 'text-fg-muted'
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -47,75 +70,93 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
   }
 
   return (
-    <div className="px-4 pb-2 pt-4">
-
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="mb-4">
-        <div className="font-display text-[22px] font-bold tracking-[-0.025em] text-text">Asetukset</div>
-        <p className="m-0 mt-1 text-[12px] leading-relaxed text-fg-faint">
-          Sovelluksen omat asetukset. Tavoitteet, treeniblokit ja perusarvot asetetaan
-          Suunnittelu-työkalussa.
-        </p>
-      </div>
+    <div className="flex flex-col gap-2 px-4 pb-2 pt-2">
+      <p className="m-0 px-1 text-[14px] leading-5 text-fg-muted">
+        Sovelluksen omat asetukset. Tavoitteet, treeniblokit ja perusarvot asetetaan
+        Suunnittelu-työkalussa.
+      </p>
 
       {/* ── Tuntuma ──────────────────────────────────────────────────── */}
-      <HapticsCard userId={user?.id} />
+      <div className={sectionHead}>
+        <h2 className={sectionTitle}>Tuntuma</h2>
+      </div>
+      <div className={listGroup}>
+        <HapticsRow userId={user?.id} />
+      </div>
 
-      {/* ── Varmuuskopio ─────────────────────────────────────────────── */}
-      <Card variant="glass" className="mt-2.5">
-        <div className={cardLabel}>Varmuuskopio</div>
-        <div className="mb-3.5">
-          <div className="mb-1 flex justify-between text-[11px]">
-            <span className="text-muted">Tallennustila käytössä</span>
-            <span className={`tabular-nums ${storageTextClass}`}>{usedKB} KB / 5 000 KB</span>
+      {/* ── Tiedot ───────────────────────────────────────────────────── */}
+      <div className={sectionHead}>
+        <h2 className={sectionTitle}>Tiedot</h2>
+      </div>
+      <div className={listGroup}>
+        <div className={`${listRow} flex-col !items-stretch gap-2`}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className={rowTitle}>Tallennustila</span>
+            <span className={`font-mono text-[14px] ${storageTextClass}`}>{usedKB} KB / 5 000 KB</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-sm bg-[rgba(9,11,20,0.50)]">
+          <div className="h-1.5 overflow-hidden rounded-[3px] bg-white/[0.12]">
             <div
-              className={`h-full rounded-sm transition-[width] duration-[450ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${storageColorClass}`}
+              className={`h-full rounded-[3px] transition-[width] duration-[450ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${storageColorClass}`}
               style={{ width: `${usedPct}%` }}
             />
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Button variant="secondary" onClick={onExport}>↓ Vie varmuuskopio (JSON)</Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <Button variant="ghost" className="w-full" onClick={() => fileInputRef.current?.click()}>
-            ↑ Tuo varmuuskopio (JSON)
-          </Button>
-        </div>
-        <div className="mt-2.5 text-[10px] leading-relaxed text-fg-ghost">
-          Tuonti korvaa kaiken nykyisen datan. Vie ensin varmuuskopio ennen tuontia.{'\n'}
-          Data säilyy vaikka poistaisit pikakuvakkeen kotinäytöltä — se asuu Safarin
-          sivustomuistissa. Poistaminen ei tyhjennä dataa.
-        </div>
-      </Card>
+        <button type="button" className={listRow} onClick={onExport}>
+          <RowIcon><Download size={20} /></RowIcon>
+          <span className="min-w-0 flex-1">
+            <span className={rowTitle}>Vie varmuuskopio</span>
+            <span className={rowMeta}>JSON-tiedosto kaikesta datasta</span>
+          </span>
+          <ChevronRight size={20} className="flex-none text-fg-muted" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button type="button" className={listRow} onClick={() => fileInputRef.current?.click()}>
+          <RowIcon><Upload size={20} /></RowIcon>
+          <span className="min-w-0 flex-1">
+            <span className={rowTitle}>Tuo varmuuskopio</span>
+            <span className={rowMeta}>Korvaa kaikki nykyiset tiedot</span>
+          </span>
+          <ChevronRight size={20} className="flex-none text-fg-muted" />
+        </button>
+      </div>
+      <p className="m-0 px-1 text-[14px] leading-5 text-fg-muted">
+        Tuonti korvaa kaiken nykyisen datan. Vie ensin varmuuskopio ennen tuontia.
+        Data säilyy vaikka poistaisit pikakuvakkeen kotinäytöltä — se asuu Safarin
+        sivustomuistissa. Poistaminen ei tyhjennä dataa.
+      </p>
 
-      {/* ── Pilvitili ───────────────────────────────────────────────── */}
+      {/* ── Tili ─────────────────────────────────────────────────────── */}
       {authEnabled && (
-        <Card variant="glass" className="mt-2.5">
-          <div className={cardLabel}>Pilvitili</div>
-          {user ? (
-            <div>
-              <div className="mb-3 text-[12px] text-muted">
-                Kirjautunut: <span className="text-accent">{user.email}</span>
-              </div>
-              <LockSettings userId={user.id} label={user.email ?? 'Friday'} />
-              <Button variant="ghost" className="w-full text-danger" onClick={() => signOut()}>
-                Kirjaudu ulos
-              </Button>
+        <>
+          <div className={sectionHead}>
+            <h2 className={sectionTitle}>Tili</h2>
+          </div>
+          <div className={listGroup}>
+            <div className={listRow}>
+              <RowIcon><UserRound size={20} /></RowIcon>
+              <span className="min-w-0 flex-1">
+                <span className={rowTitle}>Pilvitili</span>
+                <span className={`${rowMeta} truncate`}>{user ? user.email : 'Ei kirjautunut.'}</span>
+              </span>
             </div>
-          ) : (
-            <div className="text-[12px] text-fg-ghost">Ei kirjautunut.</div>
-          )}
-        </Card>
+            {user && (
+              <>
+                <LockSettings userId={user.id} label={user.email ?? 'Friday'} />
+                <button type="button" className={`${listRow} !text-[#FFB4AB]`} onClick={() => signOut()}>
+                  <RowIcon danger><LogOut size={20} /></RowIcon>
+                  <span className={`${rowTitle} flex-1`}>Kirjaudu ulos</span>
+                </button>
+              </>
+            )}
+          </div>
+        </>
       )}
-
     </div>
   )
 }
@@ -126,7 +167,7 @@ export function SettingsView({ usedBytes, onExport, onImport, user }: Props) {
  *  asetusta, ja se kertoo heti myös sen ikävän totuuden jos laite ei osaa
  *  värähtää lainkaan. Pois päin kääntäessä ei värähdetä, koska juuri sitä
  *  pyydettiin. */
-function HapticsCard({ userId }: { userId?: string }) {
+function HapticsRow({ userId }: { userId?: string }) {
   const [on, setOn] = useState(() => hapticsOn())
 
   const toggle = () => {
@@ -139,44 +180,39 @@ function HapticsCard({ userId }: { userId?: string }) {
   }
 
   return (
-    <Card variant="glass" className="mt-2.5">
-      <div className={cardLabel}>Tuntuma</div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        onClick={toggle}
-        data-no-haptic
-        className="flex w-full items-center justify-between gap-4 bg-transparent p-0 text-left"
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={toggle}
+      data-no-haptic
+      className={listRow}
+    >
+      <RowIcon><Vibrate size={20} /></RowIcon>
+      <span className="min-w-0 flex-1">
+        <span className={rowTitle}>Värähdys painalluksista</span>
+        <span className={rowMeta}>
+          Lyhyt naksaus napeista ja kuittauksista. Riippuu laitteesta: iPhonella
+          palaute tulee järjestelmältä eikä sen voimakkuutta voi säätää, ja
+          tietokoneella sitä ei ole lainkaan.
+        </span>
+      </span>
+      <span
+        aria-hidden
+        className={`relative h-8 w-[52px] flex-none rounded-full transition-colors duration-200 ${
+          on ? 'bg-gradient-to-br from-[#e8b85a] to-[#a78bfa]' : 'border-2 border-[#899294] bg-[var(--surface-2)]'
+        }`}
       >
-        <span className="min-w-0">
-          <span className="block text-[13px] text-text">Värähdys painalluksista</span>
-          <span className="mt-0.5 block text-[10px] leading-relaxed text-fg-ghost">
-            Lyhyt naksaus napeista ja kuittauksista. Riippuu laitteesta: iPhonella
-            palaute tulee järjestelmältä eikä sen voimakkuutta voi säätää, ja
-            tietokoneella sitä ei ole lainkaan.
-          </span>
-        </span>
         <span
-          aria-hidden
-          className="relative h-[30px] w-[52px] flex-shrink-0 rounded-full border transition-colors duration-200"
+          className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full"
           style={{
-            backgroundColor: on ? 'rgba(34,211,238,0.30)' : 'rgba(255,255,255,0.06)',
-            borderColor: on ? 'rgba(34,211,238,0.55)' : 'rgba(255,255,255,0.12)',
+            left: on ? 26 : 4,
+            backgroundColor: on ? '#05060c' : '#899294',
+            transition: 'left 320ms var(--spring), background-color 200ms linear',
           }}
-        >
-          <span
-            className="absolute top-[3px] h-[22px] w-[22px] rounded-full"
-            style={{
-              left: on ? 27 : 3,
-              backgroundColor: on ? '#22d3ee' : '#9ea2b0',
-              boxShadow: on ? '0 0 12px rgba(34,211,238,0.7)' : 'none',
-              transition: 'left 320ms var(--spring), background-color 200ms linear',
-            }}
-          />
-        </span>
-      </button>
-    </Card>
+        />
+      </span>
+    </button>
   )
 }
 
@@ -193,20 +229,21 @@ function LockSettings({ userId, label }: { userId: string; label: string }) {
     : [config.credentialId && 'tunnistus', config.pin && 'PIN'].filter(Boolean).join(' + ')
 
   return (
-    <div className="mb-3 flex items-center justify-between gap-2 rounded-input border border-white/[0.08] bg-black/25 px-3 py-2.5">
-      <span className="min-w-0">
-        <span className="block text-[13px] text-text">Sovelluslukko</span>
-        <span className="block font-mono text-[10px] uppercase tracking-[0.06em] text-fg-ghost">{status}</span>
+    <div className={listRow}>
+      <RowIcon><Lock size={20} /></RowIcon>
+      <span className="min-w-0 flex-1">
+        <span className={rowTitle}>Sovelluslukko</span>
+        <span className={rowMeta}>{status}</span>
       </span>
-      <span className="flex shrink-0 gap-1.5">
+      <span className="flex shrink-0 gap-0.5">
         {config && (
-          <Button variant="ghost" className="px-3 py-2 text-[11px]" onClick={() => { clearLock(); setConfig(null) }}>
+          <button type="button" className={textBtn} onClick={() => { clearLock(); setConfig(null) }}>
             Poista
-          </Button>
+          </button>
         )}
-        <Button variant="ghost" className="px-3 py-2 text-[11px]" onClick={() => setOpen(true)}>
+        <button type="button" className={textBtn} onClick={() => setOpen(true)}>
           {config ? 'Muuta' : 'Ota käyttöön'}
-        </Button>
+        </button>
       </span>
       <Sheet open={open} onClose={close} title="Sovelluslukko">
         <LockSetup userId={userId} label={label} onDone={close} />

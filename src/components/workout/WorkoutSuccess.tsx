@@ -23,13 +23,13 @@ export function WorkoutSuccess({ onDone }: Props) {
 
   return (
     <m.div
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-5 bg-[rgba(5,6,12,0.72)] [backdrop-filter:blur(8px)]"
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-5 bg-[rgba(5,6,12,0.86)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <m.div
-        className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg shadow-[0_0_50px_rgba(34,211,238,0.6)]"
+        className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gradient-to-br from-cyan to-violet text-bg shadow-[0_0_50px_rgba(34,211,238,0.6)]"
         initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
         animate={reduce ? { opacity: 1 } : { scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 18 }}
@@ -37,7 +37,7 @@ export function WorkoutSuccess({ onDone }: Props) {
         <Check size={56} strokeWidth={3} />
       </m.div>
       <m.div
-        className="font-display text-[20px] font-bold tracking-[-0.01em] text-text"
+        className="text-[22px] font-medium leading-7 text-text"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}

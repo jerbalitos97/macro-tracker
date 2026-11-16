@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
+import { snack } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
-import { toISO, fromISO } from '../lib/dates'
+import { toISO, fromISO, addDays } from '../lib/dates'
 import {
   createTask, deleteTask, listOpenThrough, listTasksInRange,
   rescheduleTask, setTaskDone, type Task,
@@ -12,7 +13,19 @@ import { TaskItem } from '../components/tasks/TaskItem'
 import { MonthCalendar } from '../components/tasks/MonthCalendar'
 
 const SHELL =
-  'flex min-h-dvh flex-col gap-4 px-5 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-7'
+  'flex min-h-dvh flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-2'
+
+/** Listaryhmä: rivit 2px raoin, yhteiset pyöristetyt kulmat. */
+const LIST = 'flex flex-col gap-0.5 overflow-hidden rounded-[20px]'
+const GROUP_LABEL = 'px-1 pt-1 text-[16px] font-medium leading-6 text-text'
+const EMPTY = 'px-1 text-[14px] leading-5 text-fg-muted'
+
+function movedText(dateISO: string): string {
+  const today = toISO(new Date())
+  if (dateISO === today) return 'Siirretty tälle päivälle'
+  if (dateISO === addDays(today, 1)) return 'Siirretty huomiseen'
+  return `Siirretty: ${fromISO(dateISO).toLocaleDateString('fi-FI', { weekday: 'short', day: 'numeric', month: 'numeric' })}`
+}
 
 // Istunnonaikainen välimuisti. Ilman tätä jokainen paluu työkaluun näyttää
 // "Ladataan…" vaikka sama lista haettiin sekunti sitten toisella välilehdellä —
@@ -24,8 +37,8 @@ const monthCache = new Map<string, Task[]>()
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[13px] text-danger">
-      <AlertCircle size={14} className="shrink-0" />
+    <p role="status" className="card-enter flex items-center gap-2 rounded-row border border-danger/40 bg-danger/[0.08] px-4 py-3 text-[14px] text-danger">
+      <AlertCircle size={16} className="shrink-0" />
       {children}
     </p>
   )
@@ -36,36 +49,52 @@ function useTaskActions(userId: string | undefined, reload: () => void) {
   const [error, setError] = useState<string | null>(null)
 
   const guard = useCallback(
-    async (fn: () => Promise<void>) => {
+    async (fn: () => Promise<void>): Promise<boolean> => {
       setError(null)
       try {
         await fn()
         reload()
+        return true
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Toiminto ei onnistunut')
+        return false
       }
     },
     [reload]
   )
 
+  const add = (title: string, dateISO: string) =>
+    guard(async () => {
+      if (userId) await createTask(userId, title, dateISO)
+    })
+  const moveTo = (id: string, dateISO: string) =>
+    guard(async () => {
+      if (userId) await rescheduleTask(userId, id, dateISO)
+    })
+
   return {
     error,
-    add: (title: string, dateISO: string) =>
-      guard(async () => {
-        if (userId) await createTask(userId, title, dateISO)
-      }),
+    add,
     toggle: (id: string, done: boolean) =>
       guard(async () => {
         if (userId) await setTaskDone(userId, id, done)
       }),
-    reschedule: (id: string, dateISO: string) =>
-      guard(async () => {
-        if (userId) await rescheduleTask(userId, id, dateISO)
-      }),
-    remove: (id: string) =>
-      guard(async () => {
-        if (userId) await deleteTask(userId, id)
-      }),
+    // Siirto ja poisto tapahtuvat heti; snackbarin "Kumoa" palauttaa.
+    // Siirron kumoaminen on paluu vanhaan päivään. Poiston kumoaminen luo
+    // tehtävän uudelleen samalla nimellä ja päivällä (uusi id) — poistettavat
+    // ovat aina avoimia, joten tila ei katoa.
+    reschedule: async (task: Task, dateISO: string) => {
+      const from = task.scheduledDate
+      if (!(await moveTo(task.id, dateISO))) return
+      snack({ text: movedText(dateISO), onAction: () => { void moveTo(task.id, from) } })
+    },
+    remove: async (task: Task) => {
+      const ok = await guard(async () => {
+        if (userId) await deleteTask(userId, task.id)
+      })
+      if (!ok) return
+      snack({ text: 'Tehtävä poistettu', onAction: () => { void add(task.title, task.scheduledDate) } })
+    },
   }
 }
 
@@ -117,19 +146,15 @@ export function TasksView() {
       <AddTaskForm date={today} onAdd={actions.add} />
 
       {loading ? (
-        <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>
+        <p className={`${EMPTY} py-6 text-center`}>Ladataan…</p>
       ) : tasks.length === 0 ? (
-        <p className="py-6 text-center text-[13px] text-fg-ghost">
-          Ei tehtäviä tälle päivälle.
-        </p>
+        <p className={EMPTY}>Ei tehtäviä tälle päivälle.</p>
       ) : (
         <>
           {overdue.length > 0 && (
-            <div>
-              <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
-                Aiemmilta päiviltä ({overdue.length})
-              </div>
-              <ul className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
+              <div className={GROUP_LABEL}>Aiemmilta päiviltä ({overdue.length})</div>
+              <ul className={LIST}>
                 {overdue.map((t) => (
                   <TaskItem
                     key={t.id}
@@ -145,13 +170,9 @@ export function TasksView() {
           )}
 
           {todays.length > 0 && (
-            <div>
-              {overdue.length > 0 && (
-                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">
-                  Tänään ({todays.length})
-                </div>
-              )}
-              <ul className="list-stagger flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
+              <div className={GROUP_LABEL}>Tänään ({todays.length})</div>
+              <ul className={`list-stagger ${LIST}`}>
                 {todays.map((t) => (
                   <TaskItem
                     key={t.id}
@@ -256,16 +277,18 @@ export function TasksCalendarView() {
 
       {(actions.error || loadError) && <Notice>{actions.error ?? loadError}</Notice>}
 
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-dim">{selectedLabel}</div>
+      <div className={`${GROUP_LABEL} first-letter:uppercase`}>
+        {selected === toISO(now) ? 'Tänään, ' : ''}{selectedLabel}
+      </div>
 
-      <AddTaskForm date={selected} showDate onAdd={actions.add} />
+      <AddTaskForm date={selected} placeholder="Uusi tehtävä tälle päivälle…" onAdd={actions.add} />
 
       {loading ? (
-        <p className="py-6 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-ghost">Ladataan…</p>
+        <p className={`${EMPTY} py-6 text-center`}>Ladataan…</p>
       ) : dayTasks.length === 0 ? (
-        <p className="py-6 text-center text-[13px] text-fg-ghost">Ei tehtäviä tälle päivälle.</p>
+        <p className={EMPTY}>Ei tehtäviä tälle päivälle.</p>
       ) : (
-        <ul className="list-stagger flex flex-col gap-2">
+        <ul className={`list-stagger ${LIST}`}>
           {dayTasks.map((t) => (
             <TaskItem
               key={t.id}

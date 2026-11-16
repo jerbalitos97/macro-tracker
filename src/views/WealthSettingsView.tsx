@@ -1,24 +1,24 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft } from 'lucide-react'
 import { getSettings, updateSettings } from '../lib/wealth/settings'
 import { formatMoney } from '../lib/wealth/format'
 import { Card, Button } from '../components/ui'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK']
 
-const fieldLabel = 'mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-muted'
+const fieldLabel = 'mb-1.5 block text-[12px] font-medium leading-4 text-fg-muted'
 const inputCls =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-3 py-2.5 text-base text-text [color-scheme:dark]'
+  'h-12 w-full rounded-xl border border-white/[0.18] bg-[var(--surface-2)] px-4 text-base text-text [color-scheme:dark]'
 const errorBanner =
-  'mt-3 rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger'
+  'mt-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[14px] text-danger'
 const okBanner =
-  'mt-3 rounded-input border border-accent/40 bg-accent/[0.08] px-3 py-2 text-[11px] text-accent'
+  'mt-3 rounded-xl border border-accent/40 bg-accent/[0.08] px-3 py-2 text-[14px] text-accent'
 
 interface Props {
+  /** Kept for App's call site; the Wealth tabs in the nav bar are the way back. */
   onBack: () => void
 }
 
-export function WealthSettingsView({ onBack }: Props) {
+export function WealthSettingsView(_props: Props) {
   const [goal, setGoal] = useState('')
   const [currency, setCurrency] = useState('EUR')
   const [loading, setLoading] = useState(true)
@@ -61,28 +61,16 @@ export function WealthSettingsView({ onBack }: Props) {
   }
 
   return (
-    <main className="mx-auto max-w-[520px] px-4 pb-10 pt-5">
-      <div className="mb-3.5 flex items-center gap-2">
-        <button
-          onClick={onBack}
-          aria-label="Takaisin"
-          className="inline-flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full border border-border bg-transparent p-0 text-text"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <h1 className="font-display text-[22px] font-bold tracking-[-0.01em] text-text">
-          Wealth settings
-        </h1>
-      </div>
-      <p className="mb-3.5 text-xs leading-relaxed text-muted">
-        Wealth goal mirrors as a threshold line on the dashboard chart.
-      </p>
-
+    <main className="mx-auto flex max-w-[520px] flex-col gap-3 px-4 pb-10 pt-2">
       {loading ? (
-        <div className="text-muted">Loading…</div>
+        <div className="text-[14px] text-fg-muted">Loading…</div>
       ) : (
-        <Card variant="glass">
-          <form onSubmit={onSave}>
+        <Card className="!p-4">
+          <form onSubmit={onSave} className="flex flex-col">
+            <h2 className="text-[16px] font-medium leading-6 text-text">Wealth settings</h2>
+            <p className="mb-3 text-[14px] leading-5 text-fg-muted">
+              Wealth goal mirrors as a threshold line on the dashboard chart.
+            </p>
             <label className="block">
               <span className={fieldLabel}>Wealth goal ({currency})</span>
               <input
@@ -95,7 +83,7 @@ export function WealthSettingsView({ onBack }: Props) {
                 className={inputCls}
               />
               {goal !== '' && Number.isFinite(Number(goal)) && (
-                <span className="mt-1 block text-[11px] text-muted">
+                <span className="mt-1 block text-[12px] leading-4 text-fg-muted">
                   Shown as: {formatMoney(Number(goal), currency)}
                 </span>
               )}
@@ -116,9 +104,9 @@ export function WealthSettingsView({ onBack }: Props) {
             </label>
             {error && <p className={errorBanner}>{error}</p>}
             {saved && <p className={okBanner}>Saved.</p>}
-            <div className="mt-3.5 flex">
+            <div className="mt-4 flex">
               <Button type="submit" variant="primary" disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? 'Saving…' : 'Save settings'}
               </Button>
             </div>
           </form>

@@ -17,9 +17,9 @@ interface Props {
   onClose: () => void
 }
 
-const label = 'mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-fg-dim'
+const label = 'mb-1 block text-[12px] leading-4 text-fg-muted'
 const field =
-  'w-full rounded-input border border-white/10 bg-black/[0.45] px-[13px] py-[12px] text-base text-text [color-scheme:dark]'
+  'h-12 w-full rounded-[12px] border border-white/[0.18] bg-[var(--surface-2)] px-[14px] text-[16px] text-text [color-scheme:dark]'
 
 export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose }: Props) {
   const [name, setName] = useState(block.name)
@@ -93,29 +93,29 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
           </div>
         </div>
 
-        <div className="font-mono text-[11px] text-fg-muted">
+        <div className="text-[14px] leading-5 text-fg-muted">
           Pituus: {lengthDays} päivää ({weeks} vk)
         </div>
 
         <div>
           <label className={label}>Mitä blokki tavoittelee</label>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
             {INTENT_ORDER.map((k) => (
               <button
                 key={k}
                 onClick={() => setIntent(k)}
                 aria-pressed={intent === k}
-                className={`rounded-input border px-3 py-2 text-left !min-h-0 !min-w-0 ${
+                className={`min-h-11 rounded-[8px] border px-3 py-2 text-left ${
                   intent === k
-                    ? 'border-accent/45 bg-accent/[0.10] text-text'
-                    : 'border-white/10 bg-black/[0.35] text-fg-muted'
+                    ? 'border-transparent bg-cyan/[0.16] text-[#a5f3fc]'
+                    : 'border-white/[0.18] bg-transparent text-text'
                 }`}
               >
-                <span className="block text-[12px] font-semibold">{INTENTS[k].label}</span>
+                <span className="block text-[14px] font-medium">{INTENTS[k].label}</span>
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[11px] leading-snug text-fg-faint">
+          <p className="mt-1.5 text-[14px] leading-5 text-fg-muted">
             {INTENTS[intent].blurb}{' '}
             {INTENTS[intent].maxWeeklyLossPct === null
               ? 'Ravinto ajetaan ylläpidolla.'
@@ -132,7 +132,7 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
                 onClick={() => setColor(c)}
                 aria-label={`Väri ${c}`}
                 aria-pressed={color === c}
-                className={`h-9 w-9 !min-h-0 !min-w-0 rounded-full ${
+                className={`h-11 w-11 rounded-full ${
                   color === c ? 'ring-2 ring-white/70 ring-offset-2 ring-offset-transparent' : ''
                 }`}
                 style={{ backgroundColor: c }}
@@ -153,7 +153,7 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
         </div>
 
         {error && (
-          <p role="alert" className="rounded-input border border-danger/40 bg-danger/10 px-3 py-2 text-[12px] text-danger">
+          <p role="alert" className="rounded-[16px] bg-[#452826] px-3.5 py-3 text-[14px] leading-5 text-[#FFB4AB]">
             {error}
           </p>
         )}
@@ -163,9 +163,9 @@ export function BlockEditorSheet({ block, all, isNew, onSave, onDelete, onClose 
             <button
               onClick={() => { if (window.confirm('Poistetaanko blokki?')) { onDelete(); onClose() } }}
               aria-label="Poista blokki"
-              className="flex h-11 w-11 !min-h-0 !min-w-0 items-center justify-center rounded-input border border-danger/30 bg-danger/[0.08] text-danger"
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.18] text-[#FFB4AB]"
             >
-              <Trash2 size={16} />
+              <Trash2 size={20} />
             </button>
           )}
           <Button variant="ghost" onClick={onClose}>Peru</Button>

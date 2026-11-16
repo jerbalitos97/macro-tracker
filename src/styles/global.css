@@ -10,7 +10,7 @@
   --color-ink-2:     #0a0b12;
   --color-ink-3:     #2a2c3a;
   --color-surface:   #0a0b12;
-  --color-modal:     #0c0d15;
+  --color-modal:     #0c0d18;
 
   /* ── Aurora accents ── (cyan primary, replaces gold) */
   --color-accent:    #22d3ee;
@@ -25,21 +25,17 @@
   --color-danger:    #f87171;
   --color-goal:      #a78bfa;
 
-  /* ── Text ramp ── */
-  --color-text:      #ffffff;
-  --color-fg:        #ffffff;
-  /* Tuned against the *rendered* background, measured rather than assumed. An
-     earlier pass estimated the glass surfaces at ~0.05 relative luminance; a
-     pixel sweep of every card interior across five screens put the bright end
-     at 0.12, so the whole ramp was landing at 2.1–3.1:1 on screen. Grounding
-     the card variants (see Card.tsx) dropped that bright end to 0.026, which
-     is what lets this ramp stay subtle: measured against it the tokens run
-     13.8:1 (text) down to 5.2:1 (ghost), all clear of AA for small text. */
-  --color-muted:     #b4b7c3;
-  --color-fg-muted:  #b4b7c3;
-  --color-fg-dim:    #b2b5c1;
-  --color-fg-faint:  #a8abb8;
-  --color-fg-ghost:  #9ea2b0;
+  /* ── Text ramp ── Material 3 on-surface roles in Aurora tones: two steps,
+     not five. #DEE3E5 on the darkest ink surface is ~14:1 and #BFC8CA ~10:1,
+     so neither needs per-card contrast patching. The old dim/faint/ghost
+     names stay as aliases of the muted role so no call site breaks. */
+  --color-text:      #DEE3E5;
+  --color-fg:        #DEE3E5;
+  --color-muted:     #BFC8CA;
+  --color-fg-muted:  #BFC8CA;
+  --color-fg-dim:    #BFC8CA;
+  --color-fg-faint:  #BFC8CA;
+  --color-fg-ghost:  #BFC8CA;
 
   /* ── Per-habit semantic colors ── */
   --color-habit-neutral: #cbd0dc;
@@ -58,7 +54,7 @@
   --radius-row:   20px;   /* list rows */
   --radius-tile:  26px;   /* tool grid tiles */
   --radius-glass: 24px;   /* legacy alias */
-  --radius-sheet: 24px;
+  --radius-sheet: 28px;
   --radius-input: 14px;
 
   /* ── Glow / glass shadows ── */
@@ -67,18 +63,32 @@
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Aurora Glass type system:
-     - font-sans / font-display → Sora (headings, big metric numbers)
-     - font-mono → JetBrains Mono (ALL data, labels, units, nav, counters) */
-  --font-sans:    'Sora', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  /* Type: Roboto Flex everywhere (Material 3). `font-mono` keeps its name so
+     the ~190 call sites need no churn, but it now means "the same face with
+     tabular figures" (see the .font-mono rule). Monospace labels in caps read
+     as decoration and slow scanning; tabular figures were what data needed. */
+  --font-sans:    'Roboto Flex', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Roboto Flex', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'Roboto Flex', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* ─── CSS Custom Properties ──────────────────────────────────────────────────── */
 :root {
   --spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth:    cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* Material 3 easing. Emphasized decelerate is for things entering (sheets,
+     screens): fast start, long settle, no overshoot. A spring that overshoots
+     on a bottom-anchored panel lifts it off the edge and reads as a bounce. */
+  --m3-emph-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --m3-standard:   cubic-bezier(0.2, 0, 0, 1);
+
+  /* Surfaces: solid-enough ink over the aurora instead of blurred glass. The
+     blur cost GPU on every card and still needed contrast patching; ink at
+     0.78 keeps the aurora visible at the edges and the text ramp readable. */
+  --surface-1: rgba(12, 13, 24, 0.78);
+  --surface-2: #171a2c;
+  --surface-3: #22253a;
 
   --dur-fast: 110ms;
   --dur-base: 220ms;
@@ -204,6 +214,23 @@ html.scroll-locked, body.scroll-locked {
       font-size: 16px;
     }
   }
+}
+
+/* `font-mono` = tabular figures in the UI face (see @theme). */
+.font-mono { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+/* Display numerals: thin, wide, gradient — the one big number on a screen
+   (budget left, weight trend). */
+.num-display {
+  font-family: var(--font-display);
+  font-weight: 250;
+  font-variation-settings: 'opsz' 144, 'wdth' 110;
+  letter-spacing: -0.035em;
+  font-variant-numeric: lining-nums proportional-nums;
+  background-image: linear-gradient(120deg, #ffffff 30%, #a5f3fc 60%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Opt-in for content worth copying (user-entered notes, share links, IDs). */
