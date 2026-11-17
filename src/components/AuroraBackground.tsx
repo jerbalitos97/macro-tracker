@@ -7,8 +7,13 @@
  * bleed past the viewport otherwise makes the page horizontally pannable on iOS
  * Safari (even with overflow-x:clip on <body>), which shifts the whole app
  * column left and clips the first characters. Containment stops this layer from
- * ever contributing to scroll width. Decorative only — drift self-disables under
- * prefers-reduced-motion (see global.css).
+ * ever contributing to scroll width.
+ *
+ * The blobs are static and carry no `filter: blur`. Five 380 px blobs blurred
+ * by 60 px and drifting forever made iOS re-rasterise the whole layer on every
+ * frame, and view swaps and buttons came in late while it did (palaute #8).
+ * A larger radial gradient that fades to transparent gives the same soft edge
+ * without a filter, and a still layer is painted once.
  */
 export function AuroraBackground() {
   return (
@@ -36,27 +41,27 @@ export function AuroraBackground() {
           lower half. */}
       {/* top — cyan */}
       <div
-        className="animate-aurora-1 absolute right-0 -top-[6%] h-[380px] w-[380px] rounded-full opacity-60 blur-[60px]"
+        className="absolute right-0 -top-[6%] h-[520px] w-[520px] rounded-full opacity-60"
         style={{ background: 'radial-gradient(circle, #22d3ee, transparent 70%)' }}
       />
       {/* upper-middle — violet */}
       <div
-        className="animate-aurora-2 absolute left-0 top-[18%] h-[380px] w-[380px] rounded-full opacity-58 blur-[64px]"
+        className="absolute left-0 top-[18%] h-[520px] w-[520px] rounded-full opacity-58"
         style={{ background: 'radial-gradient(circle, #a78bfa, transparent 70%)' }}
       />
       {/* middle — blue */}
       <div
-        className="animate-aurora-1 absolute right-0 top-[40%] h-[380px] w-[380px] rounded-full opacity-55 blur-[60px]"
+        className="absolute right-0 top-[40%] h-[520px] w-[520px] rounded-full opacity-55"
         style={{ background: 'radial-gradient(circle, #3b82f6, transparent 70%)' }}
       />
       {/* lower-middle — cyan */}
       <div
-        className="animate-aurora-2 absolute left-0 top-[62%] h-[380px] w-[380px] rounded-full opacity-55 blur-[60px]"
+        className="absolute left-0 top-[62%] h-[520px] w-[520px] rounded-full opacity-55"
         style={{ background: 'radial-gradient(circle, #22d3ee, transparent 70%)' }}
       />
       {/* bottom — violet */}
       <div
-        className="animate-aurora-1 absolute right-0 top-[84%] h-[380px] w-[380px] rounded-full opacity-52 blur-[60px]"
+        className="absolute right-0 top-[84%] h-[520px] w-[520px] rounded-full opacity-52"
         style={{ background: 'radial-gradient(circle, #a78bfa, transparent 70%)' }}
       />
 
