@@ -167,29 +167,36 @@ export function toEstimate(r: VisionResult, description?: string): MealEstimate 
 }
 
 /** Mallin vastaus voi olla ```json-aidan sisällä tai saatteen keskellä —
- *  otetaan ensimmäisestä {:stä viimeiseen }:iin. */
-export function parseVisionJson(text: string): VisionResult | null {
+ *  otetaan ensimmäisestä {:stä viimeiseen }:iin. Epäonnistuessa palautetaan
+ *  lyhyt syy ilman sisältöä: se näytetään käyttäjälle virheviestissä, koska
+ *  Vercelin lokit eivät ole aina käsillä ja arvaaminen maksoi jo kaksi
+ *  julkaisua. */
+export function parseVisionJsonDetailed(text: string): { ok: true; result: VisionResult } | { ok: false; reason: string } {
+  if (!text.trim()) return { ok: false, reason: 'tyhjä vastaus' }
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
-  if (start < 0 || end <= start) {
-    console.warn('vision parse: no JSON object', text.length)
-    return null
-  }
+  if (start < 0 || end <= start) return { ok: false, reason: `ei JSONia, ${text.length} merkkiä` }
   let raw: unknown
   try {
     raw = JSON.parse(text.slice(start, end + 1))
   } catch {
-    console.warn('vision parse: invalid JSON', text.length)
-    return null
+    return { ok: false, reason: `rikkinäinen JSON, ${text.length} merkkiä` }
   }
   const parsed = VisionResultSchema.safeParse(raw)
   if (!parsed.success) {
-    // Vain kenttäpolut ja koodit Vercelin lokiin, ei sisältöä: seuraava
-    // muotovirhe on silloin jäljitettävissä ilman arvausta.
-    console.warn('vision parse: schema', parsed.error.issues.map((i) => `${i.path.join('.')}:${i.code}`).join(' '))
+    const fields = parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || '(juuri)'}:${i.code}`).join(', ')
+    return { ok: false, reason: `kenttä ${fields}` }
+  }
+  return { ok: true, result: parsed.data }
+}
+
+export function parseVisionJson(text: string): VisionResult | null {
+  const r = parseVisionJsonDetailed(text)
+  if (!r.ok) {
+    console.warn('vision parse:', r.reason)
     return null
   }
-  return parsed.data
+  return r.result
 }
 
 interface Deps {
@@ -216,12 +223,20 @@ export async function analyseWithOpenRouter(opts: {
   const doFetch = opts.deps?.fetch ?? fetch
   const sleep = opts.deps?.sleep ?? defaultSleep
   let rateLimitRetried = false
+  let lastMeta = ''
 
   const body = JSON.stringify({
     model: opts.models[0],
     models: opts.models,
     temperature: 0.2,
-    max_tokens: 1200,
+    // Varamallit (nemotron, gemma-4) ovat päätteleviä: päättely kuluttaa samaa
+    // token-kattoa kuin vastaus. 1200 tokenilla päättely saattoi syödä koko
+    // katon, jolloin content jäi tyhjäksi ja analyysi hylättiin kahdesti.
+    // Kevyt päättely, joka jätetään pois vastauksesta, ja väljempi katto.
+    // Mallit jotka eivät tue näitä parametreja ohittavat ne.
+    max_tokens: 4000,
+    reasoning: { effort: 'low', exclude: true },
+    response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: OPENROUTER_SYSTEM_PROMPT },
       {
@@ -254,7 +269,8 @@ export async function analyseWithOpenRouter(opts: {
       })
       const json = (await res.json().catch(() => null)) as {
         error?: { code?: number; message?: string }
-        choices?: { message?: { content?: unknown } }[]
+        model?: string
+        choices?: { finish_reason?: string; message?: { content?: unknown; reasoning?: unknown } }[]
       } | null
 
       // OpenRouter välittää ylävirran rate limitin joskus 200-vastauksen
@@ -275,20 +291,31 @@ export async function analyseWithOpenRouter(opts: {
         const detail = json?.error?.message ?? `HTTP ${res.status}`
         throw new VisionError(502, `Analyysi ei onnistunut: ${detail}`)
       }
-      const content = json?.choices?.[0]?.message?.content
-      if (typeof content === 'string') return content
-      if (Array.isArray(content)) {
-        return content.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('')
+      const choice = json?.choices?.[0]
+      const content = choice?.message?.content
+      let text = typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? content.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('')
+          : ''
+      // Osa päättelevistä malleista kirjoittaa JSONin päättelykenttään ja
+      // jättää contentin tyhjäksi. Kelpaa, jos siellä on JSON.
+      if (!text.includes('{') && typeof choice?.message?.reasoning === 'string') {
+        text = choice.message.reasoning
       }
-      return ''
+      lastMeta = `${json?.model ?? '?'}, ${choice?.finish_reason ?? '?'}`
+      return text
     }
   }
 
   // Muotovirhe saa yhden uuden yrityksen; toinen kerta on jo merkki siitä,
   // että malli ei tähän kuvaan tuota kelvollista vastausta.
+  let reason = ''
   for (let attempt = 0; attempt < 2; attempt++) {
-    const parsed = parseVisionJson(await call())
-    if (parsed) return toEstimate(parsed)
+    const parsed = parseVisionJsonDetailed(await call())
+    if (parsed.ok) return toEstimate(parsed.result)
+    reason = `${parsed.reason}; ${lastMeta}`
+    console.warn('vision parse:', reason)
   }
-  throw new VisionError(502, 'Analyysin muoto ei kelvannut kahdella yrityksellä. Kirjaa annos käsin.')
+  throw new VisionError(502, `Analyysin muoto ei kelvannut kahdella yrityksellä (${reason}). Kirjaa annos käsin.`)
 }

@@ -59,6 +59,24 @@ describe('analyseWithOpenRouter', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it('tyhjä content: JSON luetaan päättelykentästä, ja syy näkyy virheessä', async () => {
+    const reasoningOnly = new Response(JSON.stringify({
+      model: 'nvidia/nemotron-3.5-super-vl:free',
+      choices: [{ finish_reason: 'stop', message: { content: '', reasoning: 'Mietin… ' + JSON.stringify(MEAL_JSON) } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+    const ok = vi.fn(async () => reasoningOnly)
+    const r = await analyseWithOpenRouter({ ...base, deps: { fetch: ok as unknown as typeof globalThis.fetch } })
+    expect(r.calories).toBe(425)
+
+    const empty = vi.fn(async () => new Response(JSON.stringify({
+      model: 'google/gemma-4-31b-it:free',
+      choices: [{ finish_reason: 'length', message: { content: null } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    await expect(
+      analyseWithOpenRouter({ ...base, deps: { fetch: empty as unknown as typeof globalThis.fetch } })
+    ).rejects.toThrow('tyhjä vastaus; google/gemma-4-31b-it:free, length')
+  })
+
   it('429: yksi uusinta viiveellä, sitten "yritä hetken päästä"', async () => {
     const fetch = vi.fn(async () => new Response('{}', { status: 429, headers: { 'retry-after': '3' } }))
     const sleep = vi.fn(async () => {})
