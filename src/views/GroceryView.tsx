@@ -9,7 +9,7 @@ import {
 import type { CategoryKey, StoreKey } from '../lib/groceryCategories'
 import {
   getOrCreateList, getListById, getItems, addItem, setDone, setCategory,
-  deleteItem, clearDone, setStore, subscribe, shareLink, sharedListIdFromUrl,
+  deleteItem, clearDone, setStore, subscribe, shareLink, sharedListIdFromUrl, isSharedList, markListShared,
   getName, setName, UNIT_LABEL,
 } from '../lib/grocery'
 import type { GroceryItem, GroceryList, Unit } from '../lib/grocery'
@@ -30,7 +30,7 @@ export function GroceryView() {
   const [items, setItems] = useState<GroceryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setNameState] = useState(getName())
-  const [needName, setNeedName] = useState(!getName())
+  const [needName, setNeedName] = useState(false)
   const [nameInput, setNameInput] = useState('')
 
   // add form
@@ -61,6 +61,8 @@ export function GroceryView() {
       if (l) {
         listIdRef.current = l.id
         setList(l)
+        // Jaetulla listalla nimi kysytään heti; yksin käytetyllä ei lainkaan.
+        if (isSharedList(l.id) && !getName()) setNeedName(true)
         setItems(await getItems(l.id))
         unsub = subscribe(l.id, () => { void refresh() })
       }
@@ -105,7 +107,7 @@ export function GroceryView() {
   }
 
   const toggle = async (it: GroceryItem, done: boolean) => {
-    if (done && needName) { setNeedName(true); return }
+    if (done && list && isSharedList(list.id) && !getName()) { setNeedName(true); return }
     await setDone(it, done, myName)
     void refresh()
   }
@@ -113,6 +115,7 @@ export function GroceryView() {
   const share = async () => {
     if (!list) return
     const url = shareLink(list.id)
+    markListShared(list.id)
     try {
       if (navigator.share) { await navigator.share({ title: 'Ostoslista', url }); return }
     } catch { /* fall through to clipboard */ }
