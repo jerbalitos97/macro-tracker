@@ -371,6 +371,33 @@ export function buildAnalysis({ settings, computed, trend, today }: Inputs): Ana
     }
   }
 
+  const headline = headlineFor({
+    settings,
+    today,
+    goal,
+    trend,
+    posSt,
+    rateSt,
+    positionGapKg,
+    weeklyChange,
+    targetWeeklyChange,
+    requiredDailyDeficit,
+    hasWeightData,
+    hasRecovery: recovery !== null,
+    requiredWeekdayDeficit:
+      weekdaysOnly && eligibleLeft > 0 && daysLeft > 0
+        ? (requiredDailyDeficit * daysLeft) / eligibleLeft
+        : null,
+  })
+
+  // Ylläpidolla ei ole linjaa jota kurottaa kiinni: kun trendi on rajojen
+  // sisällä (otsikko 'ok'), kaloriero on kirjaushälyä eikä syy muuttaa
+  // tasoa, ja "Tiukenna/Löysää"-kortti olisi ristiriidassa otsikon kanssa.
+  // Rajan ylitys (warn/danger) pitää kortin ennallaan.
+  if (goal.type !== 'cut' && goal.type !== 'bulk' && headline.tone === 'ok') {
+    recovery = null
+  }
+
   return {
     goal,
     hasWeightData,
@@ -396,24 +423,7 @@ export function buildAnalysis({ settings, computed, trend, today }: Inputs): Ana
     daysLeft,
     deficitStanding,
     recovery,
-    headline: headlineFor({
-      settings,
-      today,
-      goal,
-      trend,
-      posSt,
-      rateSt,
-      positionGapKg,
-      weeklyChange,
-      targetWeeklyChange,
-      requiredDailyDeficit,
-      hasWeightData,
-      hasRecovery: recovery !== null,
-      requiredWeekdayDeficit:
-        weekdaysOnly && eligibleLeft > 0 && daysLeft > 0
-          ? (requiredDailyDeficit * daysLeft) / eligibleLeft
-          : null,
-    }),
+    headline,
   }
 }
 
