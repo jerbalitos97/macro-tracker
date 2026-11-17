@@ -7,16 +7,20 @@ import { test, expect, type Page } from '@playwright/test'
 // 'Talk to Friday' puuttuu, koska sillä ei ole näkymää. 'Käyttäjät' puuttuu,
 // koska paikallisessa tilassa admin-työkalua ei myönnetä.
 const TOOLS: { card: string; tabs: string[] }[] = [
-  { card: 'Fitness Tracking', tabs: ['Tänään', 'Kalenteri', 'Paino', 'Analyysi'] },
-  { card: 'Habit Tracking',   tabs: ['Tavat'] },
-  { card: 'Wealth',           tabs: ['Wealth', 'Asetukset'] },
-  { card: 'Workout',          tabs: ['Workout'] },
-  { card: 'Grocery',          tabs: ['Grocery'] },
-  { card: 'Suunnittelu',      tabs: ['Suunnittelu', 'Asetukset'] },
+  { card: 'Fitness',          tabs: ['Tänään', 'Kalenteri', 'Paino', 'Analyysi'] },
+  { card: 'Tavat',            tabs: ['Tavat'] },
+  { card: 'Talous',           tabs: ['Wealth', 'Asetukset'] },
+  { card: 'Treeni',           tabs: ['Workout'] },
+  { card: 'Ostokset',         tabs: ['Ostoslista'] },
+  { card: 'Suunnittelu ja asetukset', tabs: ['Suunnittelu', 'Asetukset'] },
   { card: 'Tehtävät',         tabs: ['Tehtävät', 'Kalenteri'] },
-  { card: 'LiikkuvuusPuu',    tabs: ['Liikkuvuus'] },
+  { card: 'Liikkuvuus',       tabs: ['Liikkuvuus'] },
   { card: 'Testi',            tabs: ['Testi'] },
 ]
+
+/** Launcherin tunniste: työkaluruudukko. Otsikko on tervehdys, joka vaihtuu
+ *  kellonajan mukaan, joten siihen ei voi tarttua. */
+const launcher = (page: Page) => page.getByRole('region', { name: 'Työkalut' })
 
 // Testi ei saa riippua verkosta eikä koskea mihinkään ulkoiseen. Google Fonts
 // jumittaisi muuten `load`-tapahtuman eristetyssä ympäristössä, ja fontin
@@ -83,7 +87,7 @@ async function expectAlive(page: Page, where: string, errors: string[]) {
 test('käynnistyy tyhjällä datalla', async ({ page }) => {
   const errors = watchCrashes(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Työkalut' })).toBeVisible()
+  await expect(launcher(page)).toBeVisible()
   await expectAlive(page, 'launcher', errors)
 })
 
@@ -97,17 +101,23 @@ for (const seeded of [false, true]) {
     }
     const errors = watchCrashes(page)
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Työkalut' })).toBeVisible()
+    await expect(launcher(page)).toBeVisible()
 
     for (const tool of TOOLS) {
       await page.getByRole('button', { name: tool.card, exact: true }).click()
-      for (const tab of tool.tabs) {
+      // Yhden näkymän työkalulla ei ole alapalkkia: näkymän tunnistaa
+      // yläpalkin otsikosta.
+      if (tool.tabs.length === 1) {
+        await expect(page.getByRole('banner').getByRole('heading', { name: tool.tabs[0], exact: true })).toBeVisible()
+        await expectAlive(page, tool.card, errors)
+      }
+      for (const tab of tool.tabs.length > 1 ? tool.tabs : []) {
         await page.getByRole('tab', { name: tab, exact: true }).click()
         await expect(page.getByRole('tab', { name: tab, exact: true })).toHaveAttribute('aria-selected', 'true')
         await expectAlive(page, `${tool.card} › ${tab}`, errors)
       }
-      await page.getByRole('tab', { name: 'Koti', exact: true }).click()
-      await expect(page.getByRole('heading', { name: 'Työkalut' })).toBeVisible()
+      await page.getByRole('button', { name: 'Vaihda työkalua' }).click()
+      await expect(launcher(page)).toBeVisible()
     }
   })
 }
@@ -122,10 +132,10 @@ test('paikallinen data säilyy uudelleenlatauksen yli', async ({ page }) => {
   }, { d: data, ack: SURPLUS_ACK })
   const errors = watchCrashes(page)
   await page.goto('/')
-  await page.getByRole('button', { name: 'Fitness Tracking', exact: true }).click()
+  await page.getByRole('button', { name: 'Fitness', exact: true }).click()
   await page.getByRole('tab', { name: 'Paino', exact: true }).click()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Työkalut' })).toBeVisible()
+  await expect(launcher(page)).toBeVisible()
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cutdata:v1') ?? 'null'))
   expect(stored?.meals?.length, 'ateriat hävisivät').toBe(data.meals.length)
@@ -145,14 +155,14 @@ test('kirjaustila ilman tavoitejaksoa: ateria kirjautuu ja näkyy kalenterissa',
   }, data)
   const errors = watchCrashes(page)
   await page.goto('/')
-  await page.getByRole('button', { name: 'Fitness Tracking', exact: true }).click()
+  await page.getByRole('button', { name: 'Fitness', exact: true }).click()
 
   await expect(page.getByText('Syöty tänään')).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Analyysi', exact: true })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Lisää ateria' }).click()
-  await page.getByLabel('kcal').fill('640')
-  await page.getByRole('button', { name: 'Lisää', exact: true }).click()
+  await page.getByRole('button', { name: 'Kirjaa ateria' }).click()
+  await page.getByLabel('Kalorit').fill('640')
+  await page.getByRole('button', { name: 'Tallenna', exact: true }).click()
   await expect(page.getByText('Ateriat (1)')).toBeVisible()
 
   await page.getByRole('tab', { name: 'Kalenteri', exact: true }).click()

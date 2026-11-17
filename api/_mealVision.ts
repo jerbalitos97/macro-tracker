@@ -44,8 +44,9 @@ export function parseModels(env: string | undefined): string[] {
 // vastasivat suomenkieliseenkin kehotteeseen englanniksi, kun JSON-avaimet
 // ovat englantia. Avaimet pysyvät englanniksi, arvot suomeksi.
 export const OPENROUTER_SYSTEM_PROMPT =
-  "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Jos annoskoko on epävarma, levennä kcal_rangea. " +
-  'Kirjoita name- ja notes-kenttien arvot AINA suomeksi (esim. "Kanafilee", "Keitetty riisi"), vaikka JSON-avaimet ovat englanniksi.'
+  "Arvioi kuvan ateria. Palauta VAIN JSON: {items:[{name, grams, kcal, protein_g}], total_kcal, total_protein_g, kcal_range:[min,max], confidence:'low'|'medium'|'high', notes}. Luvut numeroina ilman yksiköitä. Jos annoskoko on epävarma, levennä kcal_rangea. " +
+  'Kirjoita name- ja notes-kenttien arvot AINA suomeksi (esim. "Kanafilee", "Keitetty riisi"), vaikka JSON-avaimet ovat englanniksi. ' +
+  'confidence on poikkeus: täsmälleen low, medium tai high englanniksi.'
 
 export const RATE_LIMIT_MESSAGE = 'Kuva-analyysi on ruuhkautunut — yritä hetken päästä.'
 
@@ -56,21 +57,57 @@ const RATE_LIMIT_WAIT_MS = 4000
 const RATE_LIMIT_WAIT_MAX_MS = 8000
 const REQUEST_TIMEOUT_MS = 45_000
 
-/** Malli palauttaa joskus luvut merkkijonoina ("350") — hyväksytään ne,
- *  mutta ei tyhjää eikä muuta kuin lukua. */
-const num = z.preprocess(
-  (v) => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v),
-  z.number().finite().nonnegative()
+/** Malli palauttaa joskus luvut merkkijonoina ("350", "350 kcal", "12,5 g")
+ *  — hyväksytään ne, mutta ei tyhjää eikä muuta kuin lukua. */
+function toNumber(v: unknown): unknown {
+  if (typeof v !== 'string') return v
+  const m = v.replace(/\s/g, '').replace(',', '.').match(/^~?(-?\d+(?:\.\d+)?)/)
+  return m ? Number(m[1]) : v
+}
+const num = z.preprocess(toNumber, z.number().finite().nonnegative())
+
+/** Varmuus suomeksi tai muuten väärin kirjoitettuna. Kehote pyytää
+ *  suomenkieliset arvot (1750745), ja osa malleista käänsi myös tämän
+ *  enum-kentän ("keskitaso"), jolloin koko vastaus hylättiin. Tuntematon arvo
+ *  on "low": epävarma tulkinta ei saa näyttää varmalta. */
+const CONFIDENCE: Record<string, 'low' | 'medium' | 'high'> = {
+  low: 'low', matala: 'low', alhainen: 'low', heikko: 'low', pieni: 'low', epävarma: 'low',
+  medium: 'medium', keskitaso: 'medium', keskitasoinen: 'medium', kohtalainen: 'medium',
+  keskinkertainen: 'medium', keskiverto: 'medium', 'melko varma': 'medium',
+  high: 'high', korkea: 'high', hyvä: 'high', suuri: 'high', varma: 'high',
+}
+const confidence = z.preprocess(
+  (v) => (typeof v === 'string' ? (CONFIDENCE[v.trim().toLowerCase()] ?? 'low') : v),
+  z.enum(['low', 'medium', 'high']),
 )
+
+/** Vaihteluväli tulee joskus merkkijonona ("600-800") tai oliona
+ *  ({min, max}); puuttuva väli täydennetään toEstimatessa arviosta. */
+const range = z.preprocess((v) => {
+  if (typeof v === 'string') {
+    const parts = v.split(/[-–—]|\.\./).map((x) => toNumber(x.trim()))
+    return parts.length === 2 ? parts : v
+  }
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>
+    return [o.min ?? o.low, o.max ?? o.high]
+  }
+  return v
+}, z.tuple([num, num]).nullish())
 
 export const VisionResultSchema = z.object({
   items: z
-    .array(z.object({ name: z.string().min(1), grams: num, kcal: num, protein_g: num }))
+    .array(z.object({
+      name: z.string().min(1),
+      grams: num.optional().default(0),
+      kcal: num,
+      protein_g: num.optional().default(0),
+    }))
     .max(30),
   total_kcal: num,
-  total_protein_g: num,
-  kcal_range: z.tuple([num, num]),
-  confidence: z.enum(['low', 'medium', 'high']),
+  total_protein_g: num.optional().default(0),
+  kcal_range: range,
+  confidence,
   notes: z
     .string()
     .nullish()
@@ -112,7 +149,7 @@ export function toEstimate(r: VisionResult, description?: string): MealEstimate 
     protein: clamp(i.protein_g, 0, 400),
   }))
   const calories = clamp(r.total_kcal, 0, 5000)
-  let [lo, hi] = r.kcal_range.map((v) => clamp(v, 0, 8000)) as [number, number]
+  let [lo, hi] = (r.kcal_range ?? [calories * 0.75, calories * 1.25]).map((v) => clamp(v, 0, 8000)) as [number, number]
   if (lo > hi) [lo, hi] = [hi, lo]
   lo = Math.min(lo, calories)
   hi = Math.max(hi, calories)
@@ -134,13 +171,25 @@ export function toEstimate(r: VisionResult, description?: string): MealEstimate 
 export function parseVisionJson(text: string): VisionResult | null {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
-  if (start < 0 || end <= start) return null
-  try {
-    const parsed = VisionResultSchema.safeParse(JSON.parse(text.slice(start, end + 1)))
-    return parsed.success ? parsed.data : null
-  } catch {
+  if (start < 0 || end <= start) {
+    console.warn('vision parse: no JSON object', text.length)
     return null
   }
+  let raw: unknown
+  try {
+    raw = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    console.warn('vision parse: invalid JSON', text.length)
+    return null
+  }
+  const parsed = VisionResultSchema.safeParse(raw)
+  if (!parsed.success) {
+    // Vain kenttäpolut ja koodit Vercelin lokiin, ei sisältöä: seuraava
+    // muotovirhe on silloin jäljitettävissä ilman arvausta.
+    console.warn('vision parse: schema', parsed.error.issues.map((i) => `${i.path.join('.')}:${i.code}`).join(' '))
+    return null
+  }
+  return parsed.data
 }
 
 interface Deps {

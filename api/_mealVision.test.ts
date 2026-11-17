@@ -74,4 +74,30 @@ describe('analyseWithOpenRouter', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
     expect(sleep).toHaveBeenCalledWith(3000)
   })
+
+  it('hyväksyy suomennetun varmuuden, välin merkkijonona ja yksiköt luvuissa', async () => {
+    const reply = {
+      items: [{ name: 'Spagetti bolognese', grams: '350 g', kcal: '520 kcal', protein_g: '28,5' }],
+      total_kcal: 520,
+      total_protein_g: '28,5 g',
+      kcal_range: '450-650',
+      confidence: 'Keskitaso',
+      notes: 'Kastikkeen rasvapitoisuus arvioitu.',
+    }
+    const fetch = vi.fn(async () => completion(JSON.stringify(reply)))
+    const r = await analyseWithOpenRouter({ ...base, deps: { fetch: fetch as unknown as typeof globalThis.fetch } })
+    expect(r.confidence).toBe('medium')
+    expect(r.kcalRange).toEqual([450, 650])
+    expect(r.components[0]).toEqual({ name: 'Spagetti bolognese', grams: 350, kcal: 520, protein: 29 })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('puuttuva väli täydennetään arviosta, tuntematon varmuus on low', async () => {
+    const reply = { items: [{ name: 'Puuro', kcal: 300 }], total_kcal: 300, confidence: 'ehkä' }
+    const fetch = vi.fn(async () => completion(JSON.stringify(reply)))
+    const r = await analyseWithOpenRouter({ ...base, deps: { fetch: fetch as unknown as typeof globalThis.fetch } })
+    expect(r.confidence).toBe('low')
+    expect(r.kcalRange).toEqual([225, 375])
+    expect(r.protein).toBe(0)
+  })
 })

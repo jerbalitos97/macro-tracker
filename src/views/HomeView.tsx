@@ -133,7 +133,7 @@ export function HomeView({ setView, lastView, fitnessRemaining }: Props) {
           Ladataan työkaluja…
         </p>
       )}
-      <div ref={reorder.containerRef} className="list-stagger grid grid-flow-row-dense grid-cols-2 gap-3">
+      <div ref={reorder.containerRef} role="region" aria-label="Työkalut" className="list-stagger grid grid-flow-row-dense grid-cols-2 gap-3">
         {tools.map((tool) => (
           <ToolTile
             key={tool.id}
