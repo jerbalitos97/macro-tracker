@@ -84,7 +84,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
     | null
   >(null)
   const [blockEdit, setBlockEdit] = useState<{ block: TrainingBlock; isNew: boolean } | null>(null)
-  const [tab, setTab] = useState<'season' | 'basics'>('season')
+  const [tab, setTab] = useState<'check' | 'edit' | 'basics'>('check')
   // Undo runs seconds later, after other edits may have landed; it has to
   // patch the settings as they are then, not as they were when the snack
   // was raised.
@@ -198,11 +198,12 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+32px)] pt-2">
-      {/* One long scroll mixed "what is in force today" with settings touched
-          twice a year. Two tabs separate them; the data and the mechanisms
-          behind them are unchanged. */}
+      {/* Three tabs by what you came to do (palaute #5): check the plan in
+          force, change it, or touch the physiology set twice a year. Mixing
+          checking and editing in one scroll made it unclear which was which.
+          The data and the mechanisms behind them are unchanged. */}
       <div role="tablist" className="flex gap-1 rounded-[24px] bg-[var(--surface-2)] p-1">
-        {([['season', 'Kausi'], ['basics', 'Perusarvot']] as const).map(([id, label]) => (
+        {([['check', 'Tarkista'], ['edit', 'Muuta'], ['basics', 'Perusarvot']] as const).map(([id, label]) => (
           <button
             key={id}
             role="tab"
@@ -217,8 +218,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         ))}
       </div>
 
-      {tab === 'season' && (
+      {tab === 'check' && (
       <>
+      <p className="m-0 px-1 text-[14px] leading-5 text-fg-muted">
+        Mikä on voimassa tänään, mitä se vaatii ja onko treeni ja ravinto keskenään linjassa.
+      </p>
       {/* ── What is in force today ────────────────────────────────
           Block, nutrition phase and the day's asks in one place. Everything
           here is derived, so it moves the moment any input does: change the
@@ -300,7 +304,7 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
             <Check size={20} className="flex-shrink-0" />
             <p className="m-0 text-[14px] leading-5">
               {blocks.length === 0
-                ? 'Ei treeniblokkeja vielä. Lisää blokkeja Workout-työkalussa, niin ne ilmestyvät tähän.'
+                ? 'Ei treeniblokkeja vielä. Lisää ne Muuta-välilehdellä, niin ne tarkistetaan tässä.'
                 : 'Ravintojaksot ja treeniblokit ovat linjassa keskenään.'}
             </p>
           </div>
@@ -318,6 +322,15 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
           </div>
         )}
       </div>
+
+      </>
+      )}
+
+      {tab === 'edit' && (
+      <>
+      <p className="m-0 px-1 text-[14px] leading-5 text-fg-muted">
+        Muokkaa blokkia tai jaksoa napauttamalla sitä. Uusi alkaa oikean yläkulman napista.
+      </p>
 
       {/* ── Per block ─────────────────────────────────────────── */}
       <div className="flex flex-col gap-2">
@@ -480,6 +493,11 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
         </button>
       </div>
 
+      </>
+      )}
+
+      {tab === 'check' && (
+      <>
       <div className="flex flex-col gap-2">
         {/* The identity of the active period is already in "Voimassa tänään"
             at the top; what is left here is the arithmetic it implies. */}
@@ -515,6 +533,9 @@ export function PlanningView({ settings, setSettings, weights }: Props) {
 
       {tab === 'basics' && (
       <>
+      <p className="m-0 px-1 text-[14px] leading-5 text-fg-muted">
+        Kehon arvot, joista jokainen päiväbudjetti lasketaan. Näitä muutetaan harvoin.
+      </p>
       {/* ── Physiology ────────────────────────────────────────────
           TDEE, the weekly rhythm and the protein target decide every daily
           budget, so they belong with the planning rather than in an
