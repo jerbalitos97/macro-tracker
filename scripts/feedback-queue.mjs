@@ -9,7 +9,8 @@
 //
 // Ympäristö:
 //   FEEDBACK_AUTOMATION_TOKEN    sama arvo kuin Vercelin env-muuttujassa
-//   FRIDAY_API_URL / PRODUCTION_URL  valinnainen; oletus on friday-nightlyn verkkosallittu domain
+//   FRIDAY_API_URL               valinnainen. Oletus on friday-nightlyn verkkosallittu
+//                                domain; PRODUCTION_URL (nine-olive) ei ole sallittu.
 //
 // Komennot:
 //   list                 käsittelemättömät (new, triaged), tärkein ensin
@@ -18,7 +19,7 @@
 //
 // Validointi (sallitut kentät, statukset, risk, priority) tehdään palvelimella.
 
-const BASE = (process.env.FRIDAY_API_URL || process.env.PRODUCTION_URL || 'https://macro-tracker-jerbalitos97s-projects.vercel.app').replace(/\/$/, '')
+const BASE = (process.env.FRIDAY_API_URL || 'https://macro-tracker-jerbalitos97s-projects.vercel.app').replace(/\/$/, '')
 const TOKEN = process.env.FEEDBACK_AUTOMATION_TOKEN
 
 function die(msg) {
