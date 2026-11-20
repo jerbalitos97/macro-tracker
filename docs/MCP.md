@@ -100,10 +100,12 @@ Check it:
 curl https://<your-domain>/api/mcp
 ```
 
-Add to Claude: Customize → Connectors → add custom connector →
-URL `https://<your-domain>/api/mcp`, "No sign in", and under **Request headers**
-`Authorization` = `Bearer <MCP_API_KEY>`. Then set the write tools to ask every
-time.
+Add to Claude: Customize → Connectors → Add → Add custom connector →
+URL `https://macro-tracker-nine-olive.vercel.app/api/mcp`, Authentication
+**No sign-in**, and under **Request headers** `Authorization` =
+`Bearer <MCP_API_KEY>`. Claude marks "Sign in now" as detected because the
+endpoint answers 401 without the header; that is expected, the header is the
+sign-in. Then set the write tools to ask every time.
 
 The key reaches the service role, which bypasses row-level security — the
 function scopes every query to `MCP_USER_ID` itself. Treat the key like a
