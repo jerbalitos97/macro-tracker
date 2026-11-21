@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ComputedDay } from '../types'
 import { toISO, fromISO, getWeekdayNum } from '../lib/dates'
 
@@ -10,12 +12,29 @@ interface Props {
 const dayCellBase =
   'relative flex aspect-square flex-col items-center justify-center rounded-lg border tabular-nums transition-colors'
 
-export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
+const navBtn =
+  'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-fg-faint disabled:cursor-default disabled:opacity-30'
+
+export function CalendarGrid({ days: allDays, selectedDate, setSelectedDate }: Props) {
   const todayISO = toISO(new Date())
+  // Kuukausi näytetään kerrallaan: koko tavoitejakso yhtenä ruudukkona on
+  // pitkä eikä kerro, missä "nyt" on. Seuraa valittua päivää, jotta
+  // edellinen/seuraava-nuolet päivänäkymässä vievät oikeaan kuukauteen.
+  const [month, setMonth] = useState(selectedDate.slice(0, 7))
+  useEffect(() => setMonth(selectedDate.slice(0, 7)), [selectedDate])
+
+  // Selattavat kuukaudet rajautuvat jakson päiviin — niiden ulkopuolelta ei
+  // ole laskettua dataa.
+  const months = Array.from(new Set(allDays.map((d) => d.date.slice(0, 7))))
+  const monthIdx = months.indexOf(month)
+  const shown = monthIdx >= 0 ? month : months[0]
+  const days = allDays.filter((d) => d.date.slice(0, 7) === shown)
   const weeks: (ComputedDay | null)[][] = []
   let current: (ComputedDay | null)[] = []
   const firstDay = days[0]
   if (!firstDay) return null
+  const idx = months.indexOf(shown)
+  const label = fromISO(firstDay.date).toLocaleDateString('fi-FI', { month: 'long', year: 'numeric' })
 
   // Pad to Monday start (mon=0 offset)
   const firstDow = getWeekdayNum(firstDay.date)
@@ -37,6 +56,17 @@ export function CalendarGrid({ days, selectedDate, setSelectedDate }: Props) {
 
   return (
     <div>
+      <div className="mb-1 flex items-center justify-between">
+        <button type="button" className={navBtn} aria-label="Edellinen kuukausi"
+          disabled={idx <= 0} onClick={() => setMonth(months[idx - 1])}>
+          <ChevronLeft size={18} />
+        </button>
+        <div className="text-[14px] font-medium capitalize text-text">{label}</div>
+        <button type="button" className={navBtn} aria-label="Seuraava kuukausi"
+          disabled={idx >= months.length - 1} onClick={() => setMonth(months[idx + 1])}>
+          <ChevronRight size={18} />
+        </button>
+      </div>
       <div className="mb-[3px] grid grid-cols-7 gap-0.5">
         {['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'].map((d) => (
           <div key={d} className="py-1 text-center text-[12px]   text-fg-ghost">{d}</div>
