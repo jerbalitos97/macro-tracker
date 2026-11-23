@@ -325,7 +325,7 @@ export function HabitsView({
                     aria-label={`${habit.name}: lisää 1, nyt ${value} / ${goal}`}
                     className="relative flex h-12 w-12 min-h-0 min-w-0 flex-none items-center justify-center rounded-full p-0"
                   >
-                    {/* Edistyminen renkaana +1-napin ympärillä. */}
+                    {/* Edistyminen renkaana napin ympärillä; nappi on tarkoituksella tyhjä (palaute #11), toiminto kuuluu aria-labelissa. */}
                     <svg aria-hidden width="48" height="48" viewBox="0 0 48 48" className="absolute inset-0">
                       <circle cx="24" cy="24" r="21" fill="rgba(34,211,238,0.12)" stroke="rgba(255,255,255,0.12)" strokeWidth="4" />
                       <circle
@@ -335,7 +335,6 @@ export function HabitsView({
                         style={{ transition: 'stroke-dasharray 400ms cubic-bezier(.2,0,0,1)' }}
                       />
                     </svg>
-                    <span className="relative text-[15px] font-semibold text-[#a5f3fc]">+1</span>
                   </button>
                 )}
 
