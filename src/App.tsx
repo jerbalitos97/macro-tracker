@@ -55,12 +55,16 @@ import { useTools } from './contexts/ToolsContext'
 import { isViewAllowed } from './lib/viewAccess'
 import { LazyMotion, domMax, m, useReducedMotion } from 'motion/react'
 
-// Cross-fade between views. `mode="wait"` runs exit before enter, so a slow
-// exit reads as a blank flash — keep it short and let the enter carry the
-// motion. A small upward drift makes the swap read as a transition.
+// Cross-fade between views — opacity only, never a transform. A transform on
+// the view wrapper makes it the containing block for every position:fixed
+// descendant while it animates: the Tavat FAB was measured at y=355 instead of
+// y=660 on a 375×812 screen for the length of the fade, then snapped to the
+// bottom. That jump, repeated on every screen with a fixed element, is what read
+// as views "searching for their places". Same rule as `.view-enter` in
+// global.css.
 const VIEW_MOTION = {
-  initial: { opacity: 0, y: 5 },
-  animate: { opacity: 1, y: 0 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
   transition: {
     duration: 0.16,
     ease: [0.16, 1, 0.3, 1] as const,

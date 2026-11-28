@@ -528,13 +528,17 @@ input[type="date"], select { color-scheme: dark; }
   .scan-beam { display: none; }
 }
 
-/* Card pop-in (dynamic cards) */
+/* Card pop-in (dynamic cards). `backwards`, not `both`, for the same reason
+   as .list-stagger: a filled end frame leaves `transform: scale(1)` on the card
+   forever, which turns every card into a containing block for fixed children
+   and a compositing layer of its own. The end frame is the natural state, so
+   nothing looks different. */
 @keyframes cardEnter {
   from { opacity: 0; transform: scale(0.96) translateY(5px); }
   to   { opacity: 1; transform: scale(1.00) translateY(0); }
 }
 .card-enter {
-  animation: cardEnter 0.22s var(--ease-out) both;
+  animation: cardEnter 0.22s var(--ease-out) backwards;
 }
 
 /* Error banner slide-down */

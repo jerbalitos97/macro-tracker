@@ -40,11 +40,16 @@ interface Props {
   onOpenSettings: () => void
 }
 
+// Istunnonaikainen välimuisti, sama syy kuin MobilityView'ssa: ilman sitä
+// jokainen paluu Talouteen näytti ensin spinnerin ja vaihtoi sitten koko
+// näkymän kaavioineen, mikä luki hyppivänä näkymänä. Taustahaku korjaa perässä.
+let wealthCache: { assets: Asset[]; values: AssetValue[]; settings: Settings } | null = null
+
 export function WealthView({ onOpenSettings }: Props) {
-  const [assets, setAssets] = useState<Asset[]>([])
-  const [values, setValues] = useState<AssetValue[]>([])
-  const [settings, setSettings] = useState<Settings>({ wealthGoal: null, currency: 'EUR' })
-  const [loading, setLoading] = useState(true)
+  const [assets, setAssets] = useState<Asset[]>(() => wealthCache?.assets ?? [])
+  const [values, setValues] = useState<AssetValue[]>(() => wealthCache?.values ?? [])
+  const [settings, setSettings] = useState<Settings>(() => wealthCache?.settings ?? { wealthGoal: null, currency: 'EUR' })
+  const [loading, setLoading] = useState(() => !wealthCache)
   const [error, setError] = useState<string | null>(null)
   const [showPortfolio, setShowPortfolio] = useState(true)
   const [visibleAssetIds, setVisibleAssetIds] = useState<Set<string>>(new Set())
@@ -62,6 +67,7 @@ export function WealthView({ onOpenSettings }: Props) {
     setError(null)
     try {
       const [a, v, s] = await Promise.all([listAssets(), listAllValues(), getSettings()])
+      wealthCache = { assets: a, values: v, settings: s }
       setAssets(a)
       setValues(v)
       setSettings(s)
@@ -82,6 +88,7 @@ export function WealthView({ onOpenSettings }: Props) {
   const applyAssetOrder = (next: Asset[]) => {
     if (next === assets) return
     setAssets(next)
+    if (wealthCache) wealthCache = { ...wealthCache, assets: next }
     reorderAssets(next.map((a) => a.id)).catch((e) => {
       setError(e instanceof Error ? e.message : 'Failed to save order')
       void refresh()

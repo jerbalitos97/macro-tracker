@@ -24,11 +24,18 @@ function amountLabel(it: GroceryItem): string {
   return `${a} ${u}`.trim()
 }
 
+// Istunnonaikainen välimuisti omalle listalle — sama syy kuin MobilityView'ssa:
+// ilman sitä jokainen paluu Ostoksiin näytti ensin latauspisteet ja vaihtoi
+// sitten koko näkymän listaan, mikä luki hyppivänä näkymänä. Jaettua listaa
+// (?g=) ei välimuistiteta: se on oma lukittu tilansa eikä sinne palata.
+let ownCache: { list: GroceryList; items: GroceryItem[] } | null = null
+
 export function GroceryView() {
   const { user } = useAuth()
-  const [list, setList] = useState<GroceryList | null>(null)
-  const [items, setItems] = useState<GroceryItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const cached = sharedListIdFromUrl() ? null : ownCache
+  const [list, setList] = useState<GroceryList | null>(() => cached?.list ?? null)
+  const [items, setItems] = useState<GroceryItem[]>(() => cached?.items ?? [])
+  const [loading, setLoading] = useState(() => !cached)
   const [name, setNameState] = useState(getName())
   const [needName, setNeedName] = useState(false)
   const [nameInput, setNameInput] = useState('')
@@ -42,7 +49,12 @@ export function GroceryView() {
   const [menuItem, setMenuItem] = useState<GroceryItem | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const listIdRef = useRef<string | null>(null)
+  const listIdRef = useRef<string | null>(cached?.list.id ?? null)
+
+  // Pidä välimuisti ajan tasalla jokaisesta muutoksesta, myös realtime-päivityksistä.
+  useEffect(() => {
+    if (list && !sharedListIdFromUrl()) ownCache = { list, items }
+  }, [list, items])
 
   const refresh = async () => {
     const id = listIdRef.current
