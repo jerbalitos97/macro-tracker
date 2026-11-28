@@ -6,6 +6,22 @@ interface Props {
   onAccept: (meal: { kcal: number; protein: number; description: string; items: string[] }) => void
 }
 
+// Vaiheteksti vaihtuu, jotta analyysi tuntuu etenevän; ei oikeaa edistymistietoa.
+const SCAN_STEPS = ['Analysoidaan kaloreita…', 'Analysoidaan sisältöä…', 'Analysoidaan proteiinia…']
+
+function ScanLabel() {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % SCAN_STEPS.length), 1600)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <p role="status" className="scan-label py-2 text-center text-[13px] font-medium tracking-wide text-sky">
+      <span key={i} className="scan-label-text">{SCAN_STEPS[i]}</span>
+    </p>
+  )
+}
+
 type Phase = 'idle' | 'analysing' | 'result' | 'error'
 
 const CONFIDENCE_TEXT: Record<MealAnalysis['confidence'], string> = {
@@ -112,17 +128,13 @@ export function MealCapture({ onAccept }: Props) {
       )}
 
       {phase !== 'idle' && preview && (
-        <div className="mb-3 overflow-hidden rounded-input border border-white/10">
+        <div className={`relative mb-3 overflow-hidden rounded-input border border-white/10${phase === 'analysing' ? ' scan-frame' : ''}`}>
+          {phase === 'analysing' && <span className="scan-beam" aria-hidden />}
           <img src={preview} alt="Kuvattu ateria" className="max-h-44 w-full object-cover" />
         </div>
       )}
 
-      {phase === 'analysing' && (
-        <p className="flex items-center justify-center gap-2 py-2 font-mono text-[12px]   text-sky">
-          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-sky" aria-hidden />
-          Analysoidaan…
-        </p>
-      )}
+      {phase === 'analysing' && <ScanLabel />}
 
       {phase === 'error' && (
         <div className="flex flex-col gap-2">
