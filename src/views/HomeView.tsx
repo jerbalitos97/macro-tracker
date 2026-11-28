@@ -46,7 +46,7 @@ const TOOLS: ToolDef[] = [
 
 const WEEKDAYS = ['Sunnuntai', 'Maanantai', 'Tiistai', 'Keskiviikko', 'Torstai', 'Perjantai', 'Lauantai']
 
-function greeting(now: Date): string {
+export function greeting(now: Date): string {
   const h = now.getHours()
   if (h < 5) return 'Hyvää yötä'
   if (h < 11) return 'Huomenta'
