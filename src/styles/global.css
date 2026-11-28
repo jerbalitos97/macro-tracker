@@ -427,11 +427,14 @@ input[type="date"], select { color-scheme: dark; }
   animation: viewFadeIn var(--dur-base) var(--ease-out) both;
 }
 
-/* Staggered list items. 10 ms a step, so a ten-row list is whole within
-   ~0.3 s: at 28 ms the last rows arrived visibly late (palaute #8). */
+/* Staggered list items — opacity only, 10 ms a step. The rows used to rise
+   7 px as well; with a stagger on nearly every screen that meant every
+   navigation ended with a column of rows still sliding into place, which read
+   as the view "finding its position" rather than as polish. A fade cannot
+   move anything. */
 @keyframes listItemIn {
-  from { opacity: 0; transform: translateY(7px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 /* fill-mode on `backwards`, EI `both` — ja se on korjaus, ei tyylivalinta.
    `both` jättää loppuruudun `transform: translateY(0)` voimaan animaation
@@ -444,7 +447,7 @@ input[type="date"], select { color-scheme: dark; }
    mitään voimaan lopussa. Ulkoasu on identtinen, koska loppuruutu on sama kuin
    elementin luonnollinen tila. */
 .list-stagger > * {
-  animation: listItemIn 0.22s var(--ease-out) backwards;
+  animation: listItemIn 0.14s ease-out backwards;
 }
 .list-stagger > *:nth-child(1)  { animation-delay:   0ms; }
 .list-stagger > *:nth-child(2)  { animation-delay: 10ms; }

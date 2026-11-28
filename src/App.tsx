@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react'
 import type { Settings, SpecialEvent, ExtraWorkout, Meal, WeightEntry, TrainingBurn, DailyAdjustment, AppData, Habit, HabitEntry } from './types'
 import { toISO, addDays } from './lib/dates'
 import { computeDays } from './lib/compute'
@@ -35,10 +35,10 @@ import { LockScreen, LockOfferSheet, useAppLock } from './components/AppLock'
 import { getLock, takeLockOffer } from './lib/appLock'
 import { HomeView } from './views/HomeView'
 import { SnackbarHost } from './components/ui/Snackbar'
-import { WealthView } from './views/WealthView'
+import { WealthView, prefetchWealth } from './views/WealthView'
 import { WealthSettingsView } from './views/WealthSettingsView'
 import { WorkoutView } from './views/WorkoutView'
-import { GroceryView } from './views/GroceryView'
+import { GroceryView, prefetchGrocery } from './views/GroceryView'
 import { sharedListIdFromUrl } from './lib/grocery'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
@@ -53,30 +53,22 @@ import { TestiView } from './views/TestiView'
 import { AdminView } from './views/AdminView'
 import { useTools } from './contexts/ToolsContext'
 import { isViewAllowed } from './lib/viewAccess'
-import { LazyMotion, domMax, m, useReducedMotion } from 'motion/react'
+import { LazyMotion, domMax, m } from 'motion/react'
 
-// Cross-fade between views — opacity only, never a transform. A transform on
-// the view wrapper makes it the containing block for every position:fixed
-// descendant while it animates: the Tavat FAB was measured at y=355 instead of
-// y=660 on a 375×812 screen for the length of the fade, then snapped to the
-// bottom. That jump, repeated on every screen with a fixed element, is what read
-// as views "searching for their places". Same rule as `.view-enter` in
-// global.css.
-const VIEW_MOTION = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: {
-    duration: 0.16,
-    ease: [0.16, 1, 0.3, 1] as const,
-  },
-}
-
-// Reduced motion keeps the swap instant rather than sliding it.
-const VIEW_MOTION_REDUCED = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: { duration: 0.01 },
-}
+// Views swap instantly — no entrance animation on the wrapper at all.
+//
+// Two earlier versions both read as flicker on the phone:
+//  1. opacity + translateY: the transform made the wrapper the containing
+//     block for position:fixed descendants, so the Tavat FAB sat at y=355
+//     instead of y=660 for the length of the animation, then snapped.
+//  2. opacity only: there is no exit animation, so the old view vanished at
+//     once and the new one started from opacity 0 — every navigation showed a
+//     frame of bare background before the content faded up.
+// A tab switch in a native app is a cut, and a cut cannot flicker. `initial:
+// false` keeps the m.div (and its `key`, which remounts the view) but skips
+// the entrance. Motion inside a view stays where it means something: rows
+// arriving (.list-stagger), sheets, pressed states.
+const VIEW_MOTION = { initial: false } as const
 
 const DEFAULT_SETTINGS: Settings = {
   startDate: toISO(new Date()),
@@ -104,8 +96,7 @@ const DEFAULT_SETTINGS: Settings = {
 export default function App() {
   const { user, loading: authLoading, enabled: authEnabled, signOut } = useAuth()
   const { tools: grantedTools, loading: toolsLoading, viewAs, stopViewAs } = useTools()
-  const reduceMotion = useReducedMotion()
-  const viewMotion = reduceMotion ? VIEW_MOTION_REDUCED : VIEW_MOTION
+  const viewMotion = VIEW_MOTION
 
   // A ?g=<listId> share link deep-links straight into the Grocery tool.
   const [view, setView] = useState<View>(() => (sharedListIdFromUrl() ? 'grocery' : 'home'))
@@ -122,6 +113,28 @@ export default function App() {
   useEffect(() => {
     if (view !== 'home') setLastToolView(view)
   }, [view])
+  // Each view starts at its top. The document is one scroller shared by every
+  // view, so without this a view opened from a scrolled launcher (or the
+  // launcher reopened from a scrolled tool) inherited the old offset, and when
+  // the new view was shorter the browser clamped it — a visible jump. Layout
+  // effect, so the reset lands before the first paint of the new view.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [view])
+
+  // Warm the caches of the tools that live entirely in the cloud, so their
+  // first open shows data instead of a spinner followed by a full repaint.
+  // Idle-time and best-effort: a failed prefetch just means the view loads
+  // itself as before.
+  useEffect(() => {
+    if (!user) return
+    const run = () => {
+      if (grantedTools.includes('grocery')) void prefetchGrocery(user.id)
+      if (grantedTools.includes('wealth')) void prefetchWealth()
+    }
+    const t = window.setTimeout(run, 600)
+    return () => window.clearTimeout(t)
+  }, [user, grantedTools])
 
   // Portti. Kortin piilottaminen ruudukosta ei riitä: `view` säilyy komponentin
   // tilassa, ja jakolinkki (?g=…) osoittaa suoraan yhteen työkaluun. Ilman tätä

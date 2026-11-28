@@ -45,6 +45,16 @@ interface Props {
 // näkymän kaavioineen, mikä luki hyppivänä näkymänä. Taustahaku korjaa perässä.
 let wealthCache: { assets: Asset[]; values: AssetValue[]; settings: Settings } | null = null
 
+/** Warms the cache in the background after login so the first open shows the
+ *  portfolio instead of a spinner. Silent: on failure the view loads itself. */
+export async function prefetchWealth(): Promise<void> {
+  if (wealthCache) return
+  try {
+    const [a, v, s] = await Promise.all([listAssets(), listAllValues(), getSettings()])
+    if (!wealthCache) wealthCache = { assets: a, values: v, settings: s }
+  } catch { /* the view loads itself */ }
+}
+
 export function WealthView({ onOpenSettings }: Props) {
   const [assets, setAssets] = useState<Asset[]>(() => wealthCache?.assets ?? [])
   const [values, setValues] = useState<AssetValue[]>(() => wealthCache?.values ?? [])

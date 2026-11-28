@@ -30,6 +30,19 @@ function amountLabel(it: GroceryItem): string {
 // (?g=) ei välimuistiteta: se on oma lukittu tilansa eikä sinne palata.
 let ownCache: { list: GroceryList; items: GroceryItem[] } | null = null
 
+/** Lämmittää välimuistin taustalla kirjautumisen jälkeen, jotta ensimmäinenkin
+ *  avaus näyttää listan eikä latauspisteitä. Hiljainen: virhe tarkoittaa vain
+ *  että näkymä lataa itse kuten ennen. */
+export async function prefetchGrocery(userId: string): Promise<void> {
+  if (ownCache || sharedListIdFromUrl()) return
+  try {
+    const l = await getOrCreateList(userId)
+    if (!l) return
+    const its = await getItems(l.id)
+    if (!ownCache) ownCache = { list: l, items: its }
+  } catch { /* näkymä lataa itse */ }
+}
+
 export function GroceryView() {
   const { user } = useAuth()
   const cached = sharedListIdFromUrl() ? null : ownCache

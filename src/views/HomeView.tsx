@@ -63,6 +63,11 @@ interface Props {
   fitnessRemaining?: number
 }
 
+// Ruudukon porrastettu sisääntulo näytetään kerran per istunto. Koti on
+// paluupaikka: jos kortit häivittyisivät esiin joka paluulla, tuttu ruutu
+// näyttäisi latautuvan uudelleen joka kerta.
+let staggerPlayed = false
+
 export function HomeView({ setView, lastView, fitnessRemaining }: Props) {
   const { user } = useAuth()
   const { tools: granted, loading: toolsLoading, can } = useTools()
@@ -111,6 +116,9 @@ export function HomeView({ setView, lastView, fitnessRemaining }: Props) {
     if (user) syncPrefsCloud(user.id, prefs)
   }
 
+  const [stagger] = useState(() => !staggerPlayed)
+  useEffect(() => { staggerPlayed = true }, [])
+
   const now = new Date()
   const reorder = useDragReorder((fromId, toId) => persist(moveById(tools, fromId, toId)))
 
@@ -133,7 +141,7 @@ export function HomeView({ setView, lastView, fitnessRemaining }: Props) {
           Ladataan työkaluja…
         </p>
       )}
-      <div ref={reorder.containerRef} role="region" aria-label="Työkalut" className="list-stagger grid grid-flow-row-dense grid-cols-2 gap-3">
+      <div ref={reorder.containerRef} role="region" aria-label="Työkalut" className={`${stagger ? 'list-stagger ' : ''}grid grid-flow-row-dense grid-cols-2 gap-3`}>
         {tools.map((tool) => (
           <ToolTile
             key={tool.id}
